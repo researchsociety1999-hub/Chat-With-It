@@ -1,11 +1,18 @@
 {
   "name": "ani-chat",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "OpenRouter AI Chat Platform with free model discovery, file upload, token monitoring, and Markdown export",
   "scripts": {
-    "build": "",
-    "dev": "",
-    "start": ""
+    "dev": "npx serve -p 3000 -l localhost",
+    "start": "npx serve -p 3000 -l localhost",
+    "build": "echo 'Static site - no build step required'",
+    "lint": "echo 'No linter configured'"
+  },
+  "devDependencies": {
+    "serve": "^14.2.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
   }
 }
