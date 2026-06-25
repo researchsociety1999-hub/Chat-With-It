@@ -49,10 +49,13 @@ const Utils = {
   },
 
   /**
-   * Validate API key format (basic)
+   * Validate API key format (OpenAI sk-xxx or Anthropic sk-ant-xxx, minimum 20 chars)
    */
   isValidApiKey(key) {
-    return key && key.length > 10;
+    if (!key || typeof key !== "string") return false;
+      const trimmed = key.trim();
+      // OpenAI: sk-xxx (20+ chars) or Anthropic: sk-ant-xxx (20+ chars)
+      return (trimmed.startsWith("sk-") || trimmed.startsWith("sk-ant-")) && trimmed.length >= 20;
   },
 
   /**
