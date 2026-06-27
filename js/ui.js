@@ -60,7 +60,7 @@ const UI = {
       select.innerHTML = '';
       const defaultOption = document.createElement('option');
       defaultOption.value = 'none';
-      defaultOption.textContent = id === 'modelSelect' ? '— select a model —' : '— select model B —';
+      defaultOption.textContent = id === 'modelSelect' ? '\u2014 select a model \u2014' : '\u2014 select model B \u2014';
       select.appendChild(defaultOption);
 
       models.forEach(m => {
@@ -107,7 +107,7 @@ const UI = {
     const avatar = document.createElement('div');
     avatar.className = `avatar ${role}`;
     avatar.setAttribute('aria-hidden', 'true');
-    avatar.textContent = role === 'user' ? '👤' : '🤖';
+    avatar.textContent = role === 'user' ? '\uD83D\uDC64' : '\uD83E\uDD16';
 
     const col = document.createElement('div');
     col.className = 'bubble-col';
@@ -144,6 +144,79 @@ const UI = {
   },
 
   /**
+   * Create an empty streaming assistant bubble.
+   * Returns the bubble element so tokens can be appended into it.
+   */
+  createStreamBubble() {
+    const chat = this.el('chat');
+
+    const wrap = document.createElement('div');
+    wrap.className = 'msg-wrap assistant';
+    wrap.setAttribute('role', 'article');
+
+    const avatar = document.createElement('div');
+    avatar.className = 'avatar assistant';
+    avatar.setAttribute('aria-hidden', 'true');
+    avatar.textContent = '\uD83E\uDD16';
+
+    const col = document.createElement('div');
+    col.className = 'bubble-col';
+
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble assistant streaming';
+
+    const content = document.createElement('span');
+    content.className = 'bubble-stream-content';
+    bubble.appendChild(content);
+
+    const timestamp = document.createElement('div');
+    timestamp.className = 'msg-meta';
+    timestamp.textContent = new Date().toLocaleTimeString();
+    timestamp.setAttribute('aria-hidden', 'true');
+
+    col.appendChild(bubble);
+    col.appendChild(timestamp);
+    wrap.appendChild(avatar);
+    wrap.appendChild(col);
+
+    chat.appendChild(wrap);
+    chat.scrollTop = chat.scrollHeight;
+
+    return bubble;
+  },
+
+  /**
+   * Append a streaming token delta to a live stream bubble.
+   */
+  appendStreamToken(bubble, delta) {
+    const content = bubble.querySelector('.bubble-stream-content');
+    if (content) {
+      content.textContent += delta;
+      const chat = this.el('chat');
+      chat.scrollTop = chat.scrollHeight;
+    }
+  },
+
+  /**
+   * Finalise a stream bubble once all tokens have arrived.
+   * Parses the full Markdown content and replaces the raw streamed text.
+   */
+  finaliseStreamBubble(bubble, fullContent) {
+    bubble.classList.remove('streaming');
+    const content = bubble.querySelector('.bubble-stream-content');
+    if (!content) return;
+
+    Utils.parseMarkdown(fullContent)
+      .then(html => {
+        content.innerHTML = html;
+      })
+      .catch(e => {
+        console.error('Markdown finalise error:', e);
+        content.textContent = fullContent;
+      });
+  },
+
+  /**
    * Show typing indicator
    */
   showTyping(container = null) {
@@ -157,7 +230,7 @@ const UI = {
     const avatar = document.createElement('div');
     avatar.className = 'avatar assistant';
     avatar.setAttribute('aria-hidden', 'true');
-    avatar.textContent = '🤖';
+    avatar.textContent = '\uD83E\uDD16';
 
     const typing = document.createElement('div');
     typing.className = 'typing';
@@ -221,7 +294,7 @@ const UI = {
     const msgs = AppState.chatHistory.length;
     const turns = Math.floor(msgs / 2);
     const tokens = AppState.totalPromptTokens + AppState.totalCompletionTokens;
-    this.el('monitor').innerHTML = `📊 <b>${msgs}</b> msgs · <b>${turns}</b> turns · <b>${Utils.formatTokens(tokens)}</b> tokens`;
+    this.el('monitor').innerHTML = `\uD83D\uDCCA <b>${msgs}</b> msgs \u00B7 <b>${turns}</b> turns \u00B7 <b>${Utils.formatTokens(tokens)}</b> tokens`;
   },
 
   /**
@@ -264,6 +337,14 @@ const UI = {
         AppState.totalCompletionTokens
       );
     }
+  },
+
+  /**
+   * Toggle export menu
+   */
+  toggleExportMenu() {
+    const menu = this.el('export-menu');
+    if (menu) menu.classList.toggle('open');
   },
 
   /**

@@ -323,9 +323,13 @@ const App = {
     });
 
     document.addEventListener('click', (e) => {
-      const menu = UI.el('theme-menu');
-      if (!menu.contains(e.target) && e.target !== UI.el('themeBtn')) {
-        menu.classList.remove('open');
+      const themeMenu = UI.el('theme-menu');
+      if (!themeMenu.contains(e.target) && e.target !== UI.el('themeBtn')) {
+        themeMenu.classList.remove('open');
+      }
+      const exportMenu = UI.el('export-menu');
+      if (exportMenu && !exportMenu.contains(e.target) && e.target !== UI.el('exportBtn')) {
+        exportMenu.classList.remove('open');
       }
     });
 
@@ -442,13 +446,26 @@ const App = {
 
   /**
    * Setup export listeners
+   * FIX: exportBtn now toggles #export-menu (was incorrectly opening the stats panel)
    */
   setupExportListeners() {
-    UI.el('exportBtn').addEventListener('click', () => UI.toggleStats());
+    UI.el('exportBtn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      UI.toggleExportMenu();
+    });
 
-    UI.el('expMD').addEventListener('click', () => this.exportAs('markdown'));
-    UI.el('expJSON').addEventListener('click', () => this.exportAs('json'));
-    UI.el('expTXT').addEventListener('click', () => this.exportAs('text'));
+    UI.el('expMD').addEventListener('click', () => {
+      this.exportAs('markdown');
+      UI.toggleExportMenu();
+    });
+    UI.el('expJSON').addEventListener('click', () => {
+      this.exportAs('json');
+      UI.toggleExportMenu();
+    });
+    UI.el('expTXT').addEventListener('click', () => {
+      this.exportAs('text');
+      UI.toggleExportMenu();
+    });
   },
 
   /**
