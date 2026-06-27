@@ -129,7 +129,9 @@ const API = {
 
   /**
    * @deprecated Use sendMessageStream() instead.
-   * Kept for backward compatibility; delegates to sendMessageStream.
+   * This method also streams internally but blocks until the full response
+   * is collected before returning — it provides no real-time token delivery.
+   * Kept for backward compatibility only; no new callers should use it.
    */
   async sendMessage(messages, modelId, options = {}) {
     return this.sendMessageStream(messages, modelId, null, options);
@@ -138,8 +140,8 @@ const API = {
   /**
    * Send message with real-time streaming.
    * Calls onToken(delta) for every text chunk as it arrives.
-   * Returns { choices, usage } — usage has prompt/completion token counts
-   * (from the provider's final SSE chunk when available, otherwise estimated).
+   * Returns { choices, usage } where usage contains prompt/completion token counts
+   * (from the provider's final SSE usage chunk if available, otherwise estimated).
    */
   async sendMessageStream(messages, modelId, onToken, options = {}) {
     const rateCheck = AppState.canMakeRequest();
@@ -208,6 +210,7 @@ const API = {
             if (data === '[DONE]') continue;
             try {
               const chunk = JSON.parse(data);
+              // Capture usage from final provider chunk (OpenRouter sends this)
               if (chunk.usage) usage = chunk.usage;
               const delta = chunk.choices?.[0]?.delta?.content || '';
               content += delta;
@@ -217,6 +220,7 @@ const API = {
         }
       }
 
+      // Build usage: prefer provider-supplied counts, fall back to char-based estimate
       const promptTokens = usage?.prompt_tokens ?? Math.ceil(
         messages.reduce((sum, m) => sum + (m.content?.length || 0), 0) / 4
       );
@@ -283,7 +287,7 @@ const API = {
         completionTokens: usage.completion_tokens || 0
       };
     }
-    // Streaming responses often lack usage — estimate from content (~4 chars/token)
+    // Streaming responses often lack usage — estimate (~4 chars per token)
     const content = response?.choices?.[0]?.message?.content || '';
     return { promptTokens: 0, completionTokens: Math.ceil(content.length / 4) };
   },
