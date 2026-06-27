@@ -128,7 +128,7 @@ const API = {
   },
 
   /**
-   * Send chat message with streaming support preparation
+   * Send chat message (collects full streamed response before returning)
    */
   async sendMessage(messages, modelId, options = {}) {
     if (!AppState.canMakeRequest()) {
@@ -149,7 +149,7 @@ const API = {
       temperature: options.temperature || AppState.temperature,
       max_tokens: options.maxTokens || AppState.maxTokens,
       top_p: options.topP || 0.95,
-                  stream: true,
+      stream: true,
     };
 
     const headers = {
@@ -176,48 +176,54 @@ const API = {
       }
 
       const reader = response.body.getReader();
-            const decoder = new TextDecoder('utf-8');
-            let content = '';
-            let buffer = '';
-            while (true) {
-              const { done, value } = await reader.read();
-              if (done) break;
-              buffer += decoder.decode(value, { stream: true });
-              const lines = buffer.split('\n');
-              buffer = lines.pop() || '';
-              for (const line of lines) {
-                if (line.startsWith('data: ')) {
-                  const data = line.slice(6);
-                  if (data === '[DONE]') break;
-                  try {
-                    const chunk = JSON.parse(data);
-                    const delta = chunk.choices?.[0]?.delta?.content || '';
-                    content += delta;
-                  } catch (e) { /* skip invalid JSON */ }
-                }
-              }
-            }
-            return { choices: [{ message: { content } }] };
+      const decoder = new TextDecoder('utf-8');
+      let content = '';
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6);
+            if (data === '[DONE]') break;
+            try {
+              const chunk = JSON.parse(data);
+              const delta = chunk.choices?.[0]?.delta?.content || '';
+              content += delta;
+            } catch (e) { /* skip invalid JSON */ }
+          }
+        }
+      }
+
+      return { choices: [{ message: { content } }] };
     } catch (error) {
       if (error.name === 'AbortError') {
         throw new Error('Request cancelled by user');
       }
       throw error;
     }
-  
+  },
+
   /**
-   * Send message with streaming response (tokens arrive in real time)
+   * Send message with streaming response (tokens arrive in real time via onToken callback)
    */
   async sendMessageStream(messages, modelId, onToken, options = {}) {
     if (!AppState.canMakeRequest()) {
       throw new Error('Rate limit exceeded. Please wait before sending another message.');
     }
+
     AppState.recordRequest();
     const provider = this.getProvider();
     const token = AppState.getAuthToken();
+
     if (!token) {
       throw new Error('Not authenticated. Please provide API credentials.');
     }
+
     const payload = {
       model: modelId,
       messages: messages,
@@ -226,11 +232,13 @@ const API = {
       top_p: options.topP || 0.95,
       stream: true,
     };
+
     const headers = {
       'Content-Type': 'application/json',
       [provider.authHeader]: `Bearer ${token}`,
       ...provider.extraHeaders
     };
+
     try {
       const response = await this.fetchWithTimeout(
         `${provider.baseUrl}${provider.chatEndpoint}`,
@@ -242,14 +250,17 @@ const API = {
         },
         60000
       );
+
       if (!response.ok) {
         const error = await response.text();
         throw new Error(`API Error ${response.status}: ${error}`);
       }
+
       const reader = response.body.getReader();
       const decoder = new TextDecoder('utf-8');
       let content = '';
       let buffer = '';
+
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -269,6 +280,7 @@ const API = {
           }
         }
       }
+
       return { choices: [{ message: { content } }] };
     } catch (error) {
       if (error.name === 'AbortError') {
@@ -276,7 +288,7 @@ const API = {
       }
       throw error;
     }
-  },},
+  },
 
   /**
    * Fetch with timeout
