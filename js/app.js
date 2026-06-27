@@ -25,7 +25,7 @@ const App = {
       // Load saved models
       await this.refreshModels();
 
-      UI.toast('✅ ChatWithIt loaded successfully', 'success');
+      UI.toast('\u2705 ChatWithIt loaded successfully', 'success');
       console.log('Application initialized');
     } catch (error) {
       console.error('Initialization error:', error);
@@ -74,7 +74,7 @@ const App = {
       if (key && Utils.isValidApiKey(key)) {
         AppState.apiKey = key;
         AppState.isAuthenticated = true;
-        UI.setStatus('✓ OpenRouter authenticated', 'ok');
+        UI.setStatus('\u2713 OpenRouter authenticated', 'ok');
       }
     });
 
@@ -84,7 +84,7 @@ const App = {
       if (token && Utils.isValidApiKey(token)) {
         AppState.hfToken = token;
         AppState.isAuthenticated = true;
-        UI.setStatus('✓ Hugging Face authenticated', 'ok', true);
+        UI.setStatus('\u2713 Hugging Face authenticated', 'ok', true);
       }
     });
   },
@@ -105,8 +105,8 @@ const App = {
     }
 
     AppState.apiKey = key;
-    UI.setStatus('✓ Authenticated with OpenRouter', 'ok');
-    UI.toast('✅ OpenRouter authenticated', 'success');
+    UI.setStatus('\u2713 Authenticated with OpenRouter', 'ok');
+    UI.toast('\u2705 OpenRouter authenticated', 'success');
     await this.refreshModels();
   },
 
@@ -126,8 +126,8 @@ const App = {
     }
 
     AppState.hfToken = token;
-    UI.setStatus('✓ Authenticated with Hugging Face', 'ok', true);
-    UI.toast('✅ Hugging Face authenticated', 'success');
+    UI.setStatus('\u2713 Authenticated with Hugging Face', 'ok', true);
+    UI.toast('\u2705 Hugging Face authenticated', 'success');
     await this.refreshModels();
   },
 
@@ -144,7 +144,7 @@ const App = {
       UI.el('hfToken').value = '';
       UI.setStatus('Hugging Face token cleared', 'info', true);
     }
-    UI.toast(`🗑️ ${provider} credentials removed`, 'warning');
+    UI.toast(`\uD83D\uDDD1\uFE0F ${provider} credentials removed`, 'warning');
   },
 
   /**
@@ -157,8 +157,8 @@ const App = {
       AppState.allModels = models;
       models.forEach(m => AppState.modelContextMap[m.id] = m.ctx);
       UI.populateModels(models);
-      UI.setStatus(`✓ ${models.length} models loaded`, 'ok');
-      UI.toast(`✅ ${models.length} models available`, 'success');
+      UI.setStatus(`\u2713 ${models.length} models loaded`, 'ok');
+      UI.toast(`\u2705 ${models.length} models available`, 'success');
     } catch (error) {
       console.error('Failed to refresh models:', error);
       UI.setStatus('Failed to fetch models', 'error');
@@ -212,7 +212,7 @@ const App = {
   },
 
   /**
-   * Send message
+   * Send message with real-time token streaming
    */
   async sendMessage() {
     const input = UI.el('userInput');
@@ -256,21 +256,26 @@ const App = {
       // Create abort controller for this request
       API.createAbortController();
 
-      // Send to API
-      const response = await API.sendMessage(
+      // Remove typing indicator and create an empty assistant bubble to stream into
+      UI.removeTyping();
+      const streamBubble = UI.createStreamBubble();
+
+      // Stream tokens directly into the live bubble as they arrive
+      const response = await API.sendMessageStream(
         messages,
         AppState.selectedModel,
+        (delta) => {
+          UI.appendStreamToken(streamBubble, delta);
+        },
         {
           temperature: AppState.temperature,
           maxTokens: AppState.maxTokens
         }
       );
 
-      UI.removeTyping();
-
-      // Extract response
+      // Full content is now in response; finalise the bubble (render Markdown, add copy button etc.)
       const assistantMessage = response.choices?.[0]?.message?.content || 'No response';
-      UI.appendMessage('assistant', assistantMessage);
+      UI.finaliseStreamBubble(streamBubble, assistantMessage);
       AppState.addMessage('assistant', assistantMessage);
 
       // Update token stats
@@ -285,7 +290,7 @@ const App = {
       console.error('Message send error:', error);
       const errorMsg = error.message || 'Failed to get response';
       UI.toast(`Error: ${errorMsg}`, 'error');
-      UI.appendMessage('assistant', `❌ Error: ${errorMsg}`);
+      UI.appendMessage('assistant', `\u274C Error: ${errorMsg}`);
     } finally {
       UI.setSendButtonState(true);
     }
@@ -461,7 +466,7 @@ const App = {
     if (format === 'markdown') {
       content = `# ChatWithIt Conversation\n\n*Exported: ${timestamp}*\n\n`;
       AppState.chatHistory.forEach(msg => {
-        const role = msg.role === 'user' ? '👤 You' : '🤖 AI';
+        const role = msg.role === 'user' ? '\uD83D\uDC64 You' : '\uD83E\uDD16 AI';
         content += `## ${role}\n\n${msg.content}\n\n---\n\n`;
       });
     } else if (format === 'json') {
@@ -487,7 +492,7 @@ const App = {
     const filename = `chat-export-${Date.now()}.${format === 'markdown' ? 'md' : format === 'json' ? 'json' : 'txt'}`;
     const mimeType = format === 'markdown' ? 'text/markdown' : format === 'json' ? 'application/json' : 'text/plain';
     Utils.downloadAsFile(content, filename, mimeType);
-    UI.toast('✅ Conversation exported', 'success');
+    UI.toast('\u2705 Conversation exported', 'success');
   },
 };
 
