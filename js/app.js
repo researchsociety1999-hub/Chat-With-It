@@ -9,11 +9,9 @@ const App = {
    */
   async init() {
     try {
-      // Initialize state
       AppState.init();
       UI.loadTheme();
 
-      // Setup event listeners
       this.setupProviderListeners();
       this.setupAuthListeners();
       this.setupModelListeners();
@@ -22,7 +20,6 @@ const App = {
       this.setupSearchListeners();
       this.setupExportListeners();
 
-      // Load saved models
       await this.refreshModels();
 
       UI.toast('\u2705 ChatWithIt loaded successfully', 'success');
@@ -43,7 +40,6 @@ const App = {
       this.updateAuthUI();
       AppState.persistState();
     });
-
     this.updateAuthUI();
   },
 
@@ -60,30 +56,23 @@ const App = {
    * Setup authentication listeners
    */
   setupAuthListeners() {
-    // OpenRouter auth
     UI.el('authBtn').addEventListener('click', () => this.authenticateOpenRouter());
     UI.el('clearOrKey').addEventListener('click', () => this.clearAuth('openrouter'));
-
-    // Hugging Face auth
     UI.el('hfAuthBtn').addEventListener('click', () => this.authenticateHuggingFace());
     UI.el('clearHfKey').addEventListener('click', () => this.clearAuth('huggingface'));
 
-    // API key input
     UI.el('apiKey').addEventListener('blur', () => {
       const key = UI.el('apiKey').value.trim();
       if (key && Utils.isValidApiKey(key)) {
         AppState.apiKey = key;
-        AppState.isAuthenticated = true;
         UI.setStatus('\u2713 OpenRouter authenticated', 'ok');
       }
     });
 
-    // HF token input
     UI.el('hfToken').addEventListener('blur', () => {
       const token = UI.el('hfToken').value.trim();
       if (token && Utils.isValidApiKey(token)) {
         AppState.hfToken = token;
-        AppState.isAuthenticated = true;
         UI.setStatus('\u2713 Hugging Face authenticated', 'ok', true);
       }
     });
@@ -94,16 +83,8 @@ const App = {
    */
   async authenticateOpenRouter() {
     const key = UI.el('apiKey').value.trim();
-    if (!key) {
-      UI.setStatus('Please enter your API key', 'error');
-      return;
-    }
-
-    if (!Utils.isValidApiKey(key)) {
-      UI.setStatus('API key appears to be invalid', 'error');
-      return;
-    }
-
+    if (!key) { UI.setStatus('Please enter your API key', 'error'); return; }
+    if (!Utils.isValidApiKey(key)) { UI.setStatus('API key appears to be invalid', 'error'); return; }
     AppState.apiKey = key;
     UI.setStatus('\u2713 Authenticated with OpenRouter', 'ok');
     UI.toast('\u2705 OpenRouter authenticated', 'success');
@@ -115,16 +96,8 @@ const App = {
    */
   async authenticateHuggingFace() {
     const token = UI.el('hfToken').value.trim();
-    if (!token) {
-      UI.setStatus('Please enter your HF token', 'error', true);
-      return;
-    }
-
-    if (!Utils.isValidApiKey(token)) {
-      UI.setStatus('Token appears to be invalid', 'error', true);
-      return;
-    }
-
+    if (!token) { UI.setStatus('Please enter your HF token', 'error', true); return; }
+    if (!Utils.isValidApiKey(token)) { UI.setStatus('Token appears to be invalid', 'error', true); return; }
     AppState.hfToken = token;
     UI.setStatus('\u2713 Authenticated with Hugging Face', 'ok', true);
     UI.toast('\u2705 Hugging Face authenticated', 'success');
@@ -174,11 +147,9 @@ const App = {
       AppState.selectedModel = e.target.value;
       UI.updateBadge();
     });
-
     UI.el('modelSelectB').addEventListener('change', (e) => {
       AppState.selectedModelB = e.target.value;
     });
-
     UI.el('refreshModels').addEventListener('click', () => this.refreshModels());
   },
 
@@ -189,7 +160,6 @@ const App = {
     const userInput = UI.el('userInput');
     const sendBtn = UI.el('sendBtn');
 
-    // Send on Enter, new line on Shift+Enter
     userInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
@@ -197,13 +167,8 @@ const App = {
       }
     });
 
-    // Update character count
     userInput.addEventListener('input', (e) => {
       UI.updateCharCount(e.target.value.length);
-    });
-
-    // Auto-resize textarea
-    userInput.addEventListener('input', (e) => {
       e.target.style.height = 'auto';
       e.target.style.height = Math.min(e.target.scrollHeight, 160) + 'px';
     });
@@ -212,24 +177,22 @@ const App = {
   },
 
   /**
-   * Send message with real-time token streaming
+   * Send message with real-time token streaming.
+   * Respects rate limiting — shows a countdown toast instead of silently dropping.
    */
   async sendMessage() {
     const input = UI.el('userInput');
     const message = input.value.trim();
 
-    if (!message) {
-      UI.toast('Message cannot be empty', 'warning');
-      return;
-    }
+    if (!message) { UI.toast('Message cannot be empty', 'warning'); return; }
+    if (AppState.selectedModel === 'none') { UI.toast('Please select a model first', 'warning'); return; }
+    if (!AppState.getAuthToken()) { UI.toast('Please authenticate first', 'error'); return; }
 
-    if (AppState.selectedModel === 'none') {
-      UI.toast('Please select a model first', 'warning');
-      return;
-    }
-
-    if (!AppState.getAuthToken()) {
-      UI.toast('Please authenticate first', 'error');
+    // Rate limit check — show countdown instead of silent drop
+    const rateCheck = AppState.canMakeRequest();
+    if (!rateCheck.allowed) {
+      const secs = Math.ceil(rateCheck.retryAfterMs / 1000);
+      UI.toast(`\u23F3 Rate limited \u2014 try again in ${secs}s`, 'warning');
       return;
     }
 
@@ -244,47 +207,29 @@ const App = {
       UI.setSendButtonState(false);
       UI.showTyping();
 
-      // Prepare messages with system prompt
       const messages = [
         { role: 'system', content: AppState.currentPersonaPrompt },
-        ...AppState.chatHistory.map(m => ({
-          role: m.role,
-          content: m.content
-        }))
+        ...AppState.chatHistory.map(m => ({ role: m.role, content: m.content }))
       ];
 
-      // Create abort controller for this request
       API.createAbortController();
-
-      // Remove typing indicator and create an empty assistant bubble to stream into
       UI.removeTyping();
       const streamBubble = UI.createStreamBubble();
 
-      // Stream tokens directly into the live bubble as they arrive
       const response = await API.sendMessageStream(
         messages,
         AppState.selectedModel,
-        (delta) => {
-          UI.appendStreamToken(streamBubble, delta);
-        },
-        {
-          temperature: AppState.temperature,
-          maxTokens: AppState.maxTokens
-        }
+        (delta) => UI.appendStreamToken(streamBubble, delta),
+        { temperature: AppState.temperature, maxTokens: AppState.maxTokens }
       );
 
-      // Full content is now in response; finalise the bubble (render Markdown, add copy button etc.)
       const assistantMessage = response.choices?.[0]?.message?.content || 'No response';
       UI.finaliseStreamBubble(streamBubble, assistantMessage);
       AppState.addMessage('assistant', assistantMessage);
 
-      // Update token stats
       const usage = API.extractTokenUsage(response);
       AppState.updateTokens(usage.promptTokens, usage.completionTokens);
-      UI.updateStats(
-        AppState.totalPromptTokens,
-        AppState.totalCompletionTokens
-      );
+      UI.updateStats(AppState.totalPromptTokens, AppState.totalCompletionTokens);
     } catch (error) {
       UI.removeTyping();
       console.error('Message send error:', error);
@@ -300,7 +245,7 @@ const App = {
    * Setup UI listeners
    */
   setupUIListeners() {
-    // Sidebar toggle
+    // Sidebar
     UI.el('sidebarToggle').addEventListener('click', () => UI.toggleSidebar());
     UI.el('mobileOverlay').addEventListener('click', () => UI.toggleSidebar());
 
@@ -322,9 +267,10 @@ const App = {
       UI.el('theme-menu').classList.toggle('open');
     });
 
+    // Close dropdowns on outside click
     document.addEventListener('click', (e) => {
       const themeMenu = UI.el('theme-menu');
-      if (!themeMenu.contains(e.target) && e.target !== UI.el('themeBtn')) {
+      if (themeMenu && !themeMenu.contains(e.target) && e.target !== UI.el('themeBtn')) {
         themeMenu.classList.remove('open');
       }
       const exportMenu = UI.el('export-menu');
@@ -349,7 +295,6 @@ const App = {
       UI.el('tempVal').textContent = e.target.value;
       AppState.persistState();
     });
-
     UI.el('maxTokensSlider').addEventListener('input', (e) => {
       AppState.maxTokens = parseInt(e.target.value);
       UI.el('maxTokensVal').textContent = e.target.value;
@@ -362,14 +307,29 @@ const App = {
         document.querySelectorAll('.persona-card').forEach(c => c.classList.remove('active'));
         e.currentTarget.classList.add('active');
         AppState.currentPersonaPrompt = e.currentTarget.dataset.prompt;
+        AppState.persistState();
       });
-      // Keyboard support for persona cards
       card.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          card.click();
-        }
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); card.click(); }
       });
+    });
+
+    // Restore active persona card from persisted state
+    const savedPrompt = AppState.currentPersonaPrompt;
+    document.querySelectorAll('.persona-card').forEach(card => {
+      if (card.dataset.prompt === savedPrompt) card.classList.add('active');
+    });
+
+    // Escape key: close shortcuts modal (and any open dropdown)
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        const modal = UI.el('shortcuts-modal');
+        if (modal) modal.classList.remove('open');
+        const exportMenu = UI.el('export-menu');
+        if (exportMenu) exportMenu.classList.remove('open');
+        const themeMenu = UI.el('theme-menu');
+        if (themeMenu) themeMenu.classList.remove('open');
+      }
     });
   },
 
@@ -379,11 +339,7 @@ const App = {
   setupSearchListeners() {
     UI.el('searchBtn').addEventListener('click', () => UI.showSearchOverlay());
     UI.el('search-close').addEventListener('click', () => UI.hideSearchOverlay());
-
-    UI.el('search-input-box').addEventListener('input', (e) => {
-      this.searchMessages(e.target.value);
-    });
-
+    UI.el('search-input-box').addEventListener('input', (e) => this.searchMessages(e.target.value));
     UI.el('search-prev').addEventListener('click', () => this.navigateSearch(-1));
     UI.el('search-next').addEventListener('click', () => this.navigateSearch(1));
   },
@@ -398,18 +354,13 @@ const App = {
       UI.el('search-results-count').textContent = '';
       return;
     }
-
-    const chat = UI.el('chat');
-    const bubbles = chat.querySelectorAll('.bubble');
+    const bubbles = UI.el('chat').querySelectorAll('.bubble');
     AppState.searchMatches = [];
-
     bubbles.forEach(bubble => {
-      const text = bubble.textContent.toLowerCase();
-      if (text.includes(AppState.searchQuery)) {
+      if (bubble.textContent.toLowerCase().includes(AppState.searchQuery)) {
         AppState.searchMatches.push(bubble);
       }
     });
-
     AppState.searchCurrent = 0;
     this.highlightSearchResult();
     UI.el('search-results-count').textContent = `${AppState.searchMatches.length} results`;
@@ -430,10 +381,7 @@ const App = {
    * Highlight current search result
    */
   highlightSearchResult() {
-    document.querySelectorAll('.search-highlight.current').forEach(el => {
-      el.classList.remove('current');
-    });
-
+    document.querySelectorAll('.search-highlight.current').forEach(el => el.classList.remove('current'));
     if (AppState.searchMatches.length > 0) {
       const current = AppState.searchMatches[AppState.searchCurrent];
       const highlight = current.querySelector('.search-highlight');
@@ -446,40 +394,24 @@ const App = {
 
   /**
    * Setup export listeners
-   * FIX: exportBtn now toggles #export-menu (was incorrectly opening the stats panel)
    */
   setupExportListeners() {
     UI.el('exportBtn').addEventListener('click', (e) => {
       e.stopPropagation();
       UI.toggleExportMenu();
     });
-
-    UI.el('expMD').addEventListener('click', () => {
-      this.exportAs('markdown');
-      UI.toggleExportMenu();
-    });
-    UI.el('expJSON').addEventListener('click', () => {
-      this.exportAs('json');
-      UI.toggleExportMenu();
-    });
-    UI.el('expTXT').addEventListener('click', () => {
-      this.exportAs('text');
-      UI.toggleExportMenu();
-    });
+    UI.el('expMD').addEventListener('click', () => { this.exportAs('markdown'); UI.toggleExportMenu(); });
+    UI.el('expJSON').addEventListener('click', () => { this.exportAs('json'); UI.toggleExportMenu(); });
+    UI.el('expTXT').addEventListener('click', () => { this.exportAs('text'); UI.toggleExportMenu(); });
   },
 
   /**
    * Export conversation
    */
   exportAs(format) {
-    if (AppState.chatHistory.length === 0) {
-      UI.toast('No messages to export', 'warning');
-      return;
-    }
-
+    if (AppState.chatHistory.length === 0) { UI.toast('No messages to export', 'warning'); return; }
     let content = '';
     const timestamp = new Date().toISOString();
-
     if (format === 'markdown') {
       content = `# ChatWithIt Conversation\n\n*Exported: ${timestamp}*\n\n`;
       AppState.chatHistory.forEach(msg => {
@@ -487,7 +419,7 @@ const App = {
         content += `## ${role}\n\n${msg.content}\n\n---\n\n`;
       });
     } else if (format === 'json') {
-      const data = {
+      content = JSON.stringify({
         exported: timestamp,
         model: AppState.selectedModel,
         messages: AppState.chatHistory,
@@ -496,65 +428,36 @@ const App = {
           promptTokens: AppState.totalPromptTokens,
           completionTokens: AppState.totalCompletionTokens
         }
-      };
-      content = JSON.stringify(data, null, 2);
+      }, null, 2);
     } else {
       content = `ChatWithIt Conversation\nExported: ${timestamp}\n\n`;
       AppState.chatHistory.forEach(msg => {
-        const role = msg.role === 'user' ? 'You' : 'AI';
-        content += `[${role}] ${msg.content}\n\n`;
+        content += `[${msg.role === 'user' ? 'You' : 'AI'}] ${msg.content}\n\n`;
       });
     }
-
-    const filename = `chat-export-${Date.now()}.${format === 'markdown' ? 'md' : format === 'json' ? 'json' : 'txt'}`;
-    const mimeType = format === 'markdown' ? 'text/markdown' : format === 'json' ? 'application/json' : 'text/plain';
-    Utils.downloadAsFile(content, filename, mimeType);
+    const ext = format === 'markdown' ? 'md' : format === 'json' ? 'json' : 'txt';
+    const mime = format === 'markdown' ? 'text/markdown' : format === 'json' ? 'application/json' : 'text/plain';
+    Utils.downloadAsFile(content, `chat-export-${Date.now()}.${ext}`, mime);
     UI.toast('\u2705 Conversation exported', 'success');
   },
 };
 
 // Initialize app when DOM is ready
-document.addEventListener('DOMContentLoaded', () => {
-  App.init();
-});
+document.addEventListener('DOMContentLoaded', () => App.init());
 
 // Keyboard shortcuts
 document.addEventListener('keydown', (e) => {
-  // Ctrl+L: Clear chat
-  if ((e.ctrlKey || e.metaKey) && e.key === 'l') {
-    e.preventDefault();
-    UI.el('clearBtn').click();
-  }
-  // Ctrl+S: Export
-  if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-    e.preventDefault();
-    UI.el('exportBtn').click();
-  }
-  // Ctrl+F: Search
-  if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
-    e.preventDefault();
-    UI.showSearchOverlay();
-  }
-  // Ctrl+B: Toggle sidebar
-  if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
-    e.preventDefault();
-    UI.toggleSidebar();
-  }
-  // Ctrl+I: Toggle stats
-  if ((e.ctrlKey || e.metaKey) && e.key === 'i') {
-    e.preventDefault();
-    UI.toggleStats();
-  }
-  // ?: Show shortcuts
-  if (e.key === '?') {
-    e.preventDefault();
-    const modal = UI.el('shortcuts-modal');
-    modal.classList.toggle('open');
-  }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'l') { e.preventDefault(); UI.el('clearBtn').click(); }
+  if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); UI.el('exportBtn').click(); }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'f') { e.preventDefault(); UI.showSearchOverlay(); }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'b') { e.preventDefault(); UI.toggleSidebar(); }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'i') { e.preventDefault(); UI.toggleStats(); }
+  if (e.key === '?') { e.preventDefault(); UI.el('shortcuts-modal')?.classList.toggle('open'); }
 });
 
-// Prevent accidental page navigation
+// Cancel any in-flight stream before the page unloads
 window.addEventListener('beforeunload', (e) => {
+  API.cancelRequest();
   if (AppState.chatHistory.length > 0) {
     e.preventDefault();
     e.returnValue = '';

@@ -8,31 +8,28 @@ const AppState = {
   currentProvider: 'openrouter',
   apiKey: '',
   hfToken: '',
-  isAuthenticated: false,
 
   // Chat & Messages
   chatHistory: [],
-  attachedFiles: [],
   isTyping: false,
   currentBubble: null,
 
   // Models & Settings
   selectedModel: 'none',
+  // selectedModelB retained: compare-mode is a planned feature with partial UI wiring
   selectedModelB: 'none',
   allModels: [],
   modelContextMap: {},
   currentPersonaPrompt: 'You are a helpful AI assistant. Be concise, accurate, and developer-friendly. Use Markdown formatting in your responses.',
-  systemPrompt: '',
   temperature: 0.7,
   maxTokens: 1024,
 
   // UI State
+  // compareMode retained: planned feature
   compareMode: false,
   searchActive: false,
   sidebarOpen: false,
   statsOpen: false,
-  plainMode: false,
-  voiceRecording: false,
 
   // Analytics
   totalPromptTokens: 0,
@@ -51,6 +48,7 @@ const AppState = {
 
   // API Requests
   abortController: null,
+  // requestQueue: kept as a stub for future queuing implementation
   requestQueue: [],
   requestLimitPerMinute: 30,
   lastRequestTime: 0,
@@ -71,12 +69,11 @@ const AppState = {
       const stored = localStorage.getItem('cwiState');
       if (stored) {
         const parsed = JSON.parse(stored);
-        // Only restore safe, non-sensitive data
         if (parsed.currentProvider) this.currentProvider = parsed.currentProvider;
         if (parsed.temperature !== undefined) this.temperature = parsed.temperature;
         if (parsed.maxTokens) this.maxTokens = parsed.maxTokens;
         if (parsed.currentPersonaPrompt) this.currentPersonaPrompt = parsed.currentPersonaPrompt;
-        // NOTE: API keys are NOT loaded from storage
+        // NOTE: API keys are intentionally NOT loaded from storage
       }
     } catch (e) {
       console.error('Failed to load persisted state:', e);
@@ -132,13 +129,19 @@ const AppState = {
   },
 
   /**
-   * Check rate limit
+   * Check rate limit.
+   * Returns { allowed: true } when the request can proceed immediately.
+   * Returns { allowed: false, retryAfterMs: number } when the caller should
+   * wait and show the user a countdown (retryAfterMs milliseconds remaining).
    */
   canMakeRequest() {
     const now = Date.now();
-    const timeSinceLastRequest = now - this.lastRequestTime;
-    const minDelayMs = (60000 / this.requestLimitPerMinute);
-    return timeSinceLastRequest >= minDelayMs;
+    const minDelayMs = Math.ceil(60000 / this.requestLimitPerMinute);
+    const elapsed = now - this.lastRequestTime;
+    if (elapsed >= minDelayMs) {
+      return { allowed: true, retryAfterMs: 0 };
+    }
+    return { allowed: false, retryAfterMs: minDelayMs - elapsed };
   },
 
   /**
@@ -158,7 +161,6 @@ const AppState = {
     this.turnTokens = [];
     this.sessionStats.messageCount = 0;
     this.sessionStats.turnCount = 0;
-    this.attachedFiles = [];
   },
 
   /**
@@ -168,7 +170,6 @@ const AppState = {
     this.clearChat();
     this.apiKey = '';
     this.hfToken = '';
-    this.isAuthenticated = false;
     this.selectedModel = 'none';
     this.selectedModelB = 'none';
   },
@@ -177,8 +178,7 @@ const AppState = {
    * Get context usage percentage
    */
   getContextUsage() {
-    const modelId = this.selectedModel;
-    const ctxSize = this.modelContextMap[modelId] || 8192;
+    const ctxSize = this.modelContextMap[this.selectedModel] || 8192;
     const used = this.totalPromptTokens + this.totalCompletionTokens;
     return Math.min(used / ctxSize, 1);
   },
@@ -198,14 +198,16 @@ const AppState = {
   },
 
   /**
-   * Get current auth token
+   * Get current auth token.
+   * This is the canonical authentication check — prefer this over any
+   * boolean isAuthenticated flag, which can go stale.
    */
   getAuthToken() {
     return this.currentProvider === 'openrouter' ? this.apiKey : this.hfToken;
   },
 
   /**
-   * Check authentication status
+   * Check authentication status for a specific provider
    */
   isAuthenticatedFor(provider) {
     if (provider === 'openrouter') return !!this.apiKey;
@@ -213,6 +215,5 @@ const AppState = {
     return false;
   },
 };
-
-// Freeze the AppState object to prevent accidental modifications
-Object.seal(AppState);
+// NOTE: Object.seal() removed — it silently swallowed new property assignments
+// in sloppy mode and would throw in strict mode, breaking future feature additions.
