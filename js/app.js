@@ -275,22 +275,14 @@ const App = {
       }
       const exportMenu = UI.el('export-menu');
       if (exportMenu && !exportMenu.contains(e.target) && e.target !== UI.el('exportBtn')) {
-        exportMenu.style.display = 'none';
+        exportMenu.classList.remove('open');
       }
-    });
-
-    // Toggle export menu
-    UI.el('exportBtn').addEventListener('click', (e) => {
-      e.stopPropagation();
-      const menu = UI.el('export-menu');
-      if (menu) menu.style.display = menu.style.display === 'flex' ? 'none' : 'flex';
     });
 
     // Theme options
     document.querySelectorAll('.theme-opt').forEach(opt => {
       opt.addEventListener('click', (e) => {
         const theme = e.target.dataset.theme;
-        if (!theme) return; // skip export menu items which reuse .theme-opt
         UI.setTheme(theme);
         UI.el('theme-menu').classList.remove('open');
         UI.toast(`Theme changed to ${e.target.textContent}`, 'info');
@@ -311,22 +303,30 @@ const App = {
 
     // Persona cards
     document.querySelectorAll('.persona-card').forEach(card => {
-      card.addEventListener('click', (e) => {
-        const persona = e.currentTarget.dataset.persona;
-        if (persona) {
-          AppState.currentPersonaPrompt = persona;
-          document.querySelectorAll('.persona-card').forEach(c => c.classList.remove('active'));
-          e.currentTarget.classList.add('active');
-          UI.toast('\uD83C\uDFAD Persona activated', 'info');
-        }
+      card.addEventListener('click', () => {
+        document.querySelectorAll('.persona-card').forEach(c => c.classList.remove('active'));
+        card.classList.add('active');
+        AppState.currentPersonaPrompt = card.dataset.prompt || AppState.defaultPersonaPrompt;
+        UI.toast(`Persona: ${card.querySelector('strong')?.textContent || 'Custom'}`, 'info');
       });
     });
 
-    // Keyboard shortcuts modal toggle
-    UI.el('shortcutsBtn').addEventListener('click', () => {
-      const modal = UI.el('shortcuts-modal');
-      if (modal) modal.classList.toggle('open');
+    // Stop button
+    UI.el('stopBtn').addEventListener('click', () => {
+      API.cancelRequest();
+      UI.setSendButtonState(true);
+      UI.removeTyping();
+      UI.toast('\u23F9 Response stopped', 'warning');
     });
+
+    // Keyboard shortcuts modal toggle
+    const shortcutsBtn = UI.el('shortcutsBtn');
+    if (shortcutsBtn) {
+      shortcutsBtn.addEventListener('click', () => {
+        const modal = UI.el('shortcuts-modal');
+        if (modal) modal.classList.toggle('open');
+      });
+    }
     const shortcutsModal = UI.el('shortcuts-modal');
     if (shortcutsModal) {
       shortcutsModal.addEventListener('click', (e) => {
@@ -335,21 +335,24 @@ const App = {
     }
 
     // Compare mode toggle
-    UI.el('compareBtn').addEventListener('click', () => {
-      const isCompare = document.body.classList.toggle('compare-mode');
-      const cmpSection = UI.el('cmp-model-section');
-      if (cmpSection) cmpSection.style.display = isCompare ? 'flex' : 'none';
-      UI.el('compareBtn').classList.toggle('active', isCompare);
-      UI.toast(isCompare ? '\u2696\ufe0f Compare mode on' : 'Compare mode off', 'info');
-    });
+    const compareBtn = UI.el('compareBtn');
+    if (compareBtn) {
+      compareBtn.addEventListener('click', () => {
+        const isCompare = document.body.classList.toggle('compare-mode');
+        const cmpSection = UI.el('cmp-model-section');
+        if (cmpSection) cmpSection.style.display = isCompare ? 'flex' : 'none';
+        compareBtn.classList.toggle('active', isCompare);
+        UI.toast(isCompare ? '\u2696\uFE0F Compare mode on' : 'Compare mode off', 'info');
+      });
+    }
 
-    // Escape key: close shortcuts modal and any open dropdown
+    // Escape key: close shortcuts modal (and any open dropdown)
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         const modal = UI.el('shortcuts-modal');
         if (modal) modal.classList.remove('open');
         const exportMenu = UI.el('export-menu');
-        if (exportMenu) exportMenu.style.display = 'none';
+        if (exportMenu) exportMenu.classList.remove('open');
         const themeMenu = UI.el('theme-menu');
         if (themeMenu) themeMenu.classList.remove('open');
       }
@@ -361,22 +364,56 @@ const App = {
    */
   setupSearchListeners() {
     const searchInput = UI.el('searchInput');
-    if (!searchInput) return;
-    searchInput.addEventListener('input', Utils.debounce((e) => {
-      const query = e.target.value.toLowerCase();
-      const messages = document.querySelectorAll('.message-content');
-      messages.forEach(msg => {
-        const text = msg.textContent.toLowerCase();
-        msg.closest('.message-wrapper').style.display = text.includes(query) ? '' : query ? 'none' : '';
-      });
-    }, 300));
+    if (searchInput) {
+      searchInput.addEventListener('input', Utils.debounce((e) => {
+        const query = e.target.value.trim().toLowerCase();
+        this.filterModels(query);
+      }, 300));
+    }
+  },
+
+  /**
+   * Filter models by query
+   */
+  filterModels(query) {
+    const options = UI.el('modelSelect')?.options;
+    if (!options) return;
+    Array.from(options).forEach(opt => {
+      opt.style.display = !query || opt.text.toLowerCase().includes(query) ? '' : 'none';
+    });
   },
 
   /**
    * Setup export listeners
    */
   setupExportListeners() {
-    // Keyboard shortcut Ctrl+S -> Markdown export
+    // Header export button — toggle dropdown
+    const exportBtn = UI.el('exportBtn');
+    if (exportBtn) {
+      exportBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const menu = UI.el('export-menu');
+        if (menu) menu.style.display = menu.style.display === 'flex' ? 'none' : 'flex';
+      });
+    }
+
+    // Header export menu items
+    const expMD = UI.el('expMD');
+    if (expMD) expMD.addEventListener('click', () => { this.exportAs('markdown'); this.closeExportMenu(); });
+    const expJSON = UI.el('expJSON');
+    if (expJSON) expJSON.addEventListener('click', () => { this.exportAs('json'); this.closeExportMenu(); });
+    const expTXT = UI.el('expTXT');
+    if (expTXT) expTXT.addEventListener('click', () => { this.exportAs('text'); this.closeExportMenu(); });
+
+    // Right-panel export buttons (ids prefixed rp-)
+    const rpMD = UI.el('rp-expMD');
+    if (rpMD) rpMD.addEventListener('click', () => this.exportAs('markdown'));
+    const rpJSON = UI.el('rp-expJSON');
+    if (rpJSON) rpJSON.addEventListener('click', () => this.exportAs('json'));
+    const rpTXT = UI.el('rp-expTXT');
+    if (rpTXT) rpTXT.addEventListener('click', () => this.exportAs('text'));
+
+    // Keyboard shortcut Ctrl+S
     document.addEventListener('keydown', (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 's') {
         e.preventDefault();
@@ -385,38 +422,60 @@ const App = {
     });
   },
 
+  closeExportMenu() {
+    const menu = UI.el('export-menu');
+    if (menu) menu.style.display = 'none';
+  },
+
   /**
-   * Export conversation in specified format
+   * Export conversation
    */
   exportAs(format = 'markdown') {
-    if (!AppState.chatHistory.length) { UI.toast('No messages to export', 'warning'); return; }
-
-    const ts = new Date().toISOString().split('T')[0];
-    let content, filename, mime;
-
-    if (format === 'json') {
-      content = JSON.stringify(AppState.chatHistory, null, 2);
-      filename = `chat_${ts}.json`;
-      mime = 'application/json';
-    } else if (format === 'text') {
-      content = AppState.chatHistory
-        .map(m => `[${m.role.toUpperCase()}]\n${m.content}`)
-        .join('\n\n---\n\n');
-      filename = `chat_${ts}.txt`;
-      mime = 'text/plain';
-    } else {
-      // markdown (default)
-      content = `# Chat Export \u2014 ${ts}\n\n` +
-        AppState.chatHistory
-          .map(m => `**${m.role === 'user' ? '\uD83D\uDC64 You' : '\uD83E\uDD16 Assistant'}**\n\n${m.content}`)
-          .join('\n\n---\n\n');
-      filename = `chat_${ts}.md`;
-      mime = 'text/markdown';
+    if (!AppState.chatHistory.length) {
+      UI.toast('No messages to export', 'warning');
+      return;
     }
 
-    Utils.downloadAsFile(content, filename, mime);
-    UI.toast(`\u2B07\uFE0F Exported as ${filename}`, 'success');
-  },
+    let content, filename, mime;
+    const ts = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+
+    switch (format) {
+      case 'json':
+        content = JSON.stringify({
+          exported: new Date().toISOString(),
+          model: AppState.selectedModel,
+          messages: AppState.chatHistory
+        }, null, 2);
+        filename = `chat-${ts}.json`;
+        mime = 'application/json';
+        break;
+      case 'text':
+        content = AppState.chatHistory
+          .map(m => `[${m.role.toUpperCase()}]\n${m.content}`)
+          .join('\n\n---\n\n');
+        filename = `chat-${ts}.txt`;
+        mime = 'text/plain';
+        break;
+      default: // markdown
+        content = `# Chat Export\n\n**Model:** ${AppState.selectedModel}  \n**Date:** ${new Date().toLocaleString()}\n\n---\n\n` +
+          AppState.chatHistory
+            .map(m => `**${m.role === 'user' ? '\uD83D\uDC64 You' : '\uD83E\uDD16 Assistant'}**\n\n${m.content}`)
+            .join('\n\n---\n\n');
+        filename = `chat-${ts}.md`;
+        mime = 'text/markdown';
+    }
+
+    const blob = new Blob([content], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    UI.toast(`\uD83D\uDCBE Exported as ${filename}`, 'success');
+  }
 };
 
 document.addEventListener('DOMContentLoaded', () => App.init());
