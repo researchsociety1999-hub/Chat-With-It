@@ -1,12 +1,10 @@
 /**
  * UI Handler
  * Manages all DOM updates, rendering, and UI interactions.
- * Every method name and element ID here is matched exactly to app.js calls.
  */
 
 const UI = {
 
-  /** Get a DOM element by id safely. */
   el(id) {
     return document.getElementById(id);
   },
@@ -27,11 +25,6 @@ const UI = {
 
   // ─── Status line ──────────────────────────────────────────────────────────
 
-  /**
-   * @param {string} message
-   * @param {'ok'|'error'|'info'|'neutral'} type
-   * @param {boolean} isHF  — true → update #hfStatus, false → update #status
-   */
   setStatus(message, type = 'neutral', isHF = false) {
     const el = isHF ? this.el('hfStatus') : this.el('status');
     if (!el) return;
@@ -55,18 +48,15 @@ const UI = {
       models.forEach(m => {
         const opt = document.createElement('option');
         opt.value = m.id;
-        opt.textContent = m.provider ? `${m.name} [${m.provider}]` : m.name;
+        const ctxLabel = m.ctx >= 1000000 ? `${Math.round(m.ctx/1000000)}M` :
+                         m.ctx >= 1000    ? `${Math.round(m.ctx/1000)}k`    : `${m.ctx || '?'}`;
+        const lock = m.uncensored ? ' 🔓' : '';
+        opt.textContent = `${m.name || m.id} [${ctxLabel}]${lock}`;
         select.appendChild(opt);
       });
       if (models.some(m => m.id === prev)) select.value = prev;
     });
-    // Re-apply active filter
-    const si = this.el('searchInput');
-    if (si && si.value.trim()) {
-      const q = si.value.trim().toLowerCase();
-      const opts = this.el('modelSelect')?.options;
-      if (opts) Array.from(opts).forEach(o => { o.style.display = o.text.toLowerCase().includes(q) ? '' : 'none'; });
-    }
+    this.updateBadge();
   },
 
   updateBadge() {
@@ -74,14 +64,15 @@ const UI = {
     if (!badge) return;
     const modelId = this.el('modelSelect')?.value;
     if (!modelId || modelId === 'none') {
-      badge.textContent = 'No model selected';
+      badge.textContent = 'No model';
       badge.className = 'model-badge';
       return;
     }
-    const provider = API.getProvider?.() || { badgeLabel: '', badgeClass: '' };
+    const provider = (typeof API !== 'undefined' && API.getProvider?.()) || { badgeLabel: '', badgeClass: '' };
     const model = AppState.allModels.find(m => m.id === modelId);
     const name = model ? (model.name || modelId) : modelId;
-    badge.innerHTML = `<span style="opacity:.7;font-size:.6rem">${provider.badgeLabel || ''}</span> ${name}`;
+    const shortName = name.length > 28 ? name.slice(0, 26) + '…' : name;
+    badge.innerHTML = `<span style="opacity:.7;font-size:.6rem">${provider.badgeLabel || ''}</span> ${shortName}`;
     badge.className = 'model-badge ' + (provider.badgeClass || '');
   },
 
@@ -130,10 +121,6 @@ const UI = {
     return wrap;
   },
 
-  /**
-   * Create an empty streaming assistant bubble.
-   * Returns the bubble element so tokens can be appended into it via appendStreamToken().
-   */
   createStreamBubble() {
     const chat = this.el('chatBody');
     if (!chat) return null;
@@ -171,7 +158,6 @@ const UI = {
     return bubble;
   },
 
-  /** Append a streaming token delta to a live stream bubble. */
   appendStreamToken(bubble, delta) {
     if (!bubble) return;
     const content = bubble.querySelector('.bubble-stream-content');
@@ -182,7 +168,6 @@ const UI = {
     }
   },
 
-  /** Finalise a stream bubble once all tokens have arrived — render Markdown. */
   finaliseStreamBubble(bubble, fullContent) {
     if (!bubble) return;
     bubble.classList.remove('streaming');
@@ -200,7 +185,7 @@ const UI = {
   showTyping() {
     const chat = this.el('chatBody');
     if (!chat) return;
-    if (this.el('typing-indicator')) return; // already showing
+    if (this.el('typing-indicator')) return;
     const wrap = document.createElement('div');
     wrap.className = 'msg assistant';
     wrap.id = 'typing-indicator';
@@ -239,8 +224,8 @@ const UI = {
 
     if (bp) bp.style.width = (promptToks / max * 100) + '%';
     if (bc) bc.style.width = (completionToks / max * 100) + '%';
-    if (vp) vp.textContent = Utils.formatTokens ? Utils.formatTokens(promptToks) : promptToks;
-    if (vc) vc.textContent = Utils.formatTokens ? Utils.formatTokens(completionToks) : completionToks;
+    if (vp) vp.textContent = (typeof Utils !== 'undefined' && Utils.formatTokens) ? Utils.formatTokens(promptToks) : promptToks;
+    if (vc) vc.textContent = (typeof Utils !== 'undefined' && Utils.formatTokens) ? Utils.formatTokens(completionToks) : completionToks;
 
     const ctxSize = AppState.getContextLimit?.() || 8192;
     const used = (AppState.totalPromptTokens || 0) + (AppState.totalCompletionTokens || 0);
@@ -255,8 +240,8 @@ const UI = {
 
     const cp = this.el('ctx-pct');
     const cs = this.el('ctx-sub');
-    if (cp) cp.textContent = Utils.formatContextUsage ? Utils.formatContextUsage(pct) : Math.round(pct * 100) + '%';
-    if (cs) cs.textContent = Utils.formatContextInfo ? Utils.formatContextInfo(used, ctxSize) : `${used} / ~${Math.round(ctxSize / 1000)}k tokens`;
+    if (cp) cp.textContent = (typeof Utils !== 'undefined' && Utils.formatContextUsage) ? Utils.formatContextUsage(pct) : Math.round(pct * 100) + '%';
+    if (cs) cs.textContent = (typeof Utils !== 'undefined' && Utils.formatContextInfo) ? Utils.formatContextInfo(used, ctxSize) : `${used} / ~${Math.round(ctxSize / 1000)}k tokens`;
 
     const turnList = this.el('turn-list');
     if (turnList && AppState.turnTokens) {
@@ -281,7 +266,7 @@ const UI = {
     const msgs = AppState.chatHistory?.length || 0;
     const turns = Math.floor(msgs / 2);
     const tokens = (AppState.totalPromptTokens || 0) + (AppState.totalCompletionTokens || 0);
-    const fmt = Utils.formatTokens ? Utils.formatTokens(tokens) : tokens;
+    const fmt = (typeof Utils !== 'undefined' && Utils.formatTokens) ? Utils.formatTokens(tokens) : tokens;
     el.innerHTML = `📊 <b>${msgs}</b> msgs · <b>${turns}</b> turns · <b>${fmt}</b> tokens`;
   },
 
@@ -291,7 +276,7 @@ const UI = {
     const pct = AppState.getContextUsage?.() || 0;
     const used = (AppState.totalPromptTokens || 0) + (AppState.totalCompletionTokens || 0);
     const limit = AppState.getContextLimit?.() || 8192;
-    el.textContent = 'ctx: ' + (Utils.formatContextInfo ? Utils.formatContextInfo(used, limit) : `${used}/${limit}`);
+    el.textContent = 'ctx: ' + ((typeof Utils !== 'undefined' && Utils.formatContextInfo) ? Utils.formatContextInfo(used, limit) : `${used}/${limit}`);
     el.style.color = pct > 0.8 ? 'var(--rose)' : pct > 0.5 ? 'var(--amber)' : 'var(--fg-dim)';
   },
 
@@ -328,9 +313,12 @@ const UI = {
     const isMobile = window.innerWidth <= 768;
     if (isMobile) {
       const open = sidebar.classList.toggle('open');
+      sidebar.classList.toggle('collapsed', !open);
       if (overlay) overlay.classList.toggle('active', open);
     } else {
-      sidebar.classList.toggle('collapsed');
+      const collapsed = sidebar.classList.toggle('collapsed');
+      if (overlay) overlay.classList.remove('active');
+      if (!collapsed) sidebar.classList.remove('open');
     }
   },
 

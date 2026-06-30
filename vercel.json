@@ -1,11 +1,15 @@
 {
+  "framework": null,
+  "outputDirectory": ".",
+  "cleanUrls": true,
+  "trailingSlash": false,
   "headers": [
     {
       "source": "/(.*)",
       "headers": [
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://openrouter.ai https://huggingface.co https://api-inference.huggingface.co https://router.huggingface.co; img-src 'self' data: https:; frame-ancestors 'none'; base-uri 'self'; form-action 'self';"
+          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://api.fontshare.com; font-src 'self' https://fonts.gstatic.com https://api.fontshare.com https://fonts.fontshare.com; connect-src 'self' https://openrouter.ai https://huggingface.co https://api-inference.huggingface.co https://router.huggingface.co; img-src 'self' data: https:; frame-ancestors 'none'; base-uri 'self'; form-action 'self';"
         },
         {
           "key": "X-Content-Type-Options",
@@ -41,13 +45,5 @@
         }
       ]
     }
-  ],
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
-    }
-  ],
-  "cleanUrls": true,
-  "trailingSlash": false
+  ]
 }
