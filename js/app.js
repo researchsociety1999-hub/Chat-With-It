@@ -1,12 +1,9 @@
 /**
  * Main Application Controller
- * Orchestrates state, UI, and API interactions
+ * Orchestrates state, UI, and API interactions.
  */
 
 const App = {
-  /**
-   * Initialize application
-   */
   async init() {
     try {
       AppState.init();
@@ -14,6 +11,7 @@ const App = {
 
       this.setupProviderListeners();
       this.setupAuthListeners();
+      this.buildParamFilter();
       this.setupModelListeners();
       this.setupChatListeners();
       this.setupUIListeners();
@@ -22,19 +20,64 @@ const App = {
 
       await this.refreshModels();
 
-      UI.toast('\u2705 ChatWithIt loaded successfully', 'success');
-      console.log('Application initialized');
+      UI.toast('\u2705 ChatWithIt loaded', 'success');
     } catch (error) {
-      console.error('Initialization error:', error);
-      UI.toast('Failed to initialize application', 'error');
+      console.error('Init error:', error);
+      UI.toast('Failed to initialise application', 'error');
     }
   },
 
+  // ---------------------------------------------------------------------------
+  // Param-size filter
+  // ---------------------------------------------------------------------------
+
   /**
-   * Setup provider selection listeners
+   * Dynamically build the parameter-size filter <select> below #modelSelect.
+   * Uses PARAM_TIERS exported by api.js via API.getParamTiers().
    */
+  buildParamFilter() {
+    const modelSection = UI.el('modelSelect')?.closest('.s-section');
+    if (!modelSection) return;
+
+    // Remove any previous filter element (safe to re-call)
+    const existing = document.getElementById('paramFilter');
+    if (existing) existing.closest('.s-section')?.remove();
+
+    const section = document.createElement('div');
+    section.className = 's-section';
+    section.innerHTML = '<div class="s-label">Model Size</div>';
+
+    const sel = document.createElement('select');
+    sel.id = 'paramFilter';
+    sel.setAttribute('aria-label', 'Filter by parameter size');
+
+    API.getParamTiers().forEach(tier => {
+      const opt = document.createElement('option');
+      opt.value = tier.value;
+      opt.textContent = tier.label;
+      if (tier.value === (AppState.paramFilter || 'all')) opt.selected = true;
+      sel.appendChild(opt);
+    });
+
+    sel.addEventListener('change', async (e) => {
+      AppState.paramFilter = e.target.value;
+      AppState.persistState();
+      await this.refreshModels();
+    });
+
+    section.appendChild(sel);
+    // Insert right after the model <select> section
+    modelSection.insertAdjacentElement('afterend', section);
+  },
+
+  // ---------------------------------------------------------------------------
+  // Provider
+  // ---------------------------------------------------------------------------
+
   setupProviderListeners() {
     const providerSelect = UI.el('providerSelect');
+    // Restore persisted provider
+    if (AppState.currentProvider) providerSelect.value = AppState.currentProvider;
     providerSelect.addEventListener('change', (e) => {
       AppState.currentProvider = e.target.value;
       this.updateAuthUI();
@@ -43,22 +86,20 @@ const App = {
     this.updateAuthUI();
   },
 
-  /**
-   * Update auth UI based on provider
-   */
   updateAuthUI() {
     const isOR = AppState.currentProvider === 'openrouter';
     UI.el('or-auth-section').style.display = isOR ? 'flex' : 'none';
     UI.el('hf-auth-section').style.display = isOR ? 'none' : 'flex';
   },
 
-  /**
-   * Setup authentication listeners
-   */
+  // ---------------------------------------------------------------------------
+  // Auth
+  // ---------------------------------------------------------------------------
+
   setupAuthListeners() {
-    UI.el('authBtn').addEventListener('click', () => this.authenticateOpenRouter());
+    UI.el('authBtn').addEventListener('click',    () => this.authenticateOpenRouter());
     UI.el('clearOrKey').addEventListener('click', () => this.clearAuth('openrouter'));
-    UI.el('hfAuthBtn').addEventListener('click', () => this.authenticateHuggingFace());
+    UI.el('hfAuthBtn').addEventListener('click',  () => this.authenticateHuggingFace());
     UI.el('clearHfKey').addEventListener('click', () => this.clearAuth('huggingface'));
 
     UI.el('apiKey').addEventListener('blur', () => {
@@ -68,7 +109,6 @@ const App = {
         UI.setStatus('\u2713 OpenRouter authenticated', 'ok');
       }
     });
-
     UI.el('hfToken').addEventListener('blur', () => {
       const token = UI.el('hfToken').value.trim();
       if (token && Utils.isValidApiKey(token)) {
@@ -78,35 +118,26 @@ const App = {
     });
   },
 
-  /**
-   * Authenticate with OpenRouter
-   */
   async authenticateOpenRouter() {
     const key = UI.el('apiKey').value.trim();
-    if (!key) { UI.setStatus('Please enter your API key', 'error'); return; }
-    if (!Utils.isValidApiKey(key)) { UI.setStatus('API key appears to be invalid', 'error'); return; }
+    if (!key)                       { UI.setStatus('Please enter your API key', 'error'); return; }
+    if (!Utils.isValidApiKey(key))  { UI.setStatus('API key appears invalid', 'error');  return; }
     AppState.apiKey = key;
     UI.setStatus('\u2713 Authenticated with OpenRouter', 'ok');
     UI.toast('\u2705 OpenRouter authenticated', 'success');
     await this.refreshModels();
   },
 
-  /**
-   * Authenticate with Hugging Face
-   */
   async authenticateHuggingFace() {
     const token = UI.el('hfToken').value.trim();
-    if (!token) { UI.setStatus('Please enter your HF token', 'error', true); return; }
-    if (!Utils.isValidApiKey(token)) { UI.setStatus('Token appears to be invalid', 'error', true); return; }
+    if (!token)                       { UI.setStatus('Please enter your HF token', 'error', true); return; }
+    if (!Utils.isValidApiKey(token))  { UI.setStatus('Token appears invalid', 'error', true);      return; }
     AppState.hfToken = token;
     UI.setStatus('\u2713 Authenticated with Hugging Face', 'ok', true);
     UI.toast('\u2705 Hugging Face authenticated', 'success');
     await this.refreshModels();
   },
 
-  /**
-   * Clear authentication
-   */
   clearAuth(provider) {
     if (provider === 'openrouter') {
       AppState.apiKey = '';
@@ -120,32 +151,71 @@ const App = {
     UI.toast(`\uD83D\uDDD1\uFE0F ${provider} credentials removed`, 'warning');
   },
 
-  /**
-   * Refresh available models
-   */
+  // ---------------------------------------------------------------------------
+  // Models
+  // ---------------------------------------------------------------------------
+
   async refreshModels() {
     try {
-      UI.setStatus('Fetching models...', 'info');
-      const models = await API.fetchModels();
+      const paramFilter = AppState.paramFilter || 'all';
+      UI.setStatus('Fetching models\u2026', 'info');
+      const models = await API.fetchModels(AppState.currentProvider, paramFilter);
       AppState.allModels = models;
-      models.forEach(m => AppState.modelContextMap[m.id] = m.ctx);
-      UI.populateModels(models);
-      UI.setStatus(`\u2713 ${models.length} models loaded`, 'ok');
-      UI.toast(`\u2705 ${models.length} models available`, 'success');
+      models.forEach(m => { AppState.modelContextMap[m.id] = m.ctx; });
+      this.populateModels(models);
+      UI.setStatus(`\u2713 ${models.length} model${models.length !== 1 ? 's' : ''} loaded`, 'ok');
+      UI.toast(`\u2705 ${models.length} free model${models.length !== 1 ? 's' : ''} available`, 'success');
     } catch (error) {
-      console.error('Failed to refresh models:', error);
+      console.error('refreshModels error:', error);
       UI.setStatus('Failed to fetch models', 'error');
       UI.toast('Error loading models', 'error');
     }
   },
 
   /**
-   * Setup model selection listeners
+   * Populate #modelSelect with models.
+   * Shows 🔓 badge on uncensored models and (ctx) in the label.
    */
+  populateModels(models) {
+    const sel = UI.el('modelSelect');
+    const selB = UI.el('modelSelectB');
+    if (!sel) return;
+
+    const buildOptions = (el, includeBlank) => {
+      el.innerHTML = '';
+      if (includeBlank) {
+        const blank = document.createElement('option');
+        blank.value = 'none';
+        blank.textContent = '\u2014 select a model \u2014';
+        el.appendChild(blank);
+      }
+      models.forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m.id;
+        const ctxLabel = m.ctx >= 1000000 ? `${Math.round(m.ctx/1000000)}M` :
+                         m.ctx >= 1000    ? `${Math.round(m.ctx/1000)}k`    : `${m.ctx}`;
+        const lock = m.uncensored ? ' \uD83D\uDD13' : '';
+        opt.textContent = `${m.name || m.id} [${ctxLabel}]${lock}`;
+        if (m.id === AppState.selectedModel) opt.selected = true;
+        el.appendChild(opt);
+      });
+    };
+
+    buildOptions(sel, models.length === 0);
+    if (selB) buildOptions(selB, true);
+
+    // Restore or auto-select first
+    if (!AppState.selectedModel || !models.find(m => m.id === AppState.selectedModel)) {
+      AppState.selectedModel = models[0]?.id || 'none';
+      sel.value = AppState.selectedModel;
+    }
+    UI.updateBadge?.();
+  },
+
   setupModelListeners() {
     UI.el('modelSelect').addEventListener('change', (e) => {
       AppState.selectedModel = e.target.value;
-      UI.updateBadge();
+      UI.updateBadge?.();
     });
     UI.el('modelSelectB').addEventListener('change', (e) => {
       AppState.selectedModelB = e.target.value;
@@ -153,46 +223,36 @@ const App = {
     UI.el('refreshModels').addEventListener('click', () => this.refreshModels());
   },
 
-  /**
-   * Setup chat listeners
-   */
+  // ---------------------------------------------------------------------------
+  // Chat
+  // ---------------------------------------------------------------------------
+
   setupChatListeners() {
     const userInput = UI.el('userInput');
-    const sendBtn = UI.el('sendBtn');
+    const sendBtn   = UI.el('sendBtn');
 
     userInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        this.sendMessage();
-      }
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); this.sendMessage(); }
     });
-
     userInput.addEventListener('input', (e) => {
       UI.updateCharCount(e.target.value.length);
       e.target.style.height = 'auto';
       e.target.style.height = Math.min(e.target.scrollHeight, 160) + 'px';
     });
-
     sendBtn.addEventListener('click', () => this.sendMessage());
   },
 
-  /**
-   * Send message with real-time token streaming.
-   * Respects rate limiting — shows a countdown toast instead of silently dropping.
-   */
   async sendMessage() {
-    const input = UI.el('userInput');
+    const input   = UI.el('userInput');
     const message = input.value.trim();
 
-    if (!message) { UI.toast('Message cannot be empty', 'warning'); return; }
+    if (!message)                     { UI.toast('Message cannot be empty', 'warning'); return; }
     if (AppState.selectedModel === 'none') { UI.toast('Please select a model first', 'warning'); return; }
-    if (!AppState.getAuthToken()) { UI.toast('Please authenticate first', 'error'); return; }
+    if (!AppState.getAuthToken())     { UI.toast('Please authenticate first', 'error'); return; }
 
-    // Rate limit check — show countdown instead of silent drop
     const rateCheck = AppState.canMakeRequest();
     if (!rateCheck.allowed) {
-      const secs = Math.ceil(rateCheck.retryAfterMs / 1000);
-      UI.toast(`\u23F3 Rate limited \u2014 try again in ${secs}s`, 'warning');
+      UI.toast(`\u23F3 Rate limited \u2014 try again in ${Math.ceil(rateCheck.retryAfterMs / 1000)}s`, 'warning');
       return;
     }
 
@@ -203,7 +263,6 @@ const App = {
       input.value = '';
       UI.updateCharCount(0);
       input.style.height = 'auto';
-
       UI.setSendButtonState(false);
       UI.showTyping();
 
@@ -232,28 +291,25 @@ const App = {
       UI.updateStats(AppState.totalPromptTokens, AppState.totalCompletionTokens);
     } catch (error) {
       UI.removeTyping();
-      console.error('Message send error:', error);
-      const errorMsg = error.message || 'Failed to get response';
-      UI.toast(`Error: ${errorMsg}`, 'error');
-      UI.appendMessage('assistant', `\u274C Error: ${errorMsg}`);
+      console.error('sendMessage error:', error);
+      const msg = error.message || 'Failed to get response';
+      UI.toast(`Error: ${msg}`, 'error');
+      UI.appendMessage('assistant', `\u274C Error: ${msg}`);
     } finally {
       UI.setSendButtonState(true);
     }
   },
 
-  /**
-   * Setup UI listeners
-   */
+  // ---------------------------------------------------------------------------
+  // UI wiring
+  // ---------------------------------------------------------------------------
+
   setupUIListeners() {
-    // Sidebar
-    UI.el('sidebarToggle').addEventListener('click', () => UI.toggleSidebar());
-    UI.el('mobileOverlay').addEventListener('click', () => UI.toggleSidebar());
+    UI.el('sidebarToggle').addEventListener('click',   () => UI.toggleSidebar());
+    UI.el('mobileOverlay').addEventListener('click',   () => UI.toggleSidebar());
+    UI.el('statsBtn').addEventListener('click',        () => UI.toggleStats());
+    UI.el('rp-close').addEventListener('click',        () => UI.toggleStats());
 
-    // Stats panel
-    UI.el('statsBtn').addEventListener('click', () => UI.toggleStats());
-    UI.el('rp-close').addEventListener('click', () => UI.toggleStats());
-
-    // Clear chat
     UI.el('clearBtn').addEventListener('click', () => {
       if (confirm('Clear all messages? This cannot be undone.')) {
         UI.clearChat();
@@ -266,30 +322,23 @@ const App = {
       e.stopPropagation();
       UI.el('theme-menu').classList.toggle('open');
     });
-
-    // Close dropdowns on outside click
     document.addEventListener('click', (e) => {
-      const themeMenu = UI.el('theme-menu');
-      if (themeMenu && !themeMenu.contains(e.target) && e.target !== UI.el('themeBtn')) {
-        themeMenu.classList.remove('open');
-      }
+      const themeMenu  = UI.el('theme-menu');
       const exportMenu = UI.el('export-menu');
-      if (exportMenu && !exportMenu.contains(e.target) && e.target !== UI.el('exportBtn')) {
-        exportMenu.classList.remove('open');
-      }
+      if (themeMenu  && !themeMenu.contains(e.target)  && e.target !== UI.el('themeBtn'))  themeMenu.classList.remove('open');
+      if (exportMenu && !exportMenu.contains(e.target) && e.target !== UI.el('exportBtn')) exportMenu.style.display = 'none';
     });
-
-    // Theme options
     document.querySelectorAll('.theme-opt').forEach(opt => {
       opt.addEventListener('click', (e) => {
         const theme = e.target.dataset.theme;
+        if (!theme) return; // skip export opts which share the class
         UI.setTheme(theme);
         UI.el('theme-menu').classList.remove('open');
-        UI.toast(`Theme changed to ${e.target.textContent}`, 'info');
+        UI.toast(`Theme: ${e.target.textContent.trim()}`, 'info');
       });
     });
 
-    // Settings sliders
+    // Sliders
     UI.el('tempSlider').addEventListener('input', (e) => {
       AppState.temperature = parseFloat(e.target.value);
       UI.el('tempVal').textContent = e.target.value;
@@ -301,7 +350,7 @@ const App = {
       AppState.persistState();
     });
 
-    // Persona cards
+    // Personas
     document.querySelectorAll('.persona-card').forEach(card => {
       card.addEventListener('click', () => {
         document.querySelectorAll('.persona-card').forEach(c => c.classList.remove('active'));
@@ -319,75 +368,56 @@ const App = {
       UI.toast('\u23F9 Response stopped', 'warning');
     });
 
-    // Keyboard shortcuts modal toggle
+    // Shortcuts modal
     const shortcutsBtn = UI.el('shortcutsBtn');
-    if (shortcutsBtn) {
-      shortcutsBtn.addEventListener('click', () => {
-        const modal = UI.el('shortcuts-modal');
-        if (modal) modal.classList.toggle('open');
-      });
-    }
-    const shortcutsModal = UI.el('shortcuts-modal');
-    if (shortcutsModal) {
-      shortcutsModal.addEventListener('click', (e) => {
-        if (e.target === shortcutsModal) shortcutsModal.classList.remove('open');
-      });
-    }
+    if (shortcutsBtn) shortcutsBtn.addEventListener('click', () => {
+      UI.el('shortcuts-modal')?.classList.toggle('open');
+    });
+    UI.el('shortcuts-modal')?.addEventListener('click', (e) => {
+      if (e.target === UI.el('shortcuts-modal')) UI.el('shortcuts-modal').classList.remove('open');
+    });
 
-    // Compare mode toggle
-    const compareBtn = UI.el('compareBtn');
-    if (compareBtn) {
-      compareBtn.addEventListener('click', () => {
-        const isCompare = document.body.classList.toggle('compare-mode');
-        const cmpSection = UI.el('cmp-model-section');
-        if (cmpSection) cmpSection.style.display = isCompare ? 'flex' : 'none';
-        compareBtn.classList.toggle('active', isCompare);
-        UI.toast(isCompare ? '\u2696\uFE0F Compare mode on' : 'Compare mode off', 'info');
-      });
-    }
+    // Compare mode
+    UI.el('compareBtn')?.addEventListener('click', () => {
+      const on = document.body.classList.toggle('compare-mode');
+      const sec = UI.el('cmp-model-section');
+      if (sec) sec.style.display = on ? 'flex' : 'none';
+      UI.el('compareBtn').classList.toggle('active', on);
+      UI.toast(on ? '\u2696\uFE0F Compare mode on' : 'Compare mode off', 'info');
+    });
 
-    // Escape key: close shortcuts modal (and any open dropdown)
+    // Escape closes modals/dropdowns
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
-        const modal = UI.el('shortcuts-modal');
-        if (modal) modal.classList.remove('open');
+        UI.el('shortcuts-modal')?.classList.remove('open');
         const exportMenu = UI.el('export-menu');
-        if (exportMenu) exportMenu.classList.remove('open');
-        const themeMenu = UI.el('theme-menu');
-        if (themeMenu) themeMenu.classList.remove('open');
+        if (exportMenu) exportMenu.style.display = 'none';
+        UI.el('theme-menu')?.classList.remove('open');
       }
     });
   },
 
-  /**
-   * Setup search listeners
-   */
+  // ---------------------------------------------------------------------------
+  // Model search filter
+  // ---------------------------------------------------------------------------
+
   setupSearchListeners() {
     const searchInput = UI.el('searchInput');
     if (searchInput) {
       searchInput.addEventListener('input', Utils.debounce((e) => {
         const query = e.target.value.trim().toLowerCase();
-        this.filterModels(query);
+        Array.from(UI.el('modelSelect')?.options || []).forEach(opt => {
+          opt.style.display = !query || opt.text.toLowerCase().includes(query) ? '' : 'none';
+        });
       }, 300));
     }
   },
 
-  /**
-   * Filter models by query
-   */
-  filterModels(query) {
-    const options = UI.el('modelSelect')?.options;
-    if (!options) return;
-    Array.from(options).forEach(opt => {
-      opt.style.display = !query || opt.text.toLowerCase().includes(query) ? '' : 'none';
-    });
-  },
+  // ---------------------------------------------------------------------------
+  // Export
+  // ---------------------------------------------------------------------------
 
-  /**
-   * Setup export listeners
-   */
   setupExportListeners() {
-    // Header export button — toggle dropdown
     const exportBtn = UI.el('exportBtn');
     if (exportBtn) {
       exportBtn.addEventListener('click', (e) => {
@@ -397,28 +427,16 @@ const App = {
       });
     }
 
-    // Header export menu items
-    const expMD = UI.el('expMD');
-    if (expMD) expMD.addEventListener('click', () => { this.exportAs('markdown'); this.closeExportMenu(); });
-    const expJSON = UI.el('expJSON');
-    if (expJSON) expJSON.addEventListener('click', () => { this.exportAs('json'); this.closeExportMenu(); });
-    const expTXT = UI.el('expTXT');
-    if (expTXT) expTXT.addEventListener('click', () => { this.exportAs('text'); this.closeExportMenu(); });
+    const bind = (id, fmt) => UI.el(id)?.addEventListener('click', () => { this.exportAs(fmt); this.closeExportMenu(); });
+    bind('expMD',    'markdown');
+    bind('expJSON',  'json');
+    bind('expTXT',   'text');
+    bind('rp-expMD',   'markdown');
+    bind('rp-expJSON', 'json');
+    bind('rp-expTXT',  'text');
 
-    // Right-panel export buttons (ids prefixed rp-)
-    const rpMD = UI.el('rp-expMD');
-    if (rpMD) rpMD.addEventListener('click', () => this.exportAs('markdown'));
-    const rpJSON = UI.el('rp-expJSON');
-    if (rpJSON) rpJSON.addEventListener('click', () => this.exportAs('json'));
-    const rpTXT = UI.el('rp-expTXT');
-    if (rpTXT) rpTXT.addEventListener('click', () => this.exportAs('text'));
-
-    // Keyboard shortcut Ctrl+S
     document.addEventListener('keydown', (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-        e.preventDefault();
-        this.exportAs('markdown');
-      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); this.exportAs('markdown'); }
     });
   },
 
@@ -427,52 +445,26 @@ const App = {
     if (menu) menu.style.display = 'none';
   },
 
-  /**
-   * Export conversation
-   */
   exportAs(format = 'markdown') {
-    if (!AppState.chatHistory.length) {
-      UI.toast('No messages to export', 'warning');
-      return;
-    }
-
+    if (!AppState.chatHistory.length) { UI.toast('No messages to export', 'warning'); return; }
     let content, filename, mime;
     const ts = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
-
     switch (format) {
       case 'json':
-        content = JSON.stringify({
-          exported: new Date().toISOString(),
-          model: AppState.selectedModel,
-          messages: AppState.chatHistory
-        }, null, 2);
-        filename = `chat-${ts}.json`;
-        mime = 'application/json';
-        break;
+        content  = JSON.stringify({ exported: new Date().toISOString(), model: AppState.selectedModel, messages: AppState.chatHistory }, null, 2);
+        filename = `chat-${ts}.json`; mime = 'application/json'; break;
       case 'text':
-        content = AppState.chatHistory
-          .map(m => `[${m.role.toUpperCase()}]\n${m.content}`)
-          .join('\n\n---\n\n');
-        filename = `chat-${ts}.txt`;
-        mime = 'text/plain';
-        break;
-      default: // markdown
-        content = `# Chat Export\n\n**Model:** ${AppState.selectedModel}  \n**Date:** ${new Date().toLocaleString()}\n\n---\n\n` +
-          AppState.chatHistory
-            .map(m => `**${m.role === 'user' ? '\uD83D\uDC64 You' : '\uD83E\uDD16 Assistant'}**\n\n${m.content}`)
-            .join('\n\n---\n\n');
-        filename = `chat-${ts}.md`;
-        mime = 'text/markdown';
+        content  = AppState.chatHistory.map(m => `[${m.role.toUpperCase()}]\n${m.content}`).join('\n\n---\n\n');
+        filename = `chat-${ts}.txt`; mime = 'text/plain'; break;
+      default:
+        content  = `# Chat Export\n\n**Model:** ${AppState.selectedModel}  \n**Date:** ${new Date().toLocaleString()}\n\n---\n\n` +
+                   AppState.chatHistory.map(m => `**${m.role === 'user' ? '\uD83D\uDC64 You' : '\uD83E\uDD16 Assistant'}**\n\n${m.content}`).join('\n\n---\n\n');
+        filename = `chat-${ts}.md`; mime = 'text/markdown';
     }
-
     const blob = new Blob([content], { type: mime });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    const url  = URL.createObjectURL(blob);
+    const a    = Object.assign(document.createElement('a'), { href: url, download: filename });
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
     URL.revokeObjectURL(url);
     UI.toast(`\uD83D\uDCBE Exported as ${filename}`, 'success');
   }
