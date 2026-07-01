@@ -35,8 +35,13 @@ const AppState = {
   paramFilter: 'all',
 
   // Timestamp of the last successful model list fetch (ms since epoch).
-  // Used by App to decide whether the cached list is stale (> 5 min).
   lastModelFetch: 0,
+
+  // Per-model cooldown map: modelId → timestamp until which the model should be
+  // treated as temporarily unavailable due to an upstream 429.
+  // FIX: added so upstream-rate-limited models are flagged for 60 s rather than
+  // purged from the list or silently retried.
+  _modelCooldowns: {},
 
   // UI State
   // TODO: roadmap — compareMode / selectedModelB: side-by-side A/B model view.
@@ -65,18 +70,15 @@ const AppState = {
 
   // API Requests
   abortController: null,
-  // Token-bucket for rate limiting — stores timestamps of recent requests.
-  // FIX: lowered to 20 req/min to match OpenRouter's documented free-tier cap.
-  // (Previous value of 30 allowed the client to exceed the provider limit.)
+
+  // FIX: lowered from 30 to 20 to match OpenRouter's documented free-tier cap
+  // of 20 requests/minute for :free models. Previously the local guard allowed
+  // up to 30 req/min, meaning OpenRouter's own 429 fired before the client
+  // could defend the user with a friendly message.
+  // Ref: https://openrouter.ai/docs/api-reference/limits
   _requestBucket: [],
   requestLimitPerMinute: 20,
   lastRequestTime: 0,
-
-  // Per-model cooldown map: modelId -> timestamp when cooldown expires.
-  // Populated by API when an upstream 429 is detected for a specific model.
-  // FIX: lets the UI flag temporarily overloaded models without removing them.
-  _modelCooldowns: {},
-  _modelCooldownMs: 60000, // 60 s cooldown per upstream-rate-limited model
 
   init() {
     this.loadPersistedState();
@@ -100,7 +102,6 @@ const AppState = {
   },
 
   _onIdle() {
-    // Clear in-memory credentials after 30 min inactivity
     this.apiKey  = '';
     this.hfToken = '';
     if (typeof UI !== 'undefined') {
@@ -109,7 +110,37 @@ const AppState = {
     }
   },
 
-  // ── Persistence ──────────────────────────────────────────────────────────
+  // ── Model cooldowns ───────────────────────────────────────────────────────
+
+  /**
+   * Mark a model as temporarily rate-limited for `durationMs` milliseconds.
+   * While in cooldown the model stays in the list but App shows it as unavailable.
+   */
+  setModelCooldown(modelId, durationMs = 60000) {
+    this._modelCooldowns[modelId] = Date.now() + durationMs;
+  },
+
+  /**
+   * Returns true if the model is currently in its upstream cooldown window.
+   */
+  isModelOnCooldown(modelId) {
+    const until = this._modelCooldowns[modelId];
+    if (!until) return false;
+    if (Date.now() < until) return true;
+    delete this._modelCooldowns[modelId]; // auto-expire
+    return false;
+  },
+
+  /**
+   * Remaining cooldown seconds for display, or 0 if not on cooldown.
+   */
+  modelCooldownSecondsLeft(modelId) {
+    const until = this._modelCooldowns[modelId];
+    if (!until) return 0;
+    return Math.max(0, Math.ceil((until - Date.now()) / 1000));
+  },
+
+  // ── Persistence ───────────────────────────────────────────────────────────
 
   loadPersistedState() {
     try {
@@ -193,31 +224,6 @@ const AppState = {
     this._resetIdleTimer();
   },
 
-  // ── Per-model cooldown (upstream 429 handling) ────────────────────────────
-
-  /**
-   * Mark a model as temporarily rate-limited by the upstream provider.
-   * The model remains in the list but isModelOnCooldown() returns true for
-   * _modelCooldownMs (60 s) so the UI can badge it as ⚠️ overloaded.
-   */
-  setModelCooldown(modelId) {
-    if (!modelId) return;
-    this._modelCooldowns[modelId] = Date.now() + this._modelCooldownMs;
-  },
-
-  /**
-   * Returns true if the model hit an upstream 429 within the last 60 s.
-   * Expired entries are lazily pruned on read.
-   */
-  isModelOnCooldown(modelId) {
-    if (!modelId || !this._modelCooldowns[modelId]) return false;
-    if (Date.now() > this._modelCooldowns[modelId]) {
-      delete this._modelCooldowns[modelId];
-      return false;
-    }
-    return true;
-  },
-
   // ── Chat lifecycle ────────────────────────────────────────────────────────
 
   clearChat() {
@@ -226,12 +232,14 @@ const AppState = {
     this.totalPromptTokens = 0;
     this.totalCompletionTokens = 0;
     this.turnTokens = [];
-    this.sessionStats.messageCount = 0;
-    this.sessionStats.turnCount = 0;
-    // FIX: reset startTime so the session timer is accurate after clearing
-    this.sessionStats.startTime = Date.now();
-    // FIX: reset export guard so beforeunload fires for the new session
     this.chatExported = false;
+    // FIX: reset session timer so the stats panel shows time-in-session for
+    // the new conversation, not elapsed time since page load.
+    this.sessionStats = {
+      startTime:    Date.now(),
+      messageCount: 0,
+      turnCount:    0,
+    };
   },
 
   reset() {

@@ -52,16 +52,7 @@ const PARAM_TIERS = [
 ];
 
 /**
- * Curated free models — OpenRouter :free tier + HuggingFace Serverless Inference.
- *
- * FIX (model filtering):
- *   - Removed snowflake/snowflake-arctic-embed-l-v2.0:free — embedding-only model,
- *     not a chat completion endpoint; caused silent failures when selected.
- *   - Removed meta-llama/llama-3-8b-instruct:free and meta-llama/llama-3-70b-instruct:free
- *     (8 k-ctx variants) — these consistently hit provider-side 429s on the free tier;
- *     the llama-3.1 and 3.3 variants with 131 k ctx are the actively maintained replacements.
- *   - Removed openchat/openchat-7b:free — provider (Chutes) has been persistently
- *     rate-limiting this endpoint on the free tier; users saw consistent 429s.
+ * Comprehensive curated list of permanently-free models.
  */
 const CURATED_FREE = {
   openrouter: [
@@ -81,6 +72,8 @@ const CURATED_FREE = {
     { id:'meta-llama/llama-3.3-70b-instruct:free',name:'Llama 3.3 70B Instruct',            ctx:131072,  paramTier:'70B' },
     { id:'meta-llama/llama-3.1-70b-instruct:free',name:'Llama 3.1 70B Instruct',            ctx:131072,  paramTier:'70B' },
     { id:'meta-llama/llama-3.1-8b-instruct:free', name:'Llama 3.1 8B Instruct',             ctx:131072,  paramTier:'8B' },
+    { id:'meta-llama/llama-3-70b-instruct:free',  name:'Llama 3 70B Instruct',              ctx:8192,    paramTier:'70B' },
+    { id:'meta-llama/llama-3-8b-instruct:free',   name:'Llama 3 8B Instruct',               ctx:8192,    paramTier:'8B' },
     // ── Qwen ────────────────────────────────────────────────────────────────────
     { id:'qwen/qwen3-235b-a22b:free',             name:'Qwen3 235B A22B (MoE · 40k)',       ctx:40960,  paramTier:'236B' },
     { id:'qwen/qwen3-30b-a3b:free',               name:'Qwen3 30B A3B (MoE · 128k)',        ctx:131072, paramTier:'30B' },
@@ -118,6 +111,8 @@ const CURATED_FREE = {
     { id:'nousresearch/hermes-2-pro-llama-3-8b:free', name:'Hermes 2 Pro Llama 3 8B',       ctx:8192,   paramTier:'8B',  uncensored:true },
     { id:'nousresearch/nous-hermes-2-mixtral-8x7b-dpo:free', name:'Nous Hermes 2 Mixtral 8x7B DPO', ctx:32768, paramTier:'?', uncensored:true },
     { id:'nousresearch/nous-capybara-7b:free',    name:'Nous Capybara 7B',                   ctx:4096,   paramTier:'7B',  uncensored:true },
+    // ── OpenChat ────────────────────────────────────────────────────────────────
+    { id:'openchat/openchat-7b:free',             name:'OpenChat 3.5 7B (8k)',               ctx:8192,   paramTier:'7B', uncensored:true },
     // ── 01.AI Yi ────────────────────────────────────────────────────────────────
     { id:'01-ai/yi-1.5-34b-chat:free',            name:'Yi 1.5 34B Chat',                   ctx:4096,   paramTier:'32B' },
     // ── Cohere ──────────────────────────────────────────────────────────────────
@@ -126,23 +121,25 @@ const CURATED_FREE = {
     { id:'nvidia/llama-3.1-nemotron-70b-instruct:free', name:'Nemotron 70B Instruct',        ctx:131072, paramTier:'70B' },
     { id:'nvidia/llama-3.3-nemotron-super-49b-v1:free',  name:'Nemotron Super 49B',          ctx:131072, paramTier:'?' },
     { id:'nvidia/llama-3.1-nemotron-nano-8b-v1:free',    name:'Nemotron Nano 8B',            ctx:131072, paramTier:'8B' },
-    // ── TNG / Teknium ────────────────────────────────────────────────────────────
+    // ── TNG ─────────────────────────────────────────────────────────────────────
     { id:'tng-tech/llama-3.3-70b-instruct-fp8-mrl:free', name:'Llama 3.3 70B FP8 MRL',      ctx:131072, paramTier:'70B' },
     // ── Featherless / community ──────────────────────────────────────────────────
     { id:'featherless/qwerky-72b:free',           name:'Qwerky 72B (uncensored)',            ctx:32768,  paramTier:'70B', uncensored:true },
     { id:'cognitivecomputations/dolphin3.0-r1-mistral-nemo-12b:free', name:'Dolphin 3.0 R1 Mistral NeMo 12B', ctx:131072, paramTier:'13B', uncensored:true },
     { id:'cognitivecomputations/dolphin3.0-mistral-24b:free',         name:'Dolphin 3.0 Mistral 24B',         ctx:131072, paramTier:'24B', uncensored:true },
-    // ── Alibaba other ────────────────────────────────────────────────────────────
+    // ── Alibaba ──────────────────────────────────────────────────────────────────
     { id:'thudm/glm-4-9b-chat:free',              name:'GLM-4 9B Chat',                     ctx:131072, paramTier:'8B' },
     // ── Gemini flash free ────────────────────────────────────────────────────────
     { id:'google/gemini-2.0-flash-exp:free',      name:'Gemini 2.0 Flash (Exp · 1M)',       ctx:1048576, paramTier:'?' },
     { id:'google/gemini-2.0-flash-thinking-exp:free', name:'Gemini 2.0 Flash Thinking (Exp)', ctx:1048576, paramTier:'?' },
     { id:'google/gemma-3n-e4b-it:free',           name:'Gemma 3n E4B IT (multimodal)',      ctx:8192,   paramTier:'3B' },
-    // ── Bytedance / Moonshot ─────────────────────────────────────────────────────
+    // ── Moonshot ─────────────────────────────────────────────────────────────────
     { id:'moonshotai/moonlight-16a-a3b-instruct:free', name:'Moonlight 16A A3B (MoE)',       ctx:8192,   paramTier:'3B' },
+    // ── Snowflake ────────────────────────────────────────────────────────────────
+    { id:'snowflake/snowflake-arctic-embed-l-v2.0:free', name:'Snowflake Arctic Embed L v2 (embedding)', ctx:8192, paramTier:'?' },
     // ── Sarvamai ─────────────────────────────────────────────────────────────────
     { id:'sarvamai/sarvam-m:free',                name:'Sarvam M (multilingual)',            ctx:32768,  paramTier:'?' },
-    // ── SambaNova ────────────────────────────────────────────────────────────────
+    // ── Creative / RP ─────────────────────────────────────────────────────────────
     { id:'sao10k/l3.3-euryale-70b:free',          name:'Euryale 70B (creative/RP)',          ctx:131072, paramTier:'70B', uncensored:true },
     { id:'sao10k/l3.1-euryale-70b:free',          name:'Euryale 3.1 70B (creative/RP)',      ctx:131072, paramTier:'70B', uncensored:true },
     // ── Reka ─────────────────────────────────────────────────────────────────────
@@ -193,27 +190,27 @@ const CURATED_FREE = {
     { id:'google/gemma-2-9b-it',                      name:'Gemma 2 9B IT',                 ctx:8192,   paramTier:'8B' },
     { id:'google/gemma-2-27b-it',                     name:'Gemma 2 27B IT',                ctx:8192,   paramTier:'30B' },
     { id:'google/gemma-7b-it',                        name:'Gemma 7B IT',                   ctx:8192,   paramTier:'7B' },
-    // ── Nous Research / Hermes ────────────────────────────────────────────────────
+    // ── Nous Research ────────────────────────────────────────────────────────────
     { id:'NousResearch/Hermes-3-Llama-3.1-8B',        name:'Hermes 3 Llama 3.1 8B',        ctx:131072, paramTier:'8B',  uncensored:true },
     { id:'NousResearch/Nous-Hermes-2-Mixtral-8x7B-DPO',name:'Hermes 2 Mixtral 8x7B DPO',   ctx:32768,  paramTier:'?',   uncensored:true },
-    // ── Cognitive Computations / Dolphin ──────────────────────────────────────────
+    // ── Dolphin ───────────────────────────────────────────────────────────────────
     { id:'cognitivecomputations/dolphin-2.9.2-qwen2-72b', name:'Dolphin 2.9.2 Qwen2 72B',  ctx:32768,  paramTier:'70B', uncensored:true },
     // ── HuggingFaceH4 ─────────────────────────────────────────────────────────────
     { id:'HuggingFaceH4/zephyr-7b-beta',              name:'Zephyr 7B Beta',               ctx:32768,  paramTier:'7B' },
     { id:'HuggingFaceH4/zephyr-7b-alpha',             name:'Zephyr 7B Alpha',              ctx:32768,  paramTier:'7B' },
     // ── OpenChat ──────────────────────────────────────────────────────────────────
     { id:'openchat/openchat-3.6-8b-20240522',         name:'OpenChat 3.6 8B',              ctx:8192,   paramTier:'8B',  uncensored:true },
-    // ── TII Falcon ────────────────────────────────────────────────────────────────
+    // ── Falcon ────────────────────────────────────────────────────────────────────
     { id:'tiiuae/Falcon3-10B-Instruct',               name:'Falcon 3 10B Instruct',        ctx:32768,  paramTier:'13B' },
     { id:'tiiuae/Falcon3-7B-Instruct',                name:'Falcon 3 7B Instruct',         ctx:32768,  paramTier:'7B' },
     { id:'tiiuae/Falcon3-3B-Instruct',                name:'Falcon 3 3B Instruct',         ctx:32768,  paramTier:'3B' },
     { id:'tiiuae/Falcon3-1B-Instruct',                name:'Falcon 3 1B Instruct',         ctx:32768,  paramTier:'1B', uncensored:true },
-    // ── LGAI Exaone ────────────────────────────────────────────────────────────────
+    // ── EXAONE ────────────────────────────────────────────────────────────────────
     { id:'LGAI-MEDIA/EXAONE-3.5-7.8B-Instruct',       name:'EXAONE 3.5 7.8B Instruct',    ctx:32768,  paramTier:'7B' },
-    // ── Command-R ─────────────────────────────────────────────────────────────────
+    // ── Cohere ────────────────────────────────────────────────────────────────────
     { id:'CohereForAI/c4ai-command-r-plus-08-2024',   name:'Command R+ 08-2024 (104B)',    ctx:131072, paramTier:'105B' },
     { id:'CohereForAI/c4ai-command-r7b-12-2024',      name:'Command R7B 12-2024',          ctx:131072, paramTier:'7B' },
-    // ── AllenAI Tulu / OLMo ───────────────────────────────────────────────────────
+    // ── AllenAI ───────────────────────────────────────────────────────────────────
     { id:'allenai/OLMo-2-1124-13B-Instruct',          name:'OLMo 2 13B Instruct',          ctx:4096,   paramTier:'13B' },
     { id:'allenai/OLMo-2-1124-7B-Instruct',           name:'OLMo 2 7B Instruct',           ctx:4096,   paramTier:'7B' },
     // ── SmolLM ────────────────────────────────────────────────────────────────────
@@ -229,12 +226,14 @@ const API = {
 
   /**
    * Parse a raw provider error response into a user-friendly object.
-   * Returns { code, userMessage, raw }.
    *
-   * FIX: added UPSTREAM_RATE_LIMIT code — distinguishes provider-side congestion
-   * (temporary, model-specific) from quota exhaustion (daily cap, account-wide).
-   * This lets App.sendMessage() call AppState.setModelCooldown(modelId) for the
-   * former without treating it as a dead model or hard auth error.
+   * FIX: distinguishes UPSTREAM_RATE_LIMIT (temporary per-model congestion from
+   * the underlying provider, e.g. Chutes) from RATE_LIMIT (OpenRouter account
+   * quota exhausted). Previously both collapsed into one code, so a congested
+   * model triggered App.refreshModels() and tried to swap it out — now only
+   * true quota exhaustion and missing/paid models trigger a list refresh.
+   * An upstream 429 instead sets a 60-second per-model cooldown via
+   * AppState.setModelCooldown() in App.sendMessage().
    */
   parseProviderError(status, rawText = '') {
     let parsed = null;
@@ -252,23 +251,32 @@ const API = {
       return { code: 'AUTH', userMessage: 'Authentication failed — please check your API key.', raw: providerMsg };
     }
 
-    if (status === 429 || normalized.includes('rate limit')) {
-      // Distinguish upstream provider congestion from the user's own quota
+    if (status === 429) {
+      // Upstream/provider-level congestion: the model itself is rate-limited by
+      // its hosting provider (e.g. Chutes, Together, Fireworks). This is
+      // temporary and does NOT mean the user has hit their OpenRouter quota.
+      // Phrases observed in the wild: "upstream", "provider", "try another",
+      // "model is currently overloaded", "too many requests to provider".
       const isUpstream =
         normalized.includes('upstream') ||
         normalized.includes('provider') ||
         normalized.includes('overloaded') ||
-        normalized.includes('capacity') ||
-        normalized.includes('server error') ||
-        normalized.includes('too many requests from');
+        normalized.includes('try another') ||
+        normalized.includes('too many requests to');
+
       if (isUpstream) {
         return {
           code: 'UPSTREAM_RATE_LIMIT',
-          userMessage: 'This model is temporarily overloaded. Try again in a moment or switch models.',
+          userMessage: 'This model is temporarily overloaded — try another model or wait 60 s.',
           raw: providerMsg,
         };
       }
-      return { code: 'RATE_LIMIT', userMessage: 'Rate limited — please wait a moment and try again.', raw: providerMsg };
+
+      return {
+        code: 'RATE_LIMIT',
+        userMessage: 'Rate limited — OpenRouter free-tier allows 20 req/min and 50 req/day. Please wait or add credits.',
+        raw: providerMsg,
+      };
     }
 
     if (
@@ -356,19 +364,13 @@ const API = {
         });
     } else {
       const liveIds = new Set((data.data || []).map(m => m.id));
-      models = CURATED_FREE.huggingface.map(m => ({
-        ...m,
-        live: liveIds.has(m.id),
-      }));
+      models = CURATED_FREE.huggingface.map(m => ({ ...m, live: liveIds.has(m.id) }));
       (data.data || []).forEach(lm => {
         if (!curatedMap[lm.id]) {
           models.push({
-            id:        lm.id,
-            name:      lm.id.split('/').pop().replace(/-/g, ' '),
-            ctx:       8192,
-            paramTier: '?',
-            uncensored:false,
-            live:      true,
+            id: lm.id,
+            name: lm.id.split('/').pop().replace(/-/g, ' '),
+            ctx: 8192, paramTier: '?', uncensored: false, live: true,
           });
         }
       });
@@ -377,11 +379,10 @@ const API = {
     const seen = new Set();
     models = models.filter(m => { if (seen.has(m.id)) return false; seen.add(m.id); return true; });
     models.sort((a, b) => a.name.localeCompare(b.name));
-
     return models.length > 0 ? models : (CURATED_FREE[providerName] || []);
   },
 
-  /** @deprecated — kept for backward compat; internally calls sendMessageStream */
+  /** @deprecated — kept for backward compat; calls sendMessageStream */
   async sendMessage(messages, modelId, options = {}) {
     return this.sendMessageStream(messages, modelId, null, options);
   },
@@ -416,8 +417,8 @@ const API = {
     };
 
     const headers = {
-      'Content-Type':            'application/json',
-      [provider.authHeader]:     `Bearer ${token}`,
+      'Content-Type':        'application/json',
+      [provider.authHeader]: `Bearer ${token}`,
       ...provider.extraHeaders
     };
 
@@ -433,13 +434,9 @@ const API = {
         const raw = await response.text();
         const parsed = this.parseProviderError(response.status, raw);
         const err = new Error(parsed.userMessage);
-        err.code   = parsed.code;
-        err.raw    = parsed.raw;
+        err.code = parsed.code;
+        err.raw  = parsed.raw;
         err.status = response.status;
-        // FIX: record a 60-second cooldown for this model on upstream 429s
-        if (parsed.code === 'UPSTREAM_RATE_LIMIT' && modelId) {
-          AppState.setModelCooldown(modelId);
-        }
         throw err;
       }
 

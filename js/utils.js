@@ -30,6 +30,13 @@ const Utils = {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   },
 
+  /**
+   * Validate API key format.
+   * Accepts:
+   *   OpenRouter/OpenAI: sk-xxx or sk-or-xxx (20+ chars)
+   *   Anthropic:         sk-ant-xxx          (20+ chars)
+   *   Hugging Face:      hf_xxx              (10+ chars)
+   */
   isValidApiKey(key) {
     if (!key || typeof key !== 'string') return false;
     const trimmed = key.trim();
@@ -44,10 +51,7 @@ const Utils = {
   debounce(func, wait) {
     let timeout;
     return function executedFunction(...args) {
-      const later = () => {
-        clearTimeout(timeout);
-        func(...args);
-      };
+      const later = () => { clearTimeout(timeout); func(...args); };
       clearTimeout(timeout);
       timeout = setTimeout(later, wait);
     };
@@ -86,9 +90,9 @@ const Utils = {
   },
 
   /**
-   * FIX: wrapped anchor insertion and cleanup in try/finally.
-   * Previously, if a.click() threw (or the revoke was never reached due to an
-   * early return), the <a> node would remain in the DOM indefinitely.
+   * FIX: anchor insertion and revokeObjectURL are now in a try/finally block.
+   * Previously an unexpected throw (e.g. from a sandboxed iframe blocking
+   * appendChild) would leave an orphan <a> element in the DOM forever.
    */
   downloadAsFile(text, filename, mimeType = 'text/plain') {
     const blob = new Blob([text], { type: mimeType });
@@ -96,11 +100,11 @@ const Utils = {
     const a    = document.createElement('a');
     a.href     = url;
     a.download = filename;
-    document.body.appendChild(a);
     try {
+      document.body.appendChild(a);
       a.click();
     } finally {
-      document.body.removeChild(a);
+      if (document.body.contains(a)) document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
     }
   },
@@ -111,6 +115,7 @@ const Utils = {
 
   /**
    * Parse markdown and sanitize output to prevent XSS.
+   * Uses DOMPurify if available, otherwise strips dangerous tags/attributes manually.
    */
   async parseMarkdown(text) {
     if (typeof marked !== 'undefined') {
@@ -133,6 +138,8 @@ const Utils = {
 
   /**
    * Highlight search matches in text.
+   * Wraps result in DOMPurify.sanitize when available to prevent XSS via
+   * crafted search queries.
    */
   highlightMatches(text, query) {
     if (!query || !text) return text;
