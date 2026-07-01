@@ -88,7 +88,7 @@ const AppState = {
     this.apiKey  = '';
     this.hfToken = '';
     if (typeof UI !== 'undefined') {
-      UI.setAuthState(false, 'Session expired — please re-authenticate');
+      UI.setAuthState(false, 'Session expired \u2014 please re-authenticate');
       UI.toast('\u23F1 Session timed out. Please re-authenticate.', 'warning', 6000);
     }
   },
@@ -105,6 +105,7 @@ const AppState = {
         if (parsed.maxTokens)                  this.maxTokens            = parsed.maxTokens;
         if (parsed.currentPersonaPrompt)       this.currentPersonaPrompt = parsed.currentPersonaPrompt;
         if (parsed.paramFilter)                this.paramFilter          = parsed.paramFilter;
+        // selectedModel is restored but will be re-validated on refreshModels()
         if (parsed.selectedModel && parsed.selectedModel !== 'none') {
           this.selectedModel = parsed.selectedModel;
         }

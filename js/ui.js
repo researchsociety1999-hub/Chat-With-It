@@ -55,7 +55,7 @@ const UI = {
     const avatar = document.createElement('div');
     avatar.className = 'msg-avatar';
     avatar.setAttribute('aria-hidden', 'true');
-    avatar.textContent = role === 'user' ? '👤' : '🤖';
+    avatar.textContent = role === 'user' ? '\uD83D\uDC64' : '\uD83E\uDD16';
 
     const col = document.createElement('div');
     col.style.cssText = 'display:flex;flex-direction:column;gap:.25rem;max-width:calc(100% - 44px)';
@@ -95,7 +95,7 @@ const UI = {
     const avatar = document.createElement('div');
     avatar.className = 'msg-avatar';
     avatar.setAttribute('aria-hidden', 'true');
-    avatar.textContent = '🤖';
+    avatar.textContent = '\uD83E\uDD16';
 
     const col = document.createElement('div');
     col.style.cssText = 'display:flex;flex-direction:column;gap:.25rem;max-width:calc(100% - 44px)';
@@ -147,6 +147,16 @@ const UI = {
     }
   },
 
+  /**
+   * Remove an empty stream bubble from the DOM.
+   * Called when a stream errors out before any tokens arrive.
+   */
+  removeStreamBubble(bubble) {
+    if (!bubble) return;
+    const wrap = bubble.closest('.msg');
+    if (wrap) wrap.remove();
+  },
+
   // ─── Typing indicator ─────────────────────────────────────────────────────
 
   showTyping() {
@@ -162,7 +172,7 @@ const UI = {
     const avatar = document.createElement('div');
     avatar.className = 'msg-avatar';
     avatar.setAttribute('aria-hidden', 'true');
-    avatar.textContent = '🤖';
+    avatar.textContent = '\uD83E\uDD16';
 
     const typing = document.createElement('div');
     typing.className = 'typing-indicator';
@@ -271,9 +281,18 @@ const UI = {
   toast(message, type = 'info', duration = 3000) {
     const area = this.el('toastArea');
     if (!area) return;
+
+    // Deduplicate: if the same message is already showing, remove it first
+    const existing = Array.from(area.querySelectorAll('.toast'))
+      .find(t => t.dataset.msg === message);
+    if (existing) existing.remove();
+
     const t = document.createElement('div');
     t.className = `toast ${type}`;
+    t.dataset.msg = message;
     t.textContent = message;
+    // Prevent overflow on mobile for long error strings
+    t.style.cssText = 'max-width:min(92vw,560px);white-space:normal;word-break:break-word';
     area.appendChild(t);
     setTimeout(() => {
       t.style.animation = 'slideIn .25s reverse forwards';

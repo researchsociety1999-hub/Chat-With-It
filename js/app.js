@@ -20,6 +20,9 @@ const App = {
 
       await this.refreshModels();
 
+      // Re-activate the persisted persona card on load
+      this._restorePersonaCard();
+
       UI.toast('\u2705 ChatWithIt loaded', 'success');
     } catch (error) {
       console.error('Init error:', error);
@@ -122,7 +125,7 @@ const App = {
       const model = AppState.allModels.find(m => m.id === AppState.selectedModel);
       if (model) {
         const ctxK = model.ctx ? `${(model.ctx / 1000).toFixed(0)}k ctx` : '';
-        UI.el('modelMeta').textContent = [model.paramTier, ctxK, model.uncensored ? '\uD83D\uDD13 uncensored' : ''].filter(Boolean).join(' · ');
+        UI.el('modelMeta').textContent = [model.paramTier, ctxK, model.uncensored ? '\uD83D\uDD13 uncensored' : ''].filter(Boolean).join(' \u00B7 ');
         UI.updateModelLabel(model.name);
         AppState.modelContextMap[model.id] = model.ctx || 8192;
       }
@@ -140,16 +143,10 @@ const App = {
     sel.innerHTML = '<option value="none" disabled selected>Loading\u2026</option>';
 
     try {
-      const provider   = AppState.currentProvider;
-      const rawModels  = CURATED_FREE[provider] || [];
-      const tierFilter = AppState.paramFilter;
-      const tierDef    = PARAM_TIERS.find(t => t.value === tierFilter);
-
-      const models = (tierFilter === 'all' || !tierDef?.test)
-        ? rawModels
-        : rawModels.filter(m => tierDef.test(m.paramTier));
+      const models = await API.fetchModels(AppState.currentProvider, AppState.paramFilter || 'all');
 
       AppState.allModels = models;
+      AppState.modelContextMap = {};
       models.forEach(m => { AppState.modelContextMap[m.id] = m.ctx || 8192; });
 
       sel.innerHTML = '';
@@ -166,17 +163,19 @@ const App = {
         sel.appendChild(opt);
       });
 
+      // If the previously saved model is no longer in the list, silently switch to first
       if (AppState.selectedModel === 'none' || !models.find(m => m.id === AppState.selectedModel)) {
-        sel.value = models[0].id;
-        AppState.selectedModel = models[0].id;
+        const first = models[0];
+        sel.value = first.id;
+        AppState.selectedModel = first.id;
         AppState.persistState();
-        UI.updateModelLabel(models[0].name);
-        AppState.modelContextMap[models[0].id] = models[0].ctx || 8192;
+        UI.updateModelLabel(first.name);
+        AppState.modelContextMap[first.id] = first.ctx || 8192;
         UI.el('modelMeta').textContent = [
-          models[0].paramTier,
-          models[0].ctx ? `${(models[0].ctx / 1000).toFixed(0)}k ctx` : '',
-          models[0].uncensored ? '\uD83D\uDD13 uncensored' : ''
-        ].filter(Boolean).join(' · ');
+          first.paramTier,
+          first.ctx ? `${(first.ctx / 1000).toFixed(0)}k ctx` : '',
+          first.uncensored ? '\uD83D\uDD13 uncensored' : ''
+        ].filter(Boolean).join(' \u00B7 ');
       }
 
     } catch (error) {
@@ -218,15 +217,28 @@ const App = {
     const input   = UI.el('userInput');
     const message = input.value.trim();
 
-    if (!message)                     { UI.toast('Message cannot be empty', 'warning'); return; }
+    if (!message)                          { UI.toast('Message cannot be empty', 'warning'); return; }
     if (AppState.selectedModel === 'none') { UI.toast('Please select a model first', 'warning'); return; }
-    if (!AppState.getAuthToken())     { UI.toast('Please authenticate first', 'error'); return; }
+    if (!AppState.getAuthToken())          { UI.toast('Please authenticate first', 'error'); return; }
+
+    // Validate that the selected model is still in the current list
+    if (!AppState.allModels.some(m => m.id === AppState.selectedModel)) {
+      UI.toast('Selected model is no longer available \u2014 refreshing list\u2026', 'warning');
+      await this.refreshModels();
+      if (!AppState.allModels.some(m => m.id === AppState.selectedModel)) {
+        UI.toast('Please choose another model.', 'error');
+        return;
+      }
+    }
 
     const rateCheck = AppState.canMakeRequest();
     if (!rateCheck.allowed) {
       UI.toast(`\u23F3 Rate limited \u2014 try again in ${Math.ceil(rateCheck.retryAfterMs / 1000)}s`, 'warning');
       return;
     }
+
+    let streamBubble = null;
+    let receivedAnyToken = false;
 
     try {
       UI.showChat();
@@ -244,17 +256,30 @@ const App = {
       ];
 
       API.createAbortController();
-      const streamBubble = UI.createStreamBubble();
-      UI.removeTyping();
 
       const response = await API.sendMessageStream(
         messages,
         AppState.selectedModel,
-        (delta) => UI.appendStreamToken(streamBubble, delta),
+        (delta) => {
+          if (!receivedAnyToken) {
+            receivedAnyToken = true;
+            UI.removeTyping();
+            streamBubble = UI.createStreamBubble();
+          }
+          UI.appendStreamToken(streamBubble, delta);
+        },
         { temperature: AppState.temperature, maxTokens: AppState.maxTokens }
       );
 
+      UI.removeTyping();
+
       const assistantMessage = response.choices?.[0]?.message?.content || 'No response';
+
+      // If stream produced no tokens (e.g. empty response), create the bubble now
+      if (!receivedAnyToken) {
+        streamBubble = UI.createStreamBubble();
+      }
+
       UI.finaliseStreamBubble(streamBubble, assistantMessage);
       AppState.addMessage('assistant', assistantMessage);
 
@@ -264,10 +289,25 @@ const App = {
       UI.updateContextBar();
     } catch (error) {
       UI.removeTyping();
+
+      // Remove the empty stream bubble so no blank assistant message is left behind
+      if (streamBubble && !receivedAnyToken) {
+        UI.removeStreamBubble(streamBubble);
+      }
+
       console.error('sendMessage error:', error);
+
+      // Auto-refresh if the model was deleted or made paid
+      if (error.code === 'MODEL_NOT_FREE' || error.code === 'MODEL_MISSING') {
+        await this.refreshModels();
+      }
+
       const msg = error.message || 'Failed to get response';
-      UI.toast(`Error: ${msg}`, 'error');
-      UI.appendMessage('assistant', `\u274C Error: ${msg}`);
+      UI.toast(msg, 'error');
+      // Only append an inline error message for non-abort errors
+      if (error.code !== 'ABORTED') {
+        UI.appendMessage('assistant', `\u274C ${msg}`);
+      }
     } finally {
       UI.setSendButtonState(true);
     }
@@ -329,6 +369,7 @@ const App = {
         document.querySelectorAll('.persona-card').forEach(c => c.classList.remove('active'));
         card.classList.add('active');
         AppState.currentPersonaPrompt = card.dataset.prompt || AppState.defaultPersonaPrompt;
+        AppState.persistState();
         UI.toast(`Persona: ${card.querySelector('strong')?.textContent || 'Custom'}`, 'info');
       });
     });
@@ -367,6 +408,15 @@ const App = {
         e.preventDefault();
         UI.el('shortcuts-modal')?.classList.toggle('open');
       }
+    });
+  },
+
+  // Restore the active persona card on page load based on persisted prompt
+  _restorePersonaCard() {
+    const current = AppState.currentPersonaPrompt;
+    document.querySelectorAll('.persona-card').forEach(card => {
+      const match = (card.dataset.prompt || AppState.defaultPersonaPrompt) === current;
+      card.classList.toggle('active', match);
     });
   },
 
@@ -436,6 +486,7 @@ const App = {
     }
 
     Utils.downloadAsFile(content, filename, mime);
+    AppState.chatExported = true;
     UI.toast(`Exported as ${filename}`, 'success');
   },
 };

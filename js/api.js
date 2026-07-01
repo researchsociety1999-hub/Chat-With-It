@@ -238,6 +238,50 @@ const API = {
   },
 
   /**
+   * Parse a raw provider error response into a user-friendly object.
+   * Returns { code, userMessage, raw }.
+   */
+  parseProviderError(status, rawText = '') {
+    let parsed = null;
+    try { parsed = JSON.parse(rawText); } catch (_) {}
+
+    const providerMsg =
+      parsed?.error?.message ||
+      parsed?.message ||
+      rawText ||
+      `HTTP ${status}`;
+
+    const normalized = String(providerMsg).toLowerCase();
+
+    if (status === 401 || normalized.includes('invalid api key') || normalized.includes('unauthorized')) {
+      return { code: 'AUTH', userMessage: 'Authentication failed — please check your API key.', raw: providerMsg };
+    }
+    if (status === 429 || normalized.includes('rate limit')) {
+      return { code: 'RATE_LIMIT', userMessage: 'Rate limited — please wait a moment and try again.', raw: providerMsg };
+    }
+    if (
+      status === 404 &&
+      (normalized.includes('unavailable for free') ||
+       normalized.includes('paid version is available now') ||
+       normalized.includes('use this slug instead'))
+    ) {
+      return {
+        code: 'MODEL_NOT_FREE',
+        userMessage: 'This model is no longer free. Refreshing models — please choose another one.',
+        raw: providerMsg,
+      };
+    }
+    if (status === 404 || (normalized.includes('model') && normalized.includes('not found'))) {
+      return {
+        code: 'MODEL_MISSING',
+        userMessage: 'This model is no longer available. Refreshing models — please choose another one.',
+        raw: providerMsg,
+      };
+    }
+    return { code: 'API_ERROR', userMessage: `Request failed (${status}) — please try again.`, raw: providerMsg };
+  },
+
+  /**
    * Fetch available models.
    * @param {string} [providerName]
    * @param {string} [paramFilter]  – one of PARAM_TIERS[].value, or 'all'
@@ -259,14 +303,17 @@ const API = {
           ...provider.extraHeaders
         };
 
-        // HuggingFace: fetch warm inference-ready models
-        const url = providerName === 'huggingface'
-          ? `${provider.baseUrl}${provider.modelEndpoint}`
-          : `${provider.baseUrl}${provider.modelEndpoint}`;
+        const response = await this.fetchWithTimeout(
+          `${provider.baseUrl}${provider.modelEndpoint}`,
+          { headers },
+          12000
+        );
 
-        const response = await this.fetchWithTimeout(url, { headers }, 12000);
-
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        if (!response.ok) {
+          const raw = await response.text();
+          const err = this.parseProviderError(response.status, raw);
+          throw new Error(err.userMessage);
+        }
 
         const data = await response.json();
         models = this.processModels(data, providerName);
@@ -353,7 +400,7 @@ const API = {
     if (!rateCheck.allowed) {
       throw Object.assign(
         new Error(`Rate limited. Try again in ${Math.ceil(rateCheck.retryAfterMs / 1000)}s.`),
-        { retryAfterMs: rateCheck.retryAfterMs }
+        { retryAfterMs: rateCheck.retryAfterMs, code: 'RATE_LIMIT' }
       );
     }
 
@@ -361,7 +408,12 @@ const API = {
     const provider = this.getProvider();
     const token = AppState.getAuthToken();
 
-    if (!token) throw new Error('Not authenticated. Please provide API credentials.');
+    if (!token) {
+      throw Object.assign(
+        new Error('Not authenticated. Please provide API credentials.'),
+        { code: 'AUTH' }
+      );
+    }
 
     const payload = {
       model:       modelId,
@@ -386,8 +438,13 @@ const API = {
       );
 
       if (!response.ok) {
-        const error = await response.text();
-        throw new Error(`API Error ${response.status}: ${error}`);
+        const raw = await response.text();
+        const parsed = this.parseProviderError(response.status, raw);
+        const err = new Error(parsed.userMessage);
+        err.code = parsed.code;
+        err.raw  = parsed.raw;
+        err.status = response.status;
+        throw err;
       }
 
       const reader  = response.body.getReader();
@@ -422,7 +479,11 @@ const API = {
         usage:   { prompt_tokens: promptTokens, completion_tokens: completionTokens }
       };
     } catch (error) {
-      if (error.name === 'AbortError') throw new Error('Request cancelled by user');
+      if (error.name === 'AbortError') {
+        const err = new Error('Request cancelled by user');
+        err.code = 'ABORTED';
+        throw err;
+      }
       throw error;
     }
   },
