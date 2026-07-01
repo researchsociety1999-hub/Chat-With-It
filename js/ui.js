@@ -266,6 +266,21 @@ const UI = {
     if (el) el.textContent = modelName || 'No model selected';
   },
 
+  setPersonaLabel(name) {
+    const el = this.el('personaLabel');
+    if (el) el.textContent = name ? `Persona: ${name}` : '';
+  },
+
+  updateModelCount(current, total) {
+    const el = this.el('modelCount');
+    if (!el) return;
+    if (typeof total === 'number' && total >= 0) {
+      el.textContent = `Models: ${current} / ${total}`;
+    } else {
+      el.textContent = `Models: ${current}`;
+    }
+  },
+
   // ─── Context bar ──────────────────────────────────────────────────────────
 
   updateContextBar() {
@@ -280,7 +295,13 @@ const UI = {
       bar.style.width = (pct * 100).toFixed(1) + '%';
       bar.className   = 'ctx-bar' + (pct > 0.9 ? ' over' : pct > 0.75 ? ' warn' : '');
     }
-    if (info) info.textContent = Utils.formatContextInfo(used, lim);
+    if (info) {
+      const pctUsed      = Math.round(pct * 100);
+      const pctRemaining = Math.max(0, 100 - pctUsed);
+      const usedStr      = Utils.formatTokens(used);
+      const limStr       = Utils.formatTokens(lim);
+      info.textContent   = `${usedStr} used (${pctUsed}%), ~${pctRemaining}% remaining of ${limStr}`;
+    }
     if (fill) fill.setAttribute('aria-valuenow', Math.round(pct * 100));
   },
 

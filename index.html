@@ -101,7 +101,7 @@ body{
   text-transform:uppercase;color:var(--fg-muted);padding:.1rem .25rem;
 }
 
-/* ── Provider tabs ────────────────────────────────────────────────── */
+/* ── Provider tabs ─────────────────────────────────────────────────- */
 .provider-tabs{display:flex;gap:.4rem}
 .ptab{
   flex:1;padding:.45rem .6rem;border-radius:var(--radius-xs);
@@ -112,7 +112,7 @@ body{
 .ptab:hover{background:var(--sur3);color:var(--fg)}
 .ptab.active{background:var(--acc-bg);border-color:var(--acc);color:var(--acc2)}
 
-/* ── Auth area ────────────────────────────────────────────────────── */
+/* ── Auth area ─────────────────────────────────────────────────────- */
 .auth-wrap{display:flex;flex-direction:column;gap:.4rem}
 .auth-status-row{display:flex;align-items:center;gap:.4rem;font-size:.75rem}
 .auth-dot{width:7px;height:7px;border-radius:50%;background:var(--fg-faint);flex-shrink:0;transition:background .3s}
@@ -139,6 +139,7 @@ body{
   border:1px solid var(--bdr);
 }
 .btn-ghost:hover{background:var(--sur3);color:var(--fg)}
+.auth-hint{font-size:.7rem;color:var(--fg-muted);}
 
 /* ── Model selector ───────────────────────────────────────────────── */
 .model-search-wrap{position:relative}
@@ -166,6 +167,7 @@ body{
   cursor:pointer;
 }
 .model-meta{font-size:.68rem;color:var(--fg-muted)}
+.model-count{font-size:.7rem;color:var(--fg-muted);margin-top:.25rem}
 
 /* ── Settings sliders ─────────────────────────────────────────────── */
 .slider-row{display:flex;flex-direction:column;gap:.25rem}
@@ -180,7 +182,7 @@ input[type=range]::-webkit-slider-thumb{
   border-radius:50%;background:var(--acc);cursor:pointer;
 }
 
-/* ── Persona cards ────────────────────────────────────────────────── */
+/* ── Persona cards ─────────────────────────────────────────────────- */
 .persona-grid{display:flex;flex-direction:column;gap:.35rem}
 .persona-card{
   padding:.5rem .65rem;border-radius:var(--radius-xs);
@@ -219,6 +221,10 @@ input[type=range]::-webkit-slider-thumb{
 .header-title{
   flex:1;font-size:.95rem;font-weight:700;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.header-subtitle{
+  flex:0;font-size:.75rem;color:var(--fg-muted);
+  margin-left:.5rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
 .hbtn{
   width:34px;height:34px;border-radius:var(--radius-xs);
@@ -260,7 +266,7 @@ input[type=range]::-webkit-slider-thumb{
 }
 .export-opt:hover{background:var(--sur3);color:var(--fg)}
 
-/* ── Chat area ────────────────────────────────────────────────────── */
+/* ── Chat area ─────────────────────────────────────────────────────- */
 #chatArea{flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative}
 #chatBody{
   flex:1;overflow-y:auto;
@@ -290,7 +296,7 @@ input[type=range]::-webkit-slider-thumb{
 }
 .chip:hover{background:var(--acc-bg);border-color:var(--acc);color:var(--acc2)}
 
-/* ── Messages ─────────────────────────────────────────────────────── */
+/* ── Messages ─────────────────────────────────────────────────────-- */
 .msg{display:flex;gap:.65rem;align-items:flex-start;max-width:820px;margin:0 auto;width:100%}
 .msg.user{flex-direction:row-reverse}
 .msg-avatar{
@@ -338,7 +344,7 @@ input[type=range]::-webkit-slider-thumb{
 }
 @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
 
-/* ── Typing indicator ─────────────────────────────────────────────── */
+/* ── Typing indicator ─────────────────────────────────────────────-- */
 .typing-indicator{display:flex;gap:.3rem;padding:.6rem .9rem;align-items:center}
 .typing-indicator span{
   width:7px;height:7px;border-radius:50%;
@@ -349,7 +355,7 @@ input[type=range]::-webkit-slider-thumb{
 .typing-indicator span:nth-child(3){animation-delay:.3s}
 @keyframes bounce{0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-6px)}}
 
-/* ── Context bar ──────────────────────────────────────────────────── */
+/* ── Context bar ─────────────────────────────────────────────────--- */
 #contextBar{
   padding:.4rem 1rem;
   border-top:1px solid var(--bdr);
@@ -362,7 +368,7 @@ input[type=range]::-webkit-slider-thumb{
 #ctxBar.warn{background:var(--warn)}
 #ctxBar.over{background:var(--err)}
 
-/* ── Input area ───────────────────────────────────────────────────── */
+/* ── Input area ─────────────────────────────────────────────────---- */
 #inputArea{
   padding:.75rem 1rem;
   border-top:1px solid var(--bdr);
@@ -395,7 +401,7 @@ input[type=range]::-webkit-slider-thumb{
 #stopBtn{background:var(--err);color:#fff;display:none}
 .input-meta{display:flex;justify-content:space-between;align-items:center;font-size:.68rem;color:var(--fg-faint)}
 
-/* ── Right stats panel ────────────────────────────────────────────── */
+/* ── Right stats panel ─────────────────────────────────────────────- */
 #rightPanel{
   width:0;overflow:hidden;
   background:var(--sur);
@@ -441,7 +447,7 @@ input[type=range]::-webkit-slider-thumb{
 .toast.warning{border-color:var(--warn);color:var(--warn)}
 @keyframes slideIn{to{transform:translateX(0);opacity:1}}
 
-/* ── Shortcuts modal ──────────────────────────────────────────────── */
+/* ── Shortcuts modal ───────────────────────────────────────────────- */
 #shortcuts-modal{
   display:none;position:fixed;inset:0;
   background:rgba(0,0,0,.6);z-index:9000;
@@ -470,16 +476,16 @@ kbd{
   background:rgba(0,0,0,.5);z-index:150;
 }
 
-/* ── Scrollbar ────────────────────────────────────────────────────── */
+/* ── Scrollbar ─────────────────────────────────────────────────────- */
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--sur3);border-radius:99px}
 ::-webkit-scrollbar-thumb:hover{background:var(--fg-faint)}
 
-/* ── Search highlight ─────────────────────────────────────────────── */
+/* ── Search highlight ─────────────────────────────────────────────-- */
 .search-highlight{background:rgba(124,106,247,.35);border-radius:2px;padding:0 1px}
 
-/* ── Mobile responsive ────────────────────────────────────────────── */
+/* ── Mobile responsive ─────────────────────────────────────────────- */
 @media(max-width:768px){
   #sidebar{
     position:fixed;top:0;left:0;height:100dvh;
@@ -504,7 +510,7 @@ kbd{
 </head>
 <body>
 <div id="app">
-  <!-- ── Sidebar ─────────────────────────────────────────────────────── -->
+  <!-- ── Sidebar ────────────────────────────────────────────────────── -->
   <aside id="sidebar" role="complementary" aria-label="Settings">
     <div class="sidebar-header">
       <span class="logo-icon" aria-hidden="true">💬</span>
@@ -536,6 +542,7 @@ kbd{
             <button class="btn-sm btn-primary" id="authBtn" aria-label="Authenticate">Auth</button>
           </div>
           <button class="btn-sm btn-ghost" id="clearAuthBtn" aria-label="Clear authentication">Clear auth</button>
+          <p class="auth-hint" id="authHint">Use your OpenRouter key (sk-or-…)</p>
         </div>
       </div>
 
@@ -554,6 +561,7 @@ kbd{
           style="height:auto;min-height:120px">
           <option value="none" disabled selected>— authenticate first —</option>
         </select>
+        <div class="model-count" id="modelCount" aria-live="polite"></div>
         <div class="model-meta" id="modelMeta" aria-live="polite"></div>
       </div>
 
@@ -638,12 +646,13 @@ kbd{
     </div><!-- /sidebar-body -->
   </aside>
 
-  <!-- ── Main ────────────────────────────────────────────────────────── -->
+  <!-- ── Main ───────────────────────────────────────────────────────── -->
   <div id="main">
     <!-- Header -->
     <header id="header" role="banner">
       <button id="sidebarToggle" aria-label="Toggle sidebar" aria-expanded="false">☰</button>
       <span class="header-title" id="headerTitle">ChatWithIt</span>
+      <span class="header-subtitle" id="personaLabel" aria-live="polite"></span>
 
       <div class="theme-wrap">
         <button class="hbtn" id="themeBtn" title="Theme" aria-label="Switch theme">🎨</button>
@@ -662,6 +671,7 @@ kbd{
           <button class="export-opt" id="exportMd"  role="menuitem">📄 Markdown</button>
           <button class="export-opt" id="exportJson" role="menuitem">📦 JSON</button>
           <button class="export-opt" id="exportTxt"  role="menuitem">📝 Plain text</button>
+          <button class="export-opt" id="exportCopy" role="menuitem">📋 Copy Markdown</button>
         </div>
       </div>
 
@@ -713,7 +723,7 @@ kbd{
     </div>
   </div><!-- /main -->
 
-  <!-- ── Stats panel ──────────────────────────────────────────────────── -->
+  <!-- ── Stats panel ─────────────────────────────────────────────────── -->
   <aside id="rightPanel" aria-label="Statistics">
     <div class="rp-header">
       <h3>Session Stats</h3>
@@ -747,7 +757,7 @@ kbd{
 
 </div><!-- /app -->
 
-<!-- ── Keyboard shortcuts modal ─────────────────────────────────────── -->
+<!-- ── Keyboard shortcuts modal ─────────────────────────────────────- -->
 <div id="shortcuts-modal" role="dialog" aria-modal="true" aria-label="Keyboard shortcuts">
   <div class="shortcuts-box">
     <h2>⌨️ Keyboard Shortcuts</h2>
@@ -761,13 +771,13 @@ kbd{
   </div>
 </div>
 
-<!-- ── Mobile sidebar overlay ──────────────────────────────────────── -->
+<!-- ── Mobile sidebar overlay ─────────────────────────────────────-- -->
 <div id="mobileOverlay" aria-hidden="true"></div>
 
-<!-- ── Toasts ───────────────────────────────────────────────────────── -->
+<!-- ── Toasts ─────────────────────────────────────────────────────-- -->
 <div id="toastArea" role="status" aria-live="polite" aria-atomic="true"></div>
 
-<!-- ── Scripts ──────────────────────────────────────────────────────── -->
+<!-- ── Scripts ─────────────────────────────────────────────────────- -->
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script src="js/utils.js"></script>

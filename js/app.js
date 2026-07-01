@@ -41,6 +41,22 @@ const App = {
 
       await this.refreshModels();
       this._restorePersonaCard();
+
+      // Auto-expand privacy panel on first load to reinforce trust messaging
+      const privacy = document.querySelector('.privacy-panel');
+      if (privacy && !privacy.hasAttribute('open')) {
+        privacy.setAttribute('open', '');
+      }
+
+      // Initialise auth hint for current provider
+      const hint = UI.el('authHint');
+      if (hint) {
+        const provider = AppState.currentProvider;
+        hint.textContent = provider === 'huggingface'
+          ? 'Use your Hugging Face token (hf_…)'
+          : 'Use your OpenRouter key (sk-or-…)';
+      }
+
       UI.toast('\u2705 ChatWithIt loaded', 'success');
     } catch (error) {
       console.error('Init error:', error);
@@ -85,10 +101,17 @@ const App = {
         });
 
         const input = UI.el('apiKeyInput');
-        if (input) input.placeholder = provider === 'huggingface' ? 'hf_\u2026' : 'sk-or-\u2026';
+        if (input) input.placeholder = provider === 'huggingface' ? 'hf_…' : 'sk-or-…';
 
         const isAuth = AppState.isAuthenticatedFor(provider);
         UI.setAuthState(isAuth, isAuth ? `${PROVIDERS[provider].name} authenticated` : 'Not authenticated');
+
+        const hint = UI.el('authHint');
+        if (hint) {
+          hint.textContent = provider === 'huggingface'
+            ? 'Use your Hugging Face token (hf_…)'
+            : 'Use your OpenRouter key (sk-or-…)';
+        }
 
         this.refreshModels();
         UI.toast(`Provider: ${PROVIDERS[provider].name}`, 'info');
@@ -108,7 +131,7 @@ const App = {
       AppState.hfToken = '';
       UI.el('apiKeyInput').value = '';
       UI.setAuthState(false, 'Not authenticated');
-      UI.el('modelSelect').innerHTML = '<option value="none" disabled selected>\u2014 authenticate first \u2014</option>';
+      UI.el('modelSelect').innerHTML = '<option value="none" disabled selected>— authenticate first —</option>';
       UI.toast('Authentication cleared', 'info');
     });
   },
@@ -118,13 +141,14 @@ const App = {
     const key   = input?.value.trim();
     if (!Utils.isValidApiKey(key)) {
       UI.toast('Invalid API key format', 'error');
+      if (input) input.focus();
       return;
     }
     if (AppState.currentProvider === 'openrouter') AppState.apiKey  = key;
     else                                            AppState.hfToken = key;
     input.value = '';
     UI.setAuthState(true, `${PROVIDERS[AppState.currentProvider].name} authenticated`);
-    UI.toast('\u2705 Authenticated', 'success');
+    UI.toast('✅ Authenticated', 'success');
     await this.refreshModels();
   },
 
@@ -137,7 +161,7 @@ const App = {
       const model = AppState.allModels.find(m => m.id === AppState.selectedModel);
       if (model) {
         const ctxK = model.ctx ? `${(model.ctx / 1000).toFixed(0)}k ctx` : '';
-        UI.el('modelMeta').textContent = [model.paramTier, ctxK, model.uncensored ? '\uD83D\uDD13 uncensored' : ''].filter(Boolean).join(' \u00B7 ');
+        UI.el('modelMeta').textContent = [model.paramTier, ctxK, model.uncensored ? '🔓 uncensored' : ''].filter(Boolean).join(' · ');
         UI.updateModelLabel(model.name);
         AppState.modelContextMap[model.id] = model.ctx || 8192;
       }
@@ -148,11 +172,12 @@ const App = {
     const sel = UI.el('modelSelect');
     if (!sel) return;
     if (!AppState.isAuthenticatedFor(AppState.currentProvider)) {
-      sel.innerHTML = '<option value="none" disabled selected>\u2014 authenticate first \u2014</option>';
+      sel.innerHTML = '<option value="none" disabled selected>— authenticate first —</option>';
+      UI.updateModelCount(0, 0);
       return;
     }
 
-    sel.innerHTML = '<option value="none" disabled selected>Loading\u2026</option>';
+    sel.innerHTML = '<option value="none" disabled selected>Loading…</option>';
 
     try {
       const models = await API.fetchModels(AppState.currentProvider, AppState.paramFilter || 'all');
@@ -165,9 +190,11 @@ const App = {
       sel.innerHTML = '';
       if (!models.length) {
         sel.innerHTML = '<option value="none" disabled selected>No models for this filter</option>';
+        UI.updateModelCount(0, 0);
         return;
       }
 
+      UI.updateModelCount(models.length, models.length);
       this._renderModelOptions(models, sel);
 
       if (AppState.selectedModel === 'none' || !models.find(m => m.id === AppState.selectedModel)) {
@@ -180,8 +207,8 @@ const App = {
         UI.el('modelMeta').textContent = [
           first.paramTier,
           first.ctx ? `${(first.ctx / 1000).toFixed(0)}k ctx` : '',
-          first.uncensored ? '\uD83D\uDD13 uncensored' : ''
-        ].filter(Boolean).join(' \u00B7 ');
+          first.uncensored ? '🔓 uncensored' : ''
+        ].filter(Boolean).join(' · ');
       } else {
         // Restore the previously selected model's label and meta
         sel.value = AppState.selectedModel;
@@ -189,12 +216,13 @@ const App = {
         if (model) {
           UI.updateModelLabel(model.name);
           const ctxK = model.ctx ? `${(model.ctx / 1000).toFixed(0)}k ctx` : '';
-          UI.el('modelMeta').textContent = [model.paramTier, ctxK, model.uncensored ? '\uD83D\uDD13 uncensored' : ''].filter(Boolean).join(' \u00B7 ');
+          UI.el('modelMeta').textContent = [model.paramTier, ctxK, model.uncensored ? '🔓 uncensored' : ''].filter(Boolean).join(' · ');
         }
       }
     } catch (error) {
       console.error('refreshModels error:', error);
       sel.innerHTML = '<option value="none" disabled selected>Failed to load</option>';
+      UI.updateModelCount(0, 0);
       UI.toast(`Model load failed: ${error.message}`, 'error');
     }
   },
@@ -207,8 +235,8 @@ const App = {
       const opt = document.createElement('option');
       opt.value = m.id;
       const cooldownSecs = AppState.modelCooldownSecondsLeft(m.id);
-      const cooldownTag  = cooldownSecs > 0 ? ` \u23F3 ${cooldownSecs}s` : '';
-      opt.textContent = badge + m.name + (m.uncensored ? ' \uD83D\uDD13' : '') + cooldownTag;
+      const cooldownTag  = cooldownSecs > 0 ? ` ⏳ ${cooldownSecs}s` : '';
+      opt.textContent = badge + m.name + (m.uncensored ? ' 🔓' : '') + cooldownTag;
       if (m.id === AppState.selectedModel) opt.selected = true;
       sel.appendChild(opt);
     });
@@ -248,6 +276,7 @@ const App = {
         document.querySelectorAll('.persona-card').forEach(c => c.classList.remove('active'));
         card.classList.add('active');
         const name = card.querySelector('strong')?.textContent || 'Persona';
+        UI.setPersonaLabel(name);
         UI.toast(`Persona: ${name}`, 'info');
       };
       card.addEventListener('click', activate);
@@ -287,7 +316,7 @@ const App = {
 
     const rateCheck = AppState.canMakeRequest();
     if (!rateCheck.allowed) {
-      UI.toast(`Rate limited \u2014 try again in ${Math.ceil(rateCheck.retryAfterMs / 1000)}s`, 'warning');
+      UI.toast(`Rate limited — try again in ${Math.ceil(rateCheck.retryAfterMs / 1000)}s`, 'warning');
       return;
     }
 
@@ -363,9 +392,9 @@ const App = {
       } else if (error.code === 'UPSTREAM_RATE_LIMIT') {
         AppState.setModelCooldown(AppState.selectedModel, 60000);
         this._renderModelOptions(AppState.allModels, UI.el('modelSelect'));
-        UI.toast(error.message || 'Model temporarily overloaded \u2014 try another', 'warning', 6000);
+        UI.toast(error.message || 'Model temporarily overloaded — try another', 'warning', 6000);
       } else if (error.code === 'RATE_LIMIT') {
-        UI.toast(error.message || 'Rate limited \u2014 please wait', 'warning', 6000);
+        UI.toast(error.message || 'Rate limited — please wait', 'warning', 6000);
       } else if (error.code === 'AUTH') {
         UI.setAuthState(false, 'Authentication failed');
         UI.toast(error.message || 'Authentication error', 'error');
@@ -373,7 +402,7 @@ const App = {
         UI.toast(error.message || 'Model unavailable', 'error');
         await this.refreshModels();
       } else {
-        UI.toast(error.message || 'Request failed \u2014 please try again', 'error');
+        UI.toast(error.message || 'Request failed — please try again', 'error');
       }
     } finally {
       this._sending = false;
@@ -485,6 +514,7 @@ const App = {
         ? models.filter(m => m.name.toLowerCase().includes(q) || m.id.toLowerCase().includes(q))
         : models;
 
+      UI.updateModelCount(filtered.length, models.length);
       this._renderModelOptions(filtered, sel);
 
       // Restore selected value if it survived the filter, otherwise pick first
@@ -534,6 +564,13 @@ const App = {
       if (exportMenu) exportMenu.style.display = 'none';
     });
 
+    // Copy-to-clipboard Markdown export
+    UI.el('exportCopy')?.addEventListener('click', () => {
+      this._exportChat('copy');
+      exportMenu?.classList.remove('open');
+      if (exportMenu) exportMenu.style.display = 'none';
+    });
+
     // Ctrl+S → Markdown export
     document.addEventListener('keydown', (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 's') {
@@ -561,13 +598,38 @@ const App = {
         }, null, 2);
         Utils.downloadAsFile(data, `${base}.json`, 'application/json');
 
-      } else if (format === 'md') {
+      } else if (format === 'md' || format === 'copy') {
         const lines = AppState.chatHistory.map(m => {
           const role = m.role === 'user' ? '**You**' : '**Assistant**';
           return `${role}\n\n${m.content}\n`;
         });
         const md = `# ChatWithIt Export\n\n*Exported: ${new Date().toLocaleString()}*\n*Model: ${AppState.selectedModel}*\n\n---\n\n${lines.join('\n---\n\n')}`;
-        Utils.downloadAsFile(md, `${base}.md`, 'text/markdown');
+
+        if (format === 'md') {
+          Utils.downloadAsFile(md, `${base}.md`, 'text/markdown');
+        } else {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(md).then(
+              () => UI.toast('Copied Markdown to clipboard', 'success'),
+              () => UI.toast('Clipboard copy failed — try again', 'error')
+            );
+          } else {
+            const ta = document.createElement('textarea');
+            ta.value = md;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.focus();
+            ta.select();
+            try {
+              document.execCommand('copy');
+              UI.toast('Copied Markdown to clipboard', 'success');
+            } catch (err) {
+              UI.toast('Clipboard copy failed — try manual copy', 'error');
+            }
+            document.body.removeChild(ta);
+          }
+        }
 
       } else {
         const lines = AppState.chatHistory.map(m => {
@@ -577,11 +639,17 @@ const App = {
         Utils.downloadAsFile(lines.join('\n\n---\n\n'), `${base}.txt`, 'text/plain');
       }
 
-      AppState.chatExported = true;
-      UI.toast(`\u2705 Chat exported as ${format.toUpperCase()}`, 'success');
+      if (format !== 'copy') {
+        AppState.chatExported = true;
+      }
+      if (format === 'copy') {
+        // For copy, success toast is handled in the branch above
+      } else {
+        UI.toast(`✅ Chat exported as ${format.toUpperCase()}`, 'success');
+      }
     } catch (err) {
       console.error('Export failed:', err);
-      UI.toast('Export failed \u2014 try again', 'error');
+      UI.toast(err?.message ? `Export failed: ${err.message}` : 'Export failed — try again', 'error');
     }
   },
 
@@ -608,6 +676,10 @@ const App = {
     document.querySelectorAll('.persona-card').forEach(card => {
       const isMatch = card.dataset.prompt?.trim() === saved.trim();
       card.classList.toggle('active', isMatch);
+      if (isMatch) {
+        const name = card.querySelector('strong')?.textContent || 'Persona';
+        UI.setPersonaLabel(name);
+      }
     });
   },
 };
