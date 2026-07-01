@@ -20,7 +20,7 @@ const AppState = {
 
   // Models & Settings
   selectedModel: 'none',
-  selectedModelB: 'none', // roadmap: A/B model comparison
+  selectedModelB: 'none', // TODO: roadmap — A/B model comparison (compareMode below)
   allModels: [],
   modelContextMap: {},
   currentPersonaPrompt: 'You are a helpful AI assistant. Be concise, accurate, and developer-friendly. Use Markdown formatting in your responses.',
@@ -32,7 +32,10 @@ const AppState = {
   paramFilter: 'all',
 
   // UI State
-  compareMode: false,   // roadmap: A/B model comparison — not yet wired
+  // TODO: roadmap — compareMode / selectedModelB: side-by-side A/B model view.
+  // Not yet wired to any UI or API logic. Set compareMode=true and wire up
+  // a second sendMessageStream call in App.sendMessage() when implementing.
+  compareMode: false,
   searchActive: false,
   sidebarOpen: false,
   statsOpen: false,

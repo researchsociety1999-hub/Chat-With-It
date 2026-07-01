@@ -9,6 +9,17 @@ const App = {
       AppState.init();
       UI.loadTheme();
 
+      // FIX: hard-fail early if DOMPurify didn't load from CDN.
+      // Without it the regex fallback in finaliseStreamBubble is incomplete
+      // and assistant HTML could contain unsanitized injection vectors.
+      if (!window.DOMPurify) {
+        UI.toast('\u26A0\uFE0F Security library (DOMPurify) failed to load \u2014 chat disabled. Try refreshing.', 'error', 10000);
+        const sendBtn = UI.el('sendBtn');
+        if (sendBtn) sendBtn.disabled = true;
+        console.error('DOMPurify not loaded — chat disabled for security.');
+        return;
+      }
+
       this.setupProviderListeners();
       this.setupAuthListeners();
       this.buildParamFilter();
@@ -18,6 +29,14 @@ const App = {
       this.setupSearchListeners();
       this.setupExportListeners();
       this._setupBeforeUnload();
+
+      // FIX: refresh models when the tab regains focus so long-lived sessions
+      // don't silently hold stale or deprecated model lists.
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible' && AppState.isAuthenticatedFor(AppState.currentProvider)) {
+          this.refreshModels();
+        }
+      });
 
       await this.refreshModels();
 

@@ -9,7 +9,10 @@ const UI = {
   // ─── Theme ────────────────────────────────────────────────────────────────
 
   loadTheme() {
-    const stored = localStorage.getItem('cwi_theme') || 'dark';
+    // FIX: wrap in try/catch — localStorage throws a SecurityError in sandboxed
+    // iframes (e.g. Vercel preview pane). setTheme already had this guard.
+    let stored = 'dark';
+    try { stored = localStorage.getItem('cwi_theme') || 'dark'; } catch (_) {}
     document.documentElement.setAttribute('data-theme', stored);
   },
 
@@ -291,4 +294,20 @@ const UI = {
     if (!area) return;
 
     // Deduplicate: if the same message is already showing, remove it first
-    const existing = Array.from(area.querySelectorAll('.toas
+    const existing = Array.from(area.querySelectorAll('.toast')).find(t => t.dataset.msg === message);
+    if (existing) existing.remove();
+
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.textContent = message;
+    toast.dataset.msg = message;
+    toast.setAttribute('role', 'alert');
+    toast.setAttribute('aria-live', 'polite');
+    area.appendChild(toast);
+    requestAnimationFrame(() => toast.classList.add('show'));
+    setTimeout(() => {
+      toast.classList.remove('show');
+      setTimeout(() => toast.remove(), 300);
+    }, duration);
+  },
+};
