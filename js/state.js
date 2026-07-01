@@ -18,9 +18,12 @@ const AppState = {
   isTyping: false,
   currentBubble: null,
 
+  // File attachments (reserved for future file-upload feature)
+  attachedFiles: [],
+
   // Models & Settings
   selectedModel: 'none',
-  selectedModelB: 'none', // TODO: roadmap — A/B model comparison (compareMode below)
+  selectedModelB: 'none', // TODO: roadmap \u2014 A/B model comparison (compareMode below)
   allModels: [],
   modelContextMap: {},
   currentPersonaPrompt: 'You are a helpful AI assistant. Be concise, accurate, and developer-friendly. Use Markdown formatting in your responses.',
@@ -31,8 +34,12 @@ const AppState = {
   // Model size filter
   paramFilter: 'all',
 
+  // Timestamp of the last successful model list fetch (ms since epoch).
+  // Used by App to decide whether the cached list is stale (> 5 min).
+  lastModelFetch: 0,
+
   // UI State
-  // TODO: roadmap — compareMode / selectedModelB: side-by-side A/B model view.
+  // TODO: roadmap \u2014 compareMode / selectedModelB: side-by-side A/B model view.
   // Not yet wired to any UI or API logic. Set compareMode=true and wire up
   // a second sendMessageStream call in App.sendMessage() when implementing.
   compareMode: false,
@@ -60,7 +67,7 @@ const AppState = {
 
   // API Requests
   abortController: null,
-  // Token-bucket for rate limiting — stores timestamps of recent requests
+  // Token-bucket for rate limiting \u2014 stores timestamps of recent requests
   _requestBucket: [],
   requestLimitPerMinute: 30,
   lastRequestTime: 0,
@@ -71,7 +78,7 @@ const AppState = {
     this._startIdleTimer();
   },
 
-  // ── Idle-timeout ──────────────────────────────────────────────────────────
+  // \u2500\u2500 Idle-timeout \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 
   _startIdleTimer() {
     this._clearIdleTimer();
@@ -96,7 +103,7 @@ const AppState = {
     }
   },
 
-  // ── Persistence ───────────────────────────────────────────────────────────
+  // \u2500\u2500 Persistence \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 
   loadPersistedState() {
     try {
@@ -136,7 +143,7 @@ const AppState = {
     }
   },
 
-  // ── Messages ──────────────────────────────────────────────────────────────
+  // \u2500\u2500 Messages \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 
   addMessage(role, content) {
     if (!content || typeof content !== 'string') {
@@ -162,7 +169,7 @@ const AppState = {
     return true;
   },
 
-  // ── Rate limiter (token-bucket, 30 req/min) ───────────────────────────────
+  // \u2500\u2500 Rate limiter (token-bucket, 30 req/min) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 
   canMakeRequest() {
     const now = Date.now();
@@ -183,10 +190,11 @@ const AppState = {
     this._resetIdleTimer();
   },
 
-  // ── Chat lifecycle ────────────────────────────────────────────────────────
+  // \u2500\u2500 Chat lifecycle \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 
   clearChat() {
     this.chatHistory = [];
+    this.attachedFiles = [];
     this.totalPromptTokens = 0;
     this.totalCompletionTokens = 0;
     this.turnTokens = [];
@@ -201,9 +209,10 @@ const AppState = {
     this.hfToken = '';
     this.selectedModel = 'none';
     this.selectedModelB = 'none';
+    this.attachedFiles = [];
   },
 
-  // ── Context helpers ───────────────────────────────────────────────────────
+  // \u2500\u2500 Context helpers \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 
   getContextUsage() {
     const ctxSize = this.modelContextMap[this.selectedModel] || 8192;
@@ -215,7 +224,7 @@ const AppState = {
     return this.modelContextMap[this.selectedModel] || 8192;
   },
 
-  // ── Auth helpers ──────────────────────────────────────────────────────────
+  // \u2500\u2500 Auth helpers \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 
   isValidProvider(provider) {
     return provider === 'openrouter' || provider === 'huggingface';

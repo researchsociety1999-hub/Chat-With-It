@@ -4,6 +4,9 @@
  */
 
 const App = {
+  // Guard flag: prevents double-submit if sendBtn is clicked rapidly
+  _sending: false,
+
   async init() {
     try {
       AppState.init();
@@ -16,7 +19,7 @@ const App = {
         UI.toast('\u26A0\uFE0F Security library (DOMPurify) failed to load \u2014 chat disabled. Try refreshing.', 'error', 10000);
         const sendBtn = UI.el('sendBtn');
         if (sendBtn) sendBtn.disabled = true;
-        console.error('DOMPurify not loaded — chat disabled for security.');
+        console.error('DOMPurify not loaded \u2014 chat disabled for security.');
         return;
       }
 
@@ -30,10 +33,14 @@ const App = {
       this.setupExportListeners();
       this._setupBeforeUnload();
 
-      // FIX: refresh models when the tab regains focus so long-lived sessions
-      // don't silently hold stale or deprecated model lists.
+      // Refresh models when the tab regains focus, but only if the cached list
+      // is stale (> 5 minutes old) to avoid hammering the API on every focus.
       document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible' && AppState.isAuthenticatedFor(AppState.currentProvider)) {
+        if (document.visibilityState !== 'visible') return;
+        if (!AppState.isAuthenticatedFor(AppState.currentProvider)) return;
+        const stale = Date.now() - (AppState.lastModelFetch || 0) > 5 * 60 * 1000;
+        if (stale) {
+          AppState.lastModelFetch = Date.now();
           this.refreshModels();
         }
       });
@@ -164,10 +171,14 @@ const App = {
 
     try {
       const models = await API.fetchModels(AppState.currentProvider, AppState.paramFilter || 'all');
+      AppState.lastModelFetch = Date.now();
 
       AppState.allModels = models;
       AppState.modelContextMap = {};
       models.forEach(m => { AppState.modelContextMap[m.id] = m.ctx || 8192; });
+
+      // Store full model list for search filtering (unfiltered copy)
+      this._allModelsCache = models;
 
       sel.innerHTML = '';
       if (!models.length) {
@@ -175,13 +186,7 @@ const App = {
         return;
       }
 
-      models.forEach(m => {
-        const opt = document.createElement('option');
-        opt.value = m.id;
-        opt.textContent = m.name + (m.uncensored ? ' \uD83D\uDD13' : '');
-        if (m.id === AppState.selectedModel) opt.selected = true;
-        sel.appendChild(opt);
-      });
+      this._renderModelOptions(models, sel);
 
       // If the previously saved model is no longer in the list, silently switch to first
       if (AppState.selectedModel === 'none' || !models.find(m => m.id === AppState.selectedModel)) {
@@ -203,6 +208,24 @@ const App = {
       sel.innerHTML = '<option value="none" disabled selected>Failed to load</option>';
       UI.toast(`Model load failed: ${error.message}`, 'error');
     }
+  },
+
+  /**
+   * Render model <option> elements into a <select>.
+   * Appends provider badge (OR/HF) so users can tell which provider each model
+   * belongs to when switching providers mid-session.
+   */
+  _renderModelOptions(models, sel) {
+    const providerCfg = API.getProvider();
+    const badge = providerCfg?.badgeLabel ? `[${providerCfg.badgeLabel}] ` : '';
+    sel.innerHTML = '';
+    models.forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = m.id;
+      opt.textContent = badge + m.name + (m.uncensored ? ' \uD83D\uDD13' : '');
+      if (m.id === AppState.selectedModel) opt.selected = true;
+      sel.appendChild(opt);
+    });
   },
 
   // ---------------------------------------------------------------------------
@@ -234,12 +257,16 @@ const App = {
   },
 
   async sendMessage() {
+    // Guard: ignore rapid double-clicks / Enter key bounces
+    if (this._sending) return;
+    this._sending = true;
+
     const input   = UI.el('userInput');
     const message = input.value.trim();
 
-    if (!message)                          { UI.toast('Message cannot be empty', 'warning'); return; }
-    if (AppState.selectedModel === 'none') { UI.toast('Please select a model first', 'warning'); return; }
-    if (!AppState.getAuthToken())          { UI.toast('Please authenticate first', 'error'); return; }
+    if (!message)                          { UI.toast('Message cannot be empty', 'warning'); this._sending = false; return; }
+    if (AppState.selectedModel === 'none') { UI.toast('Please select a model first', 'warning'); this._sending = false; return; }
+    if (!AppState.getAuthToken())          { UI.toast('Please authenticate first', 'error'); this._sending = false; return; }
 
     // Validate that the selected model is still in the current list
     if (!AppState.allModels.some(m => m.id === AppState.selectedModel)) {
@@ -247,6 +274,7 @@ const App = {
       await this.refreshModels();
       if (!AppState.allModels.some(m => m.id === AppState.selectedModel)) {
         UI.toast('Please choose another model.', 'error');
+        this._sending = false;
         return;
       }
     }
@@ -254,6 +282,7 @@ const App = {
     const rateCheck = AppState.canMakeRequest();
     if (!rateCheck.allowed) {
       UI.toast(`\u23F3 Rate limited \u2014 try again in ${Math.ceil(rateCheck.retryAfterMs / 1000)}s`, 'warning');
+      this._sending = false;
       return;
     }
 
@@ -291,8 +320,6 @@ const App = {
         { temperature: AppState.temperature, maxTokens: AppState.maxTokens }
       );
 
-      // FIX: reset idle timer on every successful send so long conversations
-      // don't time the user out mid-session.
       AppState._resetIdleTimer();
 
       UI.removeTyping();
@@ -328,11 +355,11 @@ const App = {
 
       const msg = error.message || 'Failed to get response';
       UI.toast(msg, 'error');
-      // Only append an inline error message for non-abort errors
       if (error.code !== 'ABORTED') {
         UI.appendMessage('assistant', `\u274C ${msg}`);
       }
     } finally {
+      this._sending = false;
       UI.setSendButtonState(true);
     }
   },
@@ -349,7 +376,7 @@ const App = {
 
     UI.el('clearBtn').addEventListener('click', () => {
       if (confirm('Clear all messages? This cannot be undone.')) {
-        UI.clearChat();
+        UI.clearChat(); // also calls AppState.clearChat() which resets attachedFiles
         UI.toast('Chat cleared', 'info');
       }
     });
@@ -423,7 +450,6 @@ const App = {
     // Escape closes modals/dropdowns; '?' toggles shortcuts
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
-        // FIX: also close the shortcuts modal on Escape
         UI.el('shortcuts-modal')?.classList.remove('open');
         const exportMenu = UI.el('export-menu');
         if (exportMenu) exportMenu.style.display = 'none';
@@ -445,10 +471,6 @@ const App = {
     });
   },
 
-  /**
-   * FIX: beforeunload guard — warn only when there are unsaved messages AND
-   * the user has not already exported.
-   */
   _setupBeforeUnload() {
     window.addEventListener('beforeunload', (e) => {
       if (AppState.chatHistory.length > 0 && !AppState.chatExported) {
@@ -464,14 +486,29 @@ const App = {
 
   setupSearchListeners() {
     const searchInput = UI.el('searchInput');
-    if (searchInput) {
-      searchInput.addEventListener('input', Utils.debounce((e) => {
-        const query = e.target.value.trim().toLowerCase();
-        Array.from(UI.el('modelSelect')?.options || []).forEach(opt => {
-          opt.style.display = !query || opt.text.toLowerCase().includes(query) ? '' : 'none';
-        });
-      }, 300));
-    }
+    if (!searchInput) return;
+    searchInput.addEventListener('input', Utils.debounce((e) => {
+      const query = e.target.value.trim().toLowerCase();
+      const cache = this._allModelsCache || AppState.allModels;
+      const sel   = UI.el('modelSelect');
+      if (!sel || !cache.length) return;
+
+      // Re-render filtered options instead of toggling display:none on <option>
+      // (display:none on <option> is not supported in Firefox on Windows)
+      const filtered = query
+        ? cache.filter(m => m.name.toLowerCase().includes(query) || m.id.toLowerCase().includes(query))
+        : cache;
+
+      if (!filtered.length) {
+        sel.innerHTML = '<option value="none" disabled selected>No matches</option>';
+        return;
+      }
+
+      const prev = sel.value;
+      this._renderModelOptions(filtered, sel);
+      // Restore selection if still in filtered list
+      if (filtered.find(m => m.id === prev)) sel.value = prev;
+    }, 300));
   },
 
   // ---------------------------------------------------------------------------
