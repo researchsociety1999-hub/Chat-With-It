@@ -12,7 +12,7 @@ const App = {
       UI.loadTheme();
 
       if (!window.DOMPurify) {
-        UI.toast('\u26A0\uFE0F Security library (DOMPurify) failed to load \u2014 chat disabled. Try refreshing.', 'error', 10000);
+        UI.toast('\u26a0\ufe0f Security library (DOMPurify) failed to load \u2014 chat disabled. Try refreshing.', 'error', 10000);
         const sendBtn = UI.el('sendBtn');
         if (sendBtn) sendBtn.disabled = true;
         console.error('DOMPurify not loaded \u2014 chat disabled for security.');
@@ -53,6 +53,8 @@ const App = {
   buildParamFilter() {
     const sel = UI.el('paramFilter');
     if (!sel) return;
+    // Clear any options that buildParamFilter may have added on a previous call
+    sel.innerHTML = '';
     PARAM_TIERS.forEach(tier => {
       const opt = document.createElement('option');
       opt.value = tier.value;
@@ -180,6 +182,15 @@ const App = {
           first.ctx ? `${(first.ctx / 1000).toFixed(0)}k ctx` : '',
           first.uncensored ? '\uD83D\uDD13 uncensored' : ''
         ].filter(Boolean).join(' \u00B7 ');
+      } else {
+        // Restore the previously selected model's label and meta
+        sel.value = AppState.selectedModel;
+        const model = models.find(m => m.id === AppState.selectedModel);
+        if (model) {
+          UI.updateModelLabel(model.name);
+          const ctxK = model.ctx ? `${(model.ctx / 1000).toFixed(0)}k ctx` : '';
+          UI.el('modelMeta').textContent = [model.paramTier, ctxK, model.uncensored ? '\uD83D\uDD13 uncensored' : ''].filter(Boolean).join(' \u00B7 ');
+        }
       }
     } catch (error) {
       console.error('refreshModels error:', error);
@@ -195,9 +206,6 @@ const App = {
     models.forEach(m => {
       const opt = document.createElement('option');
       opt.value = m.id;
-      // FIX: append ⏳ cooldown indicator when model is temporarily rate-limited
-      // by its upstream provider. This keeps the model selectable but signals
-      // to the user that it may not respond immediately.
       const cooldownSecs = AppState.modelCooldownSecondsLeft(m.id);
       const cooldownTag  = cooldownSecs > 0 ? ` \u23F3 ${cooldownSecs}s` : '';
       opt.textContent = badge + m.name + (m.uncensored ? ' \uD83D\uDD13' : '') + cooldownTag;
@@ -210,14 +218,398 @@ const App = {
 
   setupChatListeners() {
     const userInput = UI.el('userInput');
+
     userInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); this.sendMessage(); }
     });
+
     userInput.addEventListener('input', (e) => {
       UI.updateCharCount(e.target.value.length);
       e.target.style.height = 'auto';
       e.target.style.height = Math.min(e.target.scrollHeight, 160) + 'px';
     });
+
     UI.el('sendBtn').addEventListener('click', () => this.sendMessage());
 
-    document.querySelectorAll('.chi
+    UI.el('stopBtn').addEventListener('click', () => {
+      API.cancelRequest();
+      UI.setSendButtonState(true);
+      UI.removeTyping();
+      UI.toast('Generation stopped', 'info');
+    });
+
+    // Persona cards — FIX: selector is .persona-card, not .chi
+    document.querySelectorAll('.persona-card').forEach(card => {
+      const activate = () => {
+        const prompt = card.dataset.prompt;
+        if (!prompt) return;
+        AppState.currentPersonaPrompt = prompt;
+        AppState.persistState();
+        document.querySelectorAll('.persona-card').forEach(c => c.classList.remove('active'));
+        card.classList.add('active');
+        const name = card.querySelector('strong')?.textContent || 'Persona';
+        UI.toast(`Persona: ${name}`, 'info');
+      };
+      card.addEventListener('click', activate);
+      card.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(); } });
+    });
+
+    // Welcome chips
+    document.querySelectorAll('.chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const userInput = UI.el('userInput');
+        if (userInput) {
+          userInput.value = chip.textContent.trim();
+          UI.updateCharCount(userInput.value.length);
+          userInput.focus();
+          this.sendMessage();
+        }
+      });
+    });
+  },
+
+  async sendMessage() {
+    if (this._sending) return;
+
+    const userInput = UI.el('userInput');
+    const text = userInput?.value.trim();
+    if (!text) return;
+
+    if (AppState.selectedModel === 'none') {
+      UI.toast('Please select a model first', 'warning');
+      return;
+    }
+
+    if (!AppState.isAuthenticatedFor(AppState.currentProvider)) {
+      UI.toast('Please authenticate first', 'warning');
+      return;
+    }
+
+    const rateCheck = AppState.canMakeRequest();
+    if (!rateCheck.allowed) {
+      UI.toast(`Rate limited \u2014 try again in ${Math.ceil(rateCheck.retryAfterMs / 1000)}s`, 'warning');
+      return;
+    }
+
+    // Build message history
+    const messages = [
+      { role: 'system', content: AppState.currentPersonaPrompt },
+      ...AppState.chatHistory.map(m => ({ role: m.role, content: m.content })),
+      { role: 'user', content: text },
+    ];
+
+    // Update state & UI
+    AppState.addMessage('user', text);
+    userInput.value = '';
+    userInput.style.height = 'auto';
+    UI.updateCharCount(0);
+    UI.showChat();
+    UI.appendMessage('user', text);
+    UI.setSendButtonState(false);
+    UI.showTyping();
+    this._sending = true;
+
+    // Create the streaming bubble immediately (typing indicator stays until first token)
+    let streamBubble = null;
+    let fullContent  = '';
+    let firstToken   = true;
+
+    API.createAbortController();
+
+    try {
+      const response = await API.sendMessageStream(
+        messages,
+        AppState.selectedModel,
+        (delta) => {
+          // First token: swap typing indicator for live streaming bubble
+          if (firstToken) {
+            UI.removeTyping();
+            streamBubble = UI.createStreamBubble();
+            firstToken = false;
+          }
+          fullContent += delta;
+          UI.appendStreamToken(streamBubble, delta);
+        },
+        { temperature: AppState.temperature, maxTokens: AppState.maxTokens }
+      );
+
+      // Finalise: render full markdown into the bubble
+      if (streamBubble) {
+        UI.finaliseStreamBubble(streamBubble, fullContent);
+      } else {
+        // No tokens streamed (edge case: empty response)
+        UI.removeTyping();
+        const content = response?.choices?.[0]?.message?.content || '';
+        fullContent = content;
+        if (fullContent) UI.appendMessage('assistant', fullContent);
+      }
+
+      // Save to history & update stats
+      const finalContent = fullContent || response?.choices?.[0]?.message?.content || '';
+      if (finalContent) {
+        AppState.addMessage('assistant', finalContent);
+        const { promptTokens, completionTokens } = API.extractTokenUsage(response);
+        AppState.updateTokens(promptTokens, completionTokens);
+        UI.updateStats(AppState.totalPromptTokens, AppState.totalCompletionTokens);
+        UI.updateContextBar();
+      }
+
+    } catch (error) {
+      UI.removeTyping();
+      if (streamBubble) UI.removeStreamBubble(streamBubble);
+
+      if (error.code === 'ABORTED') {
+        // User-initiated stop — already handled by stopBtn listener
+      } else if (error.code === 'UPSTREAM_RATE_LIMIT') {
+        AppState.setModelCooldown(AppState.selectedModel, 60000);
+        this._renderModelOptions(AppState.allModels, UI.el('modelSelect'));
+        UI.toast(error.message || 'Model temporarily overloaded \u2014 try another', 'warning', 6000);
+      } else if (error.code === 'RATE_LIMIT') {
+        UI.toast(error.message || 'Rate limited \u2014 please wait', 'warning', 6000);
+      } else if (error.code === 'AUTH') {
+        UI.setAuthState(false, 'Authentication failed');
+        UI.toast(error.message || 'Authentication error', 'error');
+      } else if (error.code === 'MODEL_NOT_FREE' || error.code === 'MODEL_MISSING') {
+        UI.toast(error.message || 'Model unavailable', 'error');
+        await this.refreshModels();
+      } else {
+        UI.toast(error.message || 'Request failed \u2014 please try again', 'error');
+      }
+    } finally {
+      this._sending = false;
+      UI.setSendButtonState(true);
+    }
+  },
+
+  // ── UI listeners ──────────────────────────────────────────────────────────
+
+  setupUIListeners() {
+    // Stats panel
+    UI.el('statsBtn').addEventListener('click', () => UI.toggleStats());
+    UI.el('rp-close').addEventListener('click', () => {
+      UI.el('rightPanel')?.classList.remove('open');
+    });
+
+    // Clear chat
+    UI.el('clearBtn').addEventListener('click', () => {
+      if (AppState.chatHistory.length && !AppState.chatExported) {
+        if (!confirm('Clear this conversation?')) return;
+      }
+      UI.clearChat();
+      UI.toast('Chat cleared', 'info');
+    });
+
+    // Keyboard shortcuts modal
+    const modal = UI.el('shortcuts-modal');
+    UI.el('shortcutsBtn').addEventListener('click', () => {
+      modal?.classList.toggle('open');
+    });
+    modal?.addEventListener('click', (e) => {
+      if (e.target === modal) modal.classList.remove('open');
+    });
+
+    // Sidebar toggle (mobile)
+    UI.el('sidebarToggle')?.addEventListener('click', () => UI.toggleSidebar());
+    UI.el('mobileOverlay')?.addEventListener('click', () => UI.toggleSidebar());
+
+    // Theme menu
+    const themeBtn  = UI.el('themeBtn');
+    const themeMenu = UI.el('theme-menu');
+    themeBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      themeMenu?.classList.toggle('open');
+    });
+    themeMenu?.querySelectorAll('.theme-opt').forEach(opt => {
+      opt.addEventListener('click', () => {
+        UI.setTheme(opt.dataset.theme);
+        themeMenu.classList.remove('open');
+        UI.toast(`Theme: ${opt.textContent.trim()}`, 'info');
+      });
+    });
+
+    // Temperature slider
+    const tempSlider = UI.el('tempSlider');
+    const tempVal    = UI.el('tempVal');
+    if (tempSlider) {
+      tempSlider.value = AppState.temperature;
+      if (tempVal) tempVal.textContent = AppState.temperature.toFixed(1);
+      tempSlider.addEventListener('input', (e) => {
+        AppState.temperature = parseFloat(e.target.value);
+        if (tempVal) tempVal.textContent = AppState.temperature.toFixed(1);
+        AppState.persistState();
+      });
+    }
+
+    // Max tokens slider
+    const maxSlider  = UI.el('maxTokensSlider');
+    const maxVal     = UI.el('maxTokensVal');
+    if (maxSlider) {
+      maxSlider.value = AppState.maxTokens;
+      if (maxVal) maxVal.textContent = AppState.maxTokens.toLocaleString();
+      maxSlider.addEventListener('input', (e) => {
+        AppState.maxTokens = parseInt(e.target.value, 10);
+        if (maxVal) maxVal.textContent = AppState.maxTokens.toLocaleString();
+        AppState.persistState();
+      });
+    }
+
+    // Global Escape key: close all overlays
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape') return;
+      themeMenu?.classList.remove('open');
+      UI.el('export-menu')?.classList.remove('open');
+      modal?.classList.remove('open');
+      if (AppState.sidebarOpen) UI.toggleSidebar();
+    });
+
+    // Close menus on outside click
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.theme-wrap'))  themeMenu?.classList.remove('open');
+      if (!e.target.closest('.export-wrap')) UI.el('export-menu')?.classList.remove('open');
+    });
+  },
+
+  // ── Search / filter ───────────────────────────────────────────────────────
+
+  setupSearchListeners() {
+    const searchInput = UI.el('searchInput');
+    if (!searchInput) return;
+
+    const doSearch = Utils.debounce((query) => {
+      const sel     = UI.el('modelSelect');
+      const models  = this._allModelsCache || AppState.allModels;
+      if (!models?.length || !sel) return;
+
+      const q = query.trim().toLowerCase();
+      const filtered = q
+        ? models.filter(m => m.name.toLowerCase().includes(q) || m.id.toLowerCase().includes(q))
+        : models;
+
+      this._renderModelOptions(filtered, sel);
+
+      // Restore selected value if it survived the filter, otherwise pick first
+      if (filtered.find(m => m.id === AppState.selectedModel)) {
+        sel.value = AppState.selectedModel;
+      } else if (filtered.length) {
+        sel.value = filtered[0].id;
+        // Do NOT update AppState.selectedModel — just a visual search result
+      }
+    }, 150);
+
+    searchInput.addEventListener('input', (e) => doSearch(e.target.value));
+    searchInput.addEventListener('search', (e) => doSearch(e.target.value)); // clear button
+  },
+
+  // ── Export ────────────────────────────────────────────────────────────────
+
+  setupExportListeners() {
+    const exportBtn  = UI.el('exportBtn');
+    const exportMenu = UI.el('export-menu');
+
+    // Toggle menu on button click
+    exportBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      exportMenu?.classList.toggle('open');
+      exportMenu.style.display = exportMenu.classList.contains('open') ? 'flex' : 'none';
+    });
+
+    // Markdown export
+    UI.el('exportMd')?.addEventListener('click', () => {
+      this._exportChat('md');
+      exportMenu?.classList.remove('open');
+      if (exportMenu) exportMenu.style.display = 'none';
+    });
+
+    // JSON export
+    UI.el('exportJson')?.addEventListener('click', () => {
+      this._exportChat('json');
+      exportMenu?.classList.remove('open');
+      if (exportMenu) exportMenu.style.display = 'none';
+    });
+
+    // Plain text export
+    UI.el('exportTxt')?.addEventListener('click', () => {
+      this._exportChat('txt');
+      exportMenu?.classList.remove('open');
+      if (exportMenu) exportMenu.style.display = 'none';
+    });
+
+    // Ctrl+S → Markdown export
+    document.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        this._exportChat('md');
+      }
+    });
+  },
+
+  _exportChat(format) {
+    if (!AppState.chatHistory.length) {
+      UI.toast('Nothing to export', 'info');
+      return;
+    }
+    const ts   = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const base = `chatwithit-${ts}`;
+
+    try {
+      if (format === 'json') {
+        const data = JSON.stringify({
+          exportedAt: new Date().toISOString(),
+          model:      AppState.selectedModel,
+          provider:   AppState.currentProvider,
+          messages:   AppState.chatHistory,
+        }, null, 2);
+        Utils.downloadAsFile(data, `${base}.json`, 'application/json');
+
+      } else if (format === 'md') {
+        const lines = AppState.chatHistory.map(m => {
+          const role = m.role === 'user' ? '**You**' : '**Assistant**';
+          return `${role}\n\n${m.content}\n`;
+        });
+        const md = `# ChatWithIt Export\n\n*Exported: ${new Date().toLocaleString()}*\n*Model: ${AppState.selectedModel}*\n\n---\n\n${lines.join('\n---\n\n')}`;
+        Utils.downloadAsFile(md, `${base}.md`, 'text/markdown');
+
+      } else {
+        const lines = AppState.chatHistory.map(m => {
+          const role = m.role === 'user' ? 'You' : 'Assistant';
+          return `[${role}]\n${m.content}`;
+        });
+        Utils.downloadAsFile(lines.join('\n\n---\n\n'), `${base}.txt`, 'text/plain');
+      }
+
+      AppState.chatExported = true;
+      UI.toast(`\u2705 Chat exported as ${format.toUpperCase()}`, 'success');
+    } catch (err) {
+      console.error('Export failed:', err);
+      UI.toast('Export failed \u2014 try again', 'error');
+    }
+  },
+
+  // ── Before-unload guard ───────────────────────────────────────────────────
+
+  _setupBeforeUnload() {
+    window.addEventListener('beforeunload', (e) => {
+      if (!AppState.chatHistory.length) return;
+      if (AppState.chatExported) return;
+      e.preventDefault();
+      e.returnValue = '';
+    });
+  },
+
+  // ── Persona restore ───────────────────────────────────────────────────────
+
+  /**
+   * Re-activate the persona card whose data-prompt matches the persisted
+   * currentPersonaPrompt so the sidebar reflects the saved state on load.
+   */
+  _restorePersonaCard() {
+    const saved = AppState.currentPersonaPrompt;
+    if (!saved) return;
+    document.querySelectorAll('.persona-card').forEach(card => {
+      const isMatch = card.dataset.prompt?.trim() === saved.trim();
+      card.classList.toggle('active', isMatch);
+    });
+  },
+};
+
+document.addEventListener('DOMContentLoaded', () => App.init());
