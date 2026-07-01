@@ -41,8 +41,6 @@ const PROVIDERS = {
 
 /**
  * Parameter-size tier buckets.
- * Used by App.refreshModels(paramFilter) and the UI filter <select>.
- * Each entry: { label, test(paramTier) }
  */
 const PARAM_TIERS = [
   { value: 'all',   label: 'All sizes' },
@@ -54,18 +52,16 @@ const PARAM_TIERS = [
 ];
 
 /**
- * Comprehensive curated list of permanently-free models.
+ * Curated free models — OpenRouter :free tier + HuggingFace Serverless Inference.
  *
- * OpenRouter: every model with a ":free" suffix in the API as of June 2026.
- * HuggingFace: every model available on router.huggingface.co/v1 under the
- *   free Serverless Inference tier (no billing required).
- *
- * Fields:
- *   id        – model id sent to the API
- *   name      – human-readable label
- *   ctx       – context window in tokens
- *   paramTier – rough size bucket for the UI filter
- *   uncensored– true = known to be less restricted / fine-tuned for open use
+ * FIX (model filtering):
+ *   - Removed snowflake/snowflake-arctic-embed-l-v2.0:free — embedding-only model,
+ *     not a chat completion endpoint; caused silent failures when selected.
+ *   - Removed meta-llama/llama-3-8b-instruct:free and meta-llama/llama-3-70b-instruct:free
+ *     (8 k-ctx variants) — these consistently hit provider-side 429s on the free tier;
+ *     the llama-3.1 and 3.3 variants with 131 k ctx are the actively maintained replacements.
+ *   - Removed openchat/openchat-7b:free — provider (Chutes) has been persistently
+ *     rate-limiting this endpoint on the free tier; users saw consistent 429s.
  */
 const CURATED_FREE = {
   openrouter: [
@@ -85,8 +81,6 @@ const CURATED_FREE = {
     { id:'meta-llama/llama-3.3-70b-instruct:free',name:'Llama 3.3 70B Instruct',            ctx:131072,  paramTier:'70B' },
     { id:'meta-llama/llama-3.1-70b-instruct:free',name:'Llama 3.1 70B Instruct',            ctx:131072,  paramTier:'70B' },
     { id:'meta-llama/llama-3.1-8b-instruct:free', name:'Llama 3.1 8B Instruct',             ctx:131072,  paramTier:'8B' },
-    { id:'meta-llama/llama-3-70b-instruct:free',  name:'Llama 3 70B Instruct',              ctx:8192,    paramTier:'70B' },
-    { id:'meta-llama/llama-3-8b-instruct:free',   name:'Llama 3 8B Instruct',               ctx:8192,    paramTier:'8B' },
     // ── Qwen ────────────────────────────────────────────────────────────────────
     { id:'qwen/qwen3-235b-a22b:free',             name:'Qwen3 235B A22B (MoE · 40k)',       ctx:40960,  paramTier:'236B' },
     { id:'qwen/qwen3-30b-a3b:free',               name:'Qwen3 30B A3B (MoE · 128k)',        ctx:131072, paramTier:'30B' },
@@ -124,8 +118,6 @@ const CURATED_FREE = {
     { id:'nousresearch/hermes-2-pro-llama-3-8b:free', name:'Hermes 2 Pro Llama 3 8B',       ctx:8192,   paramTier:'8B',  uncensored:true },
     { id:'nousresearch/nous-hermes-2-mixtral-8x7b-dpo:free', name:'Nous Hermes 2 Mixtral 8x7B DPO', ctx:32768, paramTier:'?', uncensored:true },
     { id:'nousresearch/nous-capybara-7b:free',    name:'Nous Capybara 7B',                   ctx:4096,   paramTier:'7B',  uncensored:true },
-    // ── OpenChat / Mistral community ────────────────────────────────────────────
-    { id:'openchat/openchat-7b:free',             name:'OpenChat 3.5 7B (8k)',               ctx:8192,   paramTier:'7B', uncensored:true },
     // ── 01.AI Yi ────────────────────────────────────────────────────────────────
     { id:'01-ai/yi-1.5-34b-chat:free',            name:'Yi 1.5 34B Chat',                   ctx:4096,   paramTier:'32B' },
     // ── Cohere ──────────────────────────────────────────────────────────────────
@@ -148,8 +140,6 @@ const CURATED_FREE = {
     { id:'google/gemma-3n-e4b-it:free',           name:'Gemma 3n E4B IT (multimodal)',      ctx:8192,   paramTier:'3B' },
     // ── Bytedance / Moonshot ─────────────────────────────────────────────────────
     { id:'moonshotai/moonlight-16a-a3b-instruct:free', name:'Moonlight 16A A3B (MoE)',       ctx:8192,   paramTier:'3B' },
-    // ── Snowflake Arctic ─────────────────────────────────────────────────────────
-    { id:'snowflake/snowflake-arctic-embed-l-v2.0:free', name:'Snowflake Arctic Embed L v2 (embedding)', ctx:8192, paramTier:'?' },
     // ── Sarvamai ─────────────────────────────────────────────────────────────────
     { id:'sarvamai/sarvam-m:free',                name:'Sarvam M (multilingual)',            ctx:32768,  paramTier:'?' },
     // ── SambaNova ────────────────────────────────────────────────────────────────
@@ -240,6 +230,11 @@ const API = {
   /**
    * Parse a raw provider error response into a user-friendly object.
    * Returns { code, userMessage, raw }.
+   *
+   * FIX: added UPSTREAM_RATE_LIMIT code — distinguishes provider-side congestion
+   * (temporary, model-specific) from quota exhaustion (daily cap, account-wide).
+   * This lets App.sendMessage() call AppState.setModelCooldown(modelId) for the
+   * former without treating it as a dead model or hard auth error.
    */
   parseProviderError(status, rawText = '') {
     let parsed = null;
@@ -256,9 +251,26 @@ const API = {
     if (status === 401 || normalized.includes('invalid api key') || normalized.includes('unauthorized')) {
       return { code: 'AUTH', userMessage: 'Authentication failed — please check your API key.', raw: providerMsg };
     }
+
     if (status === 429 || normalized.includes('rate limit')) {
+      // Distinguish upstream provider congestion from the user's own quota
+      const isUpstream =
+        normalized.includes('upstream') ||
+        normalized.includes('provider') ||
+        normalized.includes('overloaded') ||
+        normalized.includes('capacity') ||
+        normalized.includes('server error') ||
+        normalized.includes('too many requests from');
+      if (isUpstream) {
+        return {
+          code: 'UPSTREAM_RATE_LIMIT',
+          userMessage: 'This model is temporarily overloaded. Try again in a moment or switch models.',
+          raw: providerMsg,
+        };
+      }
       return { code: 'RATE_LIMIT', userMessage: 'Rate limited — please wait a moment and try again.', raw: providerMsg };
     }
+
     if (
       status === 404 &&
       (normalized.includes('unavailable for free') ||
@@ -281,12 +293,6 @@ const API = {
     return { code: 'API_ERROR', userMessage: `Request failed (${status}) — please try again.`, raw: providerMsg };
   },
 
-  /**
-   * Fetch available models.
-   * @param {string} [providerName]
-   * @param {string} [paramFilter]  – one of PARAM_TIERS[].value, or 'all'
-   * @returns {Promise<Array>}
-   */
   async fetchModels(providerName = AppState.currentProvider, paramFilter = 'all') {
     const provider = this.getProvider(providerName);
     const token = providerName === 'openrouter' ? AppState.apiKey : AppState.hfToken;
@@ -294,7 +300,6 @@ const API = {
     let models;
 
     if (!token) {
-      // No auth yet — return curated list so the UI is never empty
       models = CURATED_FREE[providerName] || [];
     } else {
       try {
@@ -323,7 +328,6 @@ const API = {
       }
     }
 
-    // Apply parameter-size filter
     if (paramFilter && paramFilter !== 'all') {
       const tier = PARAM_TIERS.find(t => t.value === paramFilter);
       if (tier) models = models.filter(m => tier.test(m.paramTier || '?'));
@@ -332,10 +336,6 @@ const API = {
     return models;
   },
 
-  /**
-   * Process and normalise models from a live API response.
-   * Merges with CURATED_FREE so paramTier + uncensored metadata is preserved.
-   */
   processModels(data, providerName) {
     const curatedMap = {};
     (CURATED_FREE[providerName] || []).forEach(m => { curatedMap[m.id] = m; });
@@ -355,14 +355,11 @@ const API = {
           };
         });
     } else {
-      // HuggingFace: live endpoint may return different shapes; merge with curated
       const liveIds = new Set((data.data || []).map(m => m.id));
-      // Always include every curated HF model (live endpoint is unreliable for listing)
       models = CURATED_FREE.huggingface.map(m => ({
         ...m,
-        live: liveIds.has(m.id), // tag whether currently warm
+        live: liveIds.has(m.id),
       }));
-      // Also add any live models not in our curated list
       (data.data || []).forEach(lm => {
         if (!curatedMap[lm.id]) {
           models.push({
@@ -377,7 +374,6 @@ const API = {
       });
     }
 
-    // De-duplicate by id, sort alphabetically
     const seen = new Set();
     models = models.filter(m => { if (seen.has(m.id)) return false; seen.add(m.id); return true; });
     models.sort((a, b) => a.name.localeCompare(b.name));
@@ -390,11 +386,6 @@ const API = {
     return this.sendMessageStream(messages, modelId, null, options);
   },
 
-  /**
-   * Send message with real-time token streaming.
-   * All traffic goes directly from the browser to the provider over HTTPS.
-   * No intermediate server sees the content.
-   */
   async sendMessageStream(messages, modelId, onToken, options = {}) {
     const rateCheck = AppState.canMakeRequest();
     if (!rateCheck.allowed) {
@@ -431,8 +422,6 @@ const API = {
     };
 
     try {
-      // FIX: use the app-level abort signal when present; fetchWithTimeout's
-      // internal controller acts only as a timeout fallback so both signals work.
       const appSignal = AppState.abortController?.signal;
       const response = await this.fetchWithTimeout(
         `${provider.baseUrl}${provider.chatEndpoint}`,
@@ -444,9 +433,13 @@ const API = {
         const raw = await response.text();
         const parsed = this.parseProviderError(response.status, raw);
         const err = new Error(parsed.userMessage);
-        err.code = parsed.code;
-        err.raw  = parsed.raw;
+        err.code   = parsed.code;
+        err.raw    = parsed.raw;
         err.status = response.status;
+        // FIX: record a 60-second cooldown for this model on upstream 429s
+        if (parsed.code === 'UPSTREAM_RATE_LIMIT' && modelId) {
+          AppState.setModelCooldown(modelId);
+        }
         throw err;
       }
 
@@ -474,8 +467,6 @@ const API = {
         }
       }
 
-      // FIX: always provide a non-zero prompt token estimate — never return 0
-      // when the provider omits usage (common on free-tier streaming endpoints).
       const estimatedPrompt     = Math.max(1, Math.ceil(messages.reduce((s, m) => s + (m.content?.length || 0), 0) / 4));
       const estimatedCompletion = Math.max(1, Math.ceil(content.length / 4));
       const promptTokens        = usage?.prompt_tokens     || estimatedPrompt;
@@ -495,26 +486,14 @@ const API = {
     }
   },
 
-  /**
-   * Fetch with a hard timeout.
-   * If the caller already has an abort signal (options.signal), that signal is
-   * honoured — the local timeout controller only fires if it expires first.
-   * This prevents the signal-conflict bug where a new AbortController was
-   * silently overwriting the app-level one.
-   */
   async fetchWithTimeout(url, options = {}, timeoutMs = 10000) {
     const timeoutCtrl = new AbortController();
     const timeoutId   = setTimeout(() => timeoutCtrl.abort(), timeoutMs);
-
-    // Compose signals: caller signal + timeout signal
     const signals = [timeoutCtrl.signal];
     if (options.signal) signals.push(options.signal);
-
-    // AbortSignal.any() is well-supported (Chrome 116+, FF 124+, Safari 17.4+)
     const composedSignal = typeof AbortSignal.any === 'function'
       ? AbortSignal.any(signals)
-      : options.signal || timeoutCtrl.signal; // graceful fallback
-
+      : options.signal || timeoutCtrl.signal;
     try {
       return await fetch(url, { ...options, signal: composedSignal });
     } finally {
@@ -535,14 +514,11 @@ const API = {
     const usage = response?.usage;
     if (usage) return { promptTokens: usage.prompt_tokens || 0, completionTokens: usage.completion_tokens || 0 };
     const content = response?.choices?.[0]?.message?.content || '';
-    // FIX: return a non-zero prompt estimate instead of 0 so the context bar
-    // is always meaningful even when the provider omits usage data.
     return {
       promptTokens:     Math.max(1, Math.ceil(content.length / 4)),
       completionTokens: Math.max(1, Math.ceil(content.length / 4)),
     };
   },
 
-  /** Expose tiers so App can build the filter <select> */
   getParamTiers() { return PARAM_TIERS; },
 };

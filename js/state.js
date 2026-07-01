@@ -23,7 +23,7 @@ const AppState = {
 
   // Models & Settings
   selectedModel: 'none',
-  selectedModelB: 'none', // TODO: roadmap \u2014 A/B model comparison (compareMode below)
+  selectedModelB: 'none', // TODO: roadmap — A/B model comparison (compareMode below)
   allModels: [],
   modelContextMap: {},
   currentPersonaPrompt: 'You are a helpful AI assistant. Be concise, accurate, and developer-friendly. Use Markdown formatting in your responses.',
@@ -39,9 +39,7 @@ const AppState = {
   lastModelFetch: 0,
 
   // UI State
-  // TODO: roadmap \u2014 compareMode / selectedModelB: side-by-side A/B model view.
-  // Not yet wired to any UI or API logic. Set compareMode=true and wire up
-  // a second sendMessageStream call in App.sendMessage() when implementing.
+  // TODO: roadmap — compareMode / selectedModelB: side-by-side A/B model view.
   compareMode: false,
   searchActive: false,
   sidebarOpen: false,
@@ -67,10 +65,18 @@ const AppState = {
 
   // API Requests
   abortController: null,
-  // Token-bucket for rate limiting \u2014 stores timestamps of recent requests
+  // Token-bucket for rate limiting — stores timestamps of recent requests.
+  // FIX: lowered to 20 req/min to match OpenRouter's documented free-tier cap.
+  // (Previous value of 30 allowed the client to exceed the provider limit.)
   _requestBucket: [],
-  requestLimitPerMinute: 30,
+  requestLimitPerMinute: 20,
   lastRequestTime: 0,
+
+  // Per-model cooldown map: modelId -> timestamp when cooldown expires.
+  // Populated by API when an upstream 429 is detected for a specific model.
+  // FIX: lets the UI flag temporarily overloaded models without removing them.
+  _modelCooldowns: {},
+  _modelCooldownMs: 60000, // 60 s cooldown per upstream-rate-limited model
 
   init() {
     this.loadPersistedState();
@@ -78,7 +84,7 @@ const AppState = {
     this._startIdleTimer();
   },
 
-  // \u2500\u2500 Idle-timeout \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+  // ── Idle-timeout ──────────────────────────────────────────────────────────
 
   _startIdleTimer() {
     this._clearIdleTimer();
@@ -98,12 +104,12 @@ const AppState = {
     this.apiKey  = '';
     this.hfToken = '';
     if (typeof UI !== 'undefined') {
-      UI.setAuthState(false, 'Session expired \u2014 please re-authenticate');
-      UI.toast('\u23F1 Session timed out. Please re-authenticate.', 'warning', 6000);
+      UI.setAuthState(false, 'Session expired — please re-authenticate');
+      UI.toast('⏱ Session timed out. Please re-authenticate.', 'warning', 6000);
     }
   },
 
-  // \u2500\u2500 Persistence \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+  // ── Persistence ──────────────────────────────────────────────────────────
 
   loadPersistedState() {
     try {
@@ -115,7 +121,6 @@ const AppState = {
         if (parsed.maxTokens)                  this.maxTokens            = parsed.maxTokens;
         if (parsed.currentPersonaPrompt)       this.currentPersonaPrompt = parsed.currentPersonaPrompt;
         if (parsed.paramFilter)                this.paramFilter          = parsed.paramFilter;
-        // selectedModel is restored but will be re-validated on refreshModels()
         if (parsed.selectedModel && parsed.selectedModel !== 'none') {
           this.selectedModel = parsed.selectedModel;
         }
@@ -143,7 +148,7 @@ const AppState = {
     }
   },
 
-  // \u2500\u2500 Messages \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+  // ── Messages ──────────────────────────────────────────────────────────────
 
   addMessage(role, content) {
     if (!content || typeof content !== 'string') {
@@ -153,7 +158,7 @@ const AppState = {
     this.chatHistory.push({ role, content, timestamp: Date.now() });
     this.sessionStats.messageCount++;
     if (role === 'assistant') this.sessionStats.turnCount++;
-    this.chatExported = false; // new messages invalidate any prior export
+    this.chatExported = false;
     this._resetIdleTimer();
     return true;
   },
@@ -169,17 +174,15 @@ const AppState = {
     return true;
   },
 
-  // \u2500\u2500 Rate limiter (token-bucket, 30 req/min) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+  // ── Rate limiter (token-bucket, 20 req/min) ───────────────────────────────
 
   canMakeRequest() {
     const now = Date.now();
     const windowMs = 60000;
-    // Evict timestamps older than 1 minute
     this._requestBucket = this._requestBucket.filter(t => now - t < windowMs);
     if (this._requestBucket.length < this.requestLimitPerMinute) {
       return { allowed: true, retryAfterMs: 0 };
     }
-    // Oldest timestamp in the bucket: wait until it falls outside the window
     const oldest = this._requestBucket[0];
     return { allowed: false, retryAfterMs: windowMs - (now - oldest) };
   },
@@ -190,7 +193,32 @@ const AppState = {
     this._resetIdleTimer();
   },
 
-  // \u2500\u2500 Chat lifecycle \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+  // ── Per-model cooldown (upstream 429 handling) ────────────────────────────
+
+  /**
+   * Mark a model as temporarily rate-limited by the upstream provider.
+   * The model remains in the list but isModelOnCooldown() returns true for
+   * _modelCooldownMs (60 s) so the UI can badge it as ⚠️ overloaded.
+   */
+  setModelCooldown(modelId) {
+    if (!modelId) return;
+    this._modelCooldowns[modelId] = Date.now() + this._modelCooldownMs;
+  },
+
+  /**
+   * Returns true if the model hit an upstream 429 within the last 60 s.
+   * Expired entries are lazily pruned on read.
+   */
+  isModelOnCooldown(modelId) {
+    if (!modelId || !this._modelCooldowns[modelId]) return false;
+    if (Date.now() > this._modelCooldowns[modelId]) {
+      delete this._modelCooldowns[modelId];
+      return false;
+    }
+    return true;
+  },
+
+  // ── Chat lifecycle ────────────────────────────────────────────────────────
 
   clearChat() {
     this.chatHistory = [];
@@ -200,6 +228,9 @@ const AppState = {
     this.turnTokens = [];
     this.sessionStats.messageCount = 0;
     this.sessionStats.turnCount = 0;
+    // FIX: reset startTime so the session timer is accurate after clearing
+    this.sessionStats.startTime = Date.now();
+    // FIX: reset export guard so beforeunload fires for the new session
     this.chatExported = false;
   },
 
@@ -212,7 +243,7 @@ const AppState = {
     this.attachedFiles = [];
   },
 
-  // \u2500\u2500 Context helpers \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+  // ── Context helpers ───────────────────────────────────────────────────────
 
   getContextUsage() {
     const ctxSize = this.modelContextMap[this.selectedModel] || 8192;
@@ -224,7 +255,7 @@ const AppState = {
     return this.modelContextMap[this.selectedModel] || 8192;
   },
 
-  // \u2500\u2500 Auth helpers \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+  // ── Auth helpers ──────────────────────────────────────────────────────────
 
   isValidProvider(provider) {
     return provider === 'openrouter' || provider === 'huggingface';

@@ -9,8 +9,6 @@ const UI = {
   // ─── Theme ────────────────────────────────────────────────────────────────
 
   loadTheme() {
-    // FIX: wrap in try/catch — localStorage throws a SecurityError in sandboxed
-    // iframes (e.g. Vercel preview pane). setTheme already had this guard.
     let stored = 'dark';
     try { stored = localStorage.getItem('cwi_theme') || 'dark'; } catch (_) {}
     document.documentElement.setAttribute('data-theme', stored);
@@ -49,9 +47,16 @@ const UI = {
 
   /**
    * Append a finalized message bubble.
-   * FIX: assistant messages are now rendered through Utils.parseMarkdown
-   * (which sanitizes via DOMPurify) instead of raw textContent, so error-path
-   * or non-streaming assistant replies are also protected against XSS.
+   *
+   * FIX (scroll timing): assistant rendering is async (Utils.parseMarkdown returns
+   * a Promise). Previously, chat.scrollTop was set synchronously right after
+   * appendChild, before the bubble had any height — the page jumped to the wrong
+   * position. Now we scroll AFTER the Promise resolves so the layout is final.
+   *
+   * FIX (unified render path): both streamed and non-streamed assistant messages
+   * now go through Utils.parseMarkdown, which applies DOMPurify sanitization.
+   * Previously appendMessage used the same path but finaliseStreamBubble called
+   * marked.parse directly, creating two divergent sanitization branches.
    */
   appendMessage(role, text) {
     const chat = this.el('chatBody');
@@ -72,14 +77,6 @@ const UI = {
     const bubble = document.createElement('div');
     bubble.className = 'msg-bubble';
 
-    if (role === 'assistant') {
-      // FIX: route through parseMarkdown so DOMPurify sanitization is applied
-      // consistently for ALL assistant messages, not just streamed ones.
-      Utils.parseMarkdown(text).then(html => { bubble.innerHTML = html; });
-    } else {
-      bubble.textContent = text;
-    }
-
     const ts = document.createElement('div');
     ts.style.cssText = 'font-size:.68rem;color:var(--fg-muted);padding:0 .25rem';
     ts.textContent = new Date().toLocaleTimeString();
@@ -90,7 +87,17 @@ const UI = {
     wrap.appendChild(avatar);
     wrap.appendChild(col);
     chat.appendChild(wrap);
-    chat.scrollTop = chat.scrollHeight;
+
+    if (role === 'assistant') {
+      // FIX: scroll after markdown renders so the bubble has its final height
+      Utils.parseMarkdown(text).then(html => {
+        bubble.innerHTML = html;
+        chat.scrollTop = chat.scrollHeight;
+      });
+    } else {
+      bubble.textContent = text;
+      chat.scrollTop = chat.scrollHeight;
+    }
   },
 
   // ─── Streaming bubble ─────────────────────────────────────────────────────
@@ -142,26 +149,23 @@ const UI = {
     }
   },
 
+  /**
+   * FIX (unified render path): delegates to Utils.parseMarkdown instead of
+   * duplicating marked.parse + DOMPurify inline. This ensures the same
+   * sanitization logic is used for ALL assistant output.
+   */
   finaliseStreamBubble(bubble, fullContent) {
     if (!bubble) return;
     bubble.classList.remove('streaming');
     const content = bubble.querySelector('.bubble-stream-content');
     if (!content) return;
-    if (window.marked) {
-      const raw = marked.parse(fullContent);
-      content.innerHTML = window.DOMPurify
-        ? DOMPurify.sanitize(raw, { USE_PROFILES: { html: true } })
-        : raw.replace(/<(script|iframe|object|embed|form)\b[^>]*>[\s\S]*?<\/\1>/gi, '')
-             .replace(/\s+on\w+\s*=/gi, ' data-removed=');
-    } else {
-      content.textContent = fullContent;
-    }
+    Utils.parseMarkdown(fullContent).then(html => {
+      content.innerHTML = html;
+      const chat = this.el('chatBody');
+      if (chat) chat.scrollTop = chat.scrollHeight;
+    });
   },
 
-  /**
-   * Remove an empty stream bubble from the DOM.
-   * Called when a stream errors out before any tokens arrive.
-   */
   removeStreamBubble(bubble) {
     if (!bubble) return;
     const wrap = bubble.closest('.msg');
@@ -216,13 +220,18 @@ const UI = {
     setBar('stat-completion-bar', completionToks / max);
 
     const chart = this.el('stat-chart');
-    if (chart && AppState.turnTokens.length) {
-      const last8 = AppState.turnTokens.slice(-8);
-      const peak  = Math.max(...last8.map(t => t.p + t.c), 1);
-      chart.innerHTML = last8.map(t => {
-        const h = Math.round(((t.p + t.c) / peak) * 44);
-        return `<div class="chart-bar" style="height:${h}px" title="P:${t.p} C:${t.c}"></div>`;
-      }).join('');
+    if (chart) {
+      if (AppState.turnTokens.length) {
+        const last8 = AppState.turnTokens.slice(-8);
+        const peak  = Math.max(...last8.map(t => t.p + t.c), 1);
+        chart.innerHTML = last8.map(t => {
+          const h = Math.max(2, Math.round(((t.p + t.c) / peak) * 44));
+          return `<div class="chart-bar" style="height:${h}px" title="Prompt: ${t.p} / Completion: ${t.c}" aria-hidden="true"></div>`;
+        }).join('');
+      } else {
+        // FIX: show placeholder bars so the chart area is never invisibly 0-height
+        chart.innerHTML = '<div class="chart-bar" style="height:2px;opacity:.3" aria-hidden="true"></div>'.repeat(4);
+      }
     }
   },
 
@@ -293,7 +302,6 @@ const UI = {
     const area = this.el('toastArea');
     if (!area) return;
 
-    // Deduplicate: if the same message is already showing, remove it first
     const existing = Array.from(area.querySelectorAll('.toast')).find(t => t.dataset.msg === message);
     if (existing) existing.remove();
 

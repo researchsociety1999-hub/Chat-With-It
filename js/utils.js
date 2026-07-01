@@ -4,57 +4,32 @@
  */
 
 const Utils = {
-  /**
-   * Format token count with comma separator
-   */
   formatTokens(count) {
     return Math.floor(count).toLocaleString();
   },
 
-  /**
-   * Format context usage as percentage
-   */
   formatContextUsage(pct) {
     return Math.round(pct * 100) + '%';
   },
 
-  /**
-   * Format context info string
-   */
   formatContextInfo(used, limit) {
     return `${Utils.formatTokens(used)} / ~${(limit / 1000).toFixed(0)}k tokens`;
   },
 
-  /**
-   * Sanitize HTML to prevent XSS
-   */
   sanitizeHtml(html) {
     const div = document.createElement('div');
     div.textContent = html;
     return div.innerHTML;
   },
 
-  /**
-   * Escape special regex characters
-   */
   escapeRegex(str) {
     return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   },
 
-  /**
-   * Validate email format
-   */
   isValidEmail(email) {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   },
 
-  /**
-   * Validate API key format
-   * Accepts:
-   *   OpenRouter/OpenAI: sk-xxx or sk-or-xxx (20+ chars)
-   *   Anthropic:         sk-ant-xxx          (20+ chars)
-   *   Hugging Face:      hf_xxx              (10+ chars)
-   */
   isValidApiKey(key) {
     if (!key || typeof key !== 'string') return false;
     const trimmed = key.trim();
@@ -62,16 +37,10 @@ const Utils = {
     return (trimmed.startsWith('sk-') || trimmed.startsWith('sk-ant-')) && trimmed.length >= 20;
   },
 
-  /**
-   * Deep clone an object
-   */
   deepClone(obj) {
     return JSON.parse(JSON.stringify(obj));
   },
 
-  /**
-   * Debounce a function
-   */
   debounce(func, wait) {
     let timeout;
     return function executedFunction(...args) {
@@ -84,9 +53,6 @@ const Utils = {
     };
   },
 
-  /**
-   * Throttle a function
-   */
   throttle(func, limit) {
     let inThrottle;
     return function(...args) {
@@ -98,16 +64,10 @@ const Utils = {
     };
   },
 
-  /**
-   * Sleep for specified milliseconds
-   */
   sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
   },
 
-  /**
-   * Get time since timestamp
-   */
   getTimeSince(timestamp) {
     const seconds = Math.floor((Date.now() - timestamp) / 1000);
     if (seconds < 60) return `${seconds}s ago`;
@@ -115,9 +75,6 @@ const Utils = {
     return `${Math.floor(seconds / 3600)}h ago`;
   },
 
-  /**
-   * Copy text to clipboard
-   */
   async copyToClipboard(text) {
     try {
       await navigator.clipboard.writeText(text);
@@ -129,40 +86,39 @@ const Utils = {
   },
 
   /**
-   * Download text as file
+   * FIX: wrapped anchor insertion and cleanup in try/finally.
+   * Previously, if a.click() threw (or the revoke was never reached due to an
+   * early return), the <a> node would remain in the DOM indefinitely.
    */
   downloadAsFile(text, filename, mimeType = 'text/plain') {
     const blob = new Blob([text], { type: mimeType });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
+    const url  = window.URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
     a.download = filename;
     document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
+    try {
+      a.click();
+    } finally {
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    }
   },
 
-  /**
-   * Generate unique ID
-   */
   generateId(prefix = 'id') {
     return `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   },
 
   /**
    * Parse markdown and sanitize output to prevent XSS.
-   * Uses DOMPurify if available, otherwise strips dangerous tags/attributes manually.
    */
   async parseMarkdown(text) {
     if (typeof marked !== 'undefined') {
       try {
         const raw = marked.parse(text);
-        // Prefer DOMPurify when available (loaded via CDN)
         if (typeof DOMPurify !== 'undefined') {
           return DOMPurify.sanitize(raw, { USE_PROFILES: { html: true } });
         }
-        // Fallback: strip script/iframe/object tags and inline event handlers
         return raw
           .replace(/<(script|iframe|object|embed|link|meta|form)\b[^>]*>[\s\S]*?<\/\1>/gi, '')
           .replace(/<(script|iframe|object|embed|link|meta|form)\b[^>]*\/?>/gi, '')
@@ -177,9 +133,6 @@ const Utils = {
 
   /**
    * Highlight search matches in text.
-   * FIX: wraps the result in DOMPurify.sanitize (when available) so a crafted
-   * search query cannot inject arbitrary HTML into the chat via the highlight
-   * span replacement.
    */
   highlightMatches(text, query) {
     if (!query || !text) return text;
@@ -199,23 +152,14 @@ const Utils = {
     }
   },
 
-  /**
-   * Validate file size
-   */
   isValidFileSize(sizeInBytes, maxSizeMb = 10) {
     return sizeInBytes <= maxSizeMb * 1024 * 1024;
   },
 
-  /**
-   * Check if device is mobile
-   */
   isMobile() {
     return window.innerWidth <= 768;
   },
 
-  /**
-   * Retry async operation with exponential backoff
-   */
   async retryWithBackoff(fn, maxRetries = 3, baseDelay = 1000) {
     for (let i = 0; i < maxRetries; i++) {
       try {
@@ -228,9 +172,6 @@ const Utils = {
     }
   },
 
-  /**
-   * Format file size for display
-   */
   formatFileSize(bytes) {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
