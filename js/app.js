@@ -31,43 +31,21 @@ const App = {
   // Param-size filter
   // ---------------------------------------------------------------------------
 
-  /**
-   * Dynamically build the parameter-size filter <select> below #modelSelect.
-   * Uses PARAM_TIERS exported by api.js via API.getParamTiers().
-   */
   buildParamFilter() {
-    const modelSection = UI.el('modelSelect')?.closest('.s-section');
-    if (!modelSection) return;
-
-    // Remove any previous filter element (safe to re-call)
-    const existing = document.getElementById('paramFilter');
-    if (existing) existing.closest('.s-section')?.remove();
-
-    const section = document.createElement('div');
-    section.className = 's-section';
-    section.innerHTML = '<div class="s-label">Model Size</div>';
-
-    const sel = document.createElement('select');
-    sel.id = 'paramFilter';
-    sel.setAttribute('aria-label', 'Filter by parameter size');
-
-    API.getParamTiers().forEach(tier => {
+    const sel = UI.el('paramFilter');
+    if (!sel) return;
+    PARAM_TIERS.forEach(tier => {
       const opt = document.createElement('option');
       opt.value = tier.value;
       opt.textContent = tier.label;
-      if (tier.value === (AppState.paramFilter || 'all')) opt.selected = true;
+      if (tier.value === AppState.paramFilter) opt.selected = true;
       sel.appendChild(opt);
     });
-
-    sel.addEventListener('change', async (e) => {
+    sel.addEventListener('change', (e) => {
       AppState.paramFilter = e.target.value;
       AppState.persistState();
-      await this.refreshModels();
+      this.refreshModels();
     });
-
-    section.appendChild(sel);
-    // Insert right after the model <select> section
-    modelSection.insertAdjacentElement('afterend', section);
   },
 
   // ---------------------------------------------------------------------------
@@ -75,21 +53,28 @@ const App = {
   // ---------------------------------------------------------------------------
 
   setupProviderListeners() {
-    const providerSelect = UI.el('providerSelect');
-    // Restore persisted provider
-    if (AppState.currentProvider) providerSelect.value = AppState.currentProvider;
-    providerSelect.addEventListener('change', (e) => {
-      AppState.currentProvider = e.target.value;
-      this.updateAuthUI();
-      AppState.persistState();
-    });
-    this.updateAuthUI();
-  },
+    document.querySelectorAll('.ptab').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const provider = btn.dataset.provider;
+        if (!AppState.isValidProvider(provider)) return;
+        AppState.currentProvider = provider;
+        AppState.persistState();
 
-  updateAuthUI() {
-    const isOR = AppState.currentProvider === 'openrouter';
-    UI.el('or-auth-section').style.display = isOR ? 'flex' : 'none';
-    UI.el('hf-auth-section').style.display = isOR ? 'none' : 'flex';
+        document.querySelectorAll('.ptab').forEach(b => {
+          b.classList.toggle('active', b.dataset.provider === provider);
+          b.setAttribute('aria-selected', String(b.dataset.provider === provider));
+        });
+
+        const input = UI.el('apiKeyInput');
+        if (input) input.placeholder = provider === 'huggingface' ? 'hf_…' : 'sk-or-…';
+
+        const isAuth = AppState.isAuthenticatedFor(provider);
+        UI.setAuthState(isAuth, isAuth ? `${PROVIDERS[provider].name} authenticated` : 'Not authenticated');
+
+        this.refreshModels();
+        UI.toast(`Provider: ${PROVIDERS[provider].name}`, 'info');
+      });
+    });
   },
 
   // ---------------------------------------------------------------------------
@@ -97,130 +82,108 @@ const App = {
   // ---------------------------------------------------------------------------
 
   setupAuthListeners() {
-    UI.el('authBtn').addEventListener('click',    () => this.authenticateOpenRouter());
-    UI.el('clearOrKey').addEventListener('click', () => this.clearAuth('openrouter'));
-    UI.el('hfAuthBtn').addEventListener('click',  () => this.authenticateHuggingFace());
-    UI.el('clearHfKey').addEventListener('click', () => this.clearAuth('huggingface'));
-
-    UI.el('apiKey').addEventListener('blur', () => {
-      const key = UI.el('apiKey').value.trim();
-      if (key && Utils.isValidApiKey(key)) {
-        AppState.apiKey = key;
-        UI.setStatus('\u2713 OpenRouter authenticated', 'ok');
-      }
+    UI.el('authBtn').addEventListener('click', () => this.authenticate());
+    UI.el('apiKeyInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') this.authenticate();
     });
-    UI.el('hfToken').addEventListener('blur', () => {
-      const token = UI.el('hfToken').value.trim();
-      if (token && Utils.isValidApiKey(token)) {
-        AppState.hfToken = token;
-        UI.setStatus('\u2713 Hugging Face authenticated', 'ok', true);
-      }
-    });
-  },
-
-  async authenticateOpenRouter() {
-    const key = UI.el('apiKey').value.trim();
-    if (!key)                       { UI.setStatus('Please enter your API key', 'error'); return; }
-    if (!Utils.isValidApiKey(key))  { UI.setStatus('API key appears invalid', 'error');  return; }
-    AppState.apiKey = key;
-    UI.setStatus('\u2713 Authenticated with OpenRouter', 'ok');
-    UI.toast('\u2705 OpenRouter authenticated', 'success');
-    await this.refreshModels();
-  },
-
-  async authenticateHuggingFace() {
-    const token = UI.el('hfToken').value.trim();
-    if (!token)                       { UI.setStatus('Please enter your HF token', 'error', true); return; }
-    if (!Utils.isValidApiKey(token))  { UI.setStatus('Token appears invalid', 'error', true);      return; }
-    AppState.hfToken = token;
-    UI.setStatus('\u2713 Authenticated with Hugging Face', 'ok', true);
-    UI.toast('\u2705 Hugging Face authenticated', 'success');
-    await this.refreshModels();
-  },
-
-  clearAuth(provider) {
-    if (provider === 'openrouter') {
-      AppState.apiKey = '';
-      UI.el('apiKey').value = '';
-      UI.setStatus('OpenRouter key cleared', 'info');
-    } else {
+    UI.el('clearAuthBtn').addEventListener('click', () => {
+      AppState.apiKey  = '';
       AppState.hfToken = '';
-      UI.el('hfToken').value = '';
-      UI.setStatus('Hugging Face token cleared', 'info', true);
+      UI.el('apiKeyInput').value = '';
+      UI.setAuthState(false, 'Not authenticated');
+      UI.el('modelSelect').innerHTML = '<option value="none" disabled selected>\u2014 authenticate first \u2014</option>';
+      UI.toast('Authentication cleared', 'info');
+    });
+  },
+
+  async authenticate() {
+    const input = UI.el('apiKeyInput');
+    const key   = input?.value.trim();
+    if (!Utils.isValidApiKey(key)) {
+      UI.toast('Invalid API key format', 'error');
+      return;
     }
-    UI.toast(`\uD83D\uDDD1\uFE0F ${provider} credentials removed`, 'warning');
+    if (AppState.currentProvider === 'openrouter') AppState.apiKey  = key;
+    else                                            AppState.hfToken = key;
+    input.value = '';
+    UI.setAuthState(true, `${PROVIDERS[AppState.currentProvider].name} authenticated`);
+    UI.toast('\u2705 Authenticated', 'success');
+    await this.refreshModels();
   },
 
   // ---------------------------------------------------------------------------
   // Models
   // ---------------------------------------------------------------------------
 
-  async refreshModels() {
-    try {
-      const paramFilter = AppState.paramFilter || 'all';
-      UI.setStatus('Fetching models\u2026', 'info');
-      const models = await API.fetchModels(AppState.currentProvider, paramFilter);
-      AppState.allModels = models;
-      models.forEach(m => { AppState.modelContextMap[m.id] = m.ctx; });
-      this.populateModels(models);
-      UI.setStatus(`\u2713 ${models.length} model${models.length !== 1 ? 's' : ''} loaded`, 'ok');
-      UI.toast(`\u2705 ${models.length} free model${models.length !== 1 ? 's' : ''} available`, 'success');
-    } catch (error) {
-      console.error('refreshModels error:', error);
-      UI.setStatus('Failed to fetch models', 'error');
-      UI.toast('Error loading models', 'error');
-    }
-  },
-
-  /**
-   * Populate #modelSelect with models.
-   * Shows 🔓 badge on uncensored models and (ctx) in the label.
-   */
-  populateModels(models) {
-    const sel = UI.el('modelSelect');
-    const selB = UI.el('modelSelectB');
-    if (!sel) return;
-
-    const buildOptions = (el, includeBlank) => {
-      el.innerHTML = '';
-      if (includeBlank) {
-        const blank = document.createElement('option');
-        blank.value = 'none';
-        blank.textContent = '\u2014 select a model \u2014';
-        el.appendChild(blank);
-      }
-      models.forEach(m => {
-        const opt = document.createElement('option');
-        opt.value = m.id;
-        const ctxLabel = m.ctx >= 1000000 ? `${Math.round(m.ctx/1000000)}M` :
-                         m.ctx >= 1000    ? `${Math.round(m.ctx/1000)}k`    : `${m.ctx}`;
-        const lock = m.uncensored ? ' \uD83D\uDD13' : '';
-        opt.textContent = `${m.name || m.id} [${ctxLabel}]${lock}`;
-        if (m.id === AppState.selectedModel) opt.selected = true;
-        el.appendChild(opt);
-      });
-    };
-
-    buildOptions(sel, models.length === 0);
-    if (selB) buildOptions(selB, true);
-
-    // Restore or auto-select first
-    if (!AppState.selectedModel || !models.find(m => m.id === AppState.selectedModel)) {
-      AppState.selectedModel = models[0]?.id || 'none';
-      sel.value = AppState.selectedModel;
-    }
-    UI.updateBadge?.();
-  },
-
   setupModelListeners() {
     UI.el('modelSelect').addEventListener('change', (e) => {
       AppState.selectedModel = e.target.value;
-      UI.updateBadge?.();
+      AppState.persistState();
+      const model = AppState.allModels.find(m => m.id === AppState.selectedModel);
+      if (model) {
+        const ctxK = model.ctx ? `${(model.ctx / 1000).toFixed(0)}k ctx` : '';
+        UI.el('modelMeta').textContent = [model.paramTier, ctxK, model.uncensored ? '\uD83D\uDD13 uncensored' : ''].filter(Boolean).join(' · ');
+        UI.updateModelLabel(model.name);
+        AppState.modelContextMap[model.id] = model.ctx || 8192;
+      }
     });
-    UI.el('modelSelectB').addEventListener('change', (e) => {
-      AppState.selectedModelB = e.target.value;
-    });
-    UI.el('refreshModels').addEventListener('click', () => this.refreshModels());
+  },
+
+  async refreshModels() {
+    const sel = UI.el('modelSelect');
+    if (!sel) return;
+    if (!AppState.isAuthenticatedFor(AppState.currentProvider)) {
+      sel.innerHTML = '<option value="none" disabled selected>\u2014 authenticate first \u2014</option>';
+      return;
+    }
+
+    sel.innerHTML = '<option value="none" disabled selected>Loading\u2026</option>';
+
+    try {
+      const provider   = AppState.currentProvider;
+      const rawModels  = CURATED_FREE[provider] || [];
+      const tierFilter = AppState.paramFilter;
+      const tierDef    = PARAM_TIERS.find(t => t.value === tierFilter);
+
+      const models = (tierFilter === 'all' || !tierDef?.test)
+        ? rawModels
+        : rawModels.filter(m => tierDef.test(m.paramTier));
+
+      AppState.allModels = models;
+      models.forEach(m => { AppState.modelContextMap[m.id] = m.ctx || 8192; });
+
+      sel.innerHTML = '';
+      if (!models.length) {
+        sel.innerHTML = '<option value="none" disabled selected>No models for this filter</option>';
+        return;
+      }
+
+      models.forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m.id;
+        opt.textContent = m.name + (m.uncensored ? ' \uD83D\uDD13' : '');
+        if (m.id === AppState.selectedModel) opt.selected = true;
+        sel.appendChild(opt);
+      });
+
+      if (AppState.selectedModel === 'none' || !models.find(m => m.id === AppState.selectedModel)) {
+        sel.value = models[0].id;
+        AppState.selectedModel = models[0].id;
+        AppState.persistState();
+        UI.updateModelLabel(models[0].name);
+        AppState.modelContextMap[models[0].id] = models[0].ctx || 8192;
+        UI.el('modelMeta').textContent = [
+          models[0].paramTier,
+          models[0].ctx ? `${(models[0].ctx / 1000).toFixed(0)}k ctx` : '',
+          models[0].uncensored ? '\uD83D\uDD13 uncensored' : ''
+        ].filter(Boolean).join(' · ');
+      }
+
+    } catch (error) {
+      console.error('refreshModels error:', error);
+      sel.innerHTML = '<option value="none" disabled selected>Failed to load</option>';
+      UI.toast(`Model load failed: ${error.message}`, 'error');
+    }
   },
 
   // ---------------------------------------------------------------------------
@@ -229,8 +192,6 @@ const App = {
 
   setupChatListeners() {
     const userInput = UI.el('userInput');
-    const sendBtn   = UI.el('sendBtn');
-
     userInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); this.sendMessage(); }
     });
@@ -239,7 +200,18 @@ const App = {
       e.target.style.height = 'auto';
       e.target.style.height = Math.min(e.target.scrollHeight, 160) + 'px';
     });
-    sendBtn.addEventListener('click', () => this.sendMessage());
+    UI.el('sendBtn').addEventListener('click', () => this.sendMessage());
+
+    document.querySelectorAll('.chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const input = UI.el('userInput');
+        if (input) {
+          input.value = chip.textContent;
+          UI.updateCharCount(chip.textContent.length);
+          input.focus();
+        }
+      });
+    });
   },
 
   async sendMessage() {
@@ -272,8 +244,8 @@ const App = {
       ];
 
       API.createAbortController();
-      UI.removeTyping();
       const streamBubble = UI.createStreamBubble();
+      UI.removeTyping();
 
       const response = await API.sendMessageStream(
         messages,
@@ -289,6 +261,7 @@ const App = {
       const usage = API.extractTokenUsage(response);
       AppState.updateTokens(usage.promptTokens, usage.completionTokens);
       UI.updateStats(AppState.totalPromptTokens, AppState.totalCompletionTokens);
+      UI.updateContextBar();
     } catch (error) {
       UI.removeTyping();
       console.error('sendMessage error:', error);
@@ -331,7 +304,7 @@ const App = {
     document.querySelectorAll('.theme-opt').forEach(opt => {
       opt.addEventListener('click', (e) => {
         const theme = e.target.dataset.theme;
-        if (!theme) return; // skip export opts which share the class
+        if (!theme) return;
         UI.setTheme(theme);
         UI.el('theme-menu').classList.remove('open');
         UI.toast(`Theme: ${e.target.textContent.trim()}`, 'info');
@@ -377,22 +350,22 @@ const App = {
       if (e.target === UI.el('shortcuts-modal')) UI.el('shortcuts-modal').classList.remove('open');
     });
 
-    // Compare mode
+    // Compare mode (roadmap)
     UI.el('compareBtn')?.addEventListener('click', () => {
-      const on = document.body.classList.toggle('compare-mode');
-      const sec = UI.el('cmp-model-section');
-      if (sec) sec.style.display = on ? 'flex' : 'none';
-      UI.el('compareBtn').classList.toggle('active', on);
-      UI.toast(on ? '\u2696\uFE0F Compare mode on' : 'Compare mode off', 'info');
+      UI.toast('Compare mode coming soon', 'info');
     });
 
-    // Escape closes modals/dropdowns
+    // Escape closes modals/dropdowns; '?' toggles shortcuts
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         UI.el('shortcuts-modal')?.classList.remove('open');
         const exportMenu = UI.el('export-menu');
         if (exportMenu) exportMenu.style.display = 'none';
         UI.el('theme-menu')?.classList.remove('open');
+      }
+      if (e.key === '?' && !e.ctrlKey && !e.metaKey && !['INPUT','TEXTAREA'].includes(document.activeElement?.tagName)) {
+        e.preventDefault();
+        UI.el('shortcuts-modal')?.classList.toggle('open');
       }
     });
   },
@@ -428,12 +401,9 @@ const App = {
     }
 
     const bind = (id, fmt) => UI.el(id)?.addEventListener('click', () => { this.exportAs(fmt); this.closeExportMenu(); });
-    bind('expMD',    'markdown');
-    bind('expJSON',  'json');
-    bind('expTXT',   'text');
-    bind('rp-expMD',   'markdown');
-    bind('rp-expJSON', 'json');
-    bind('rp-expTXT',  'text');
+    bind('exportMd',   'markdown');
+    bind('exportJson', 'json');
+    bind('exportTxt',  'text');
 
     document.addEventListener('keydown', (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); this.exportAs('markdown'); }
@@ -446,28 +416,28 @@ const App = {
   },
 
   exportAs(format = 'markdown') {
-    if (!AppState.chatHistory.length) { UI.toast('No messages to export', 'warning'); return; }
+    if (!AppState.chatHistory.length) { UI.toast('Nothing to export', 'warning'); return; }
+    const ts = new Date().toISOString().replace(/[:.]/g, '-');
     let content, filename, mime;
-    const ts = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
-    switch (format) {
-      case 'json':
-        content  = JSON.stringify({ exported: new Date().toISOString(), model: AppState.selectedModel, messages: AppState.chatHistory }, null, 2);
-        filename = `chat-${ts}.json`; mime = 'application/json'; break;
-      case 'text':
-        content  = AppState.chatHistory.map(m => `[${m.role.toUpperCase()}]\n${m.content}`).join('\n\n---\n\n');
-        filename = `chat-${ts}.txt`; mime = 'text/plain'; break;
-      default:
-        content  = `# Chat Export\n\n**Model:** ${AppState.selectedModel}  \n**Date:** ${new Date().toLocaleString()}\n\n---\n\n` +
-                   AppState.chatHistory.map(m => `**${m.role === 'user' ? '\uD83D\uDC64 You' : '\uD83E\uDD16 Assistant'}**\n\n${m.content}`).join('\n\n---\n\n');
-        filename = `chat-${ts}.md`; mime = 'text/markdown';
+
+    if (format === 'json') {
+      content  = JSON.stringify({ exported: new Date().toISOString(), model: AppState.selectedModel, messages: AppState.chatHistory }, null, 2);
+      filename = `chat-${ts}.json`;
+      mime     = 'application/json';
+    } else if (format === 'text') {
+      content  = AppState.chatHistory.map(m => `[${m.role.toUpperCase()}]\n${m.content}`).join('\n\n---\n\n');
+      filename = `chat-${ts}.txt`;
+      mime     = 'text/plain';
+    } else {
+      content  = `# Chat Export\n\n*Exported: ${new Date().toLocaleString()}*\n*Model: ${AppState.selectedModel}*\n\n---\n\n`
+               + AppState.chatHistory.map(m => `**${m.role === 'user' ? 'You' : 'Assistant'}:**\n\n${m.content}`).join('\n\n---\n\n');
+      filename = `chat-${ts}.md`;
+      mime     = 'text/markdown';
     }
-    const blob = new Blob([content], { type: mime });
-    const url  = URL.createObjectURL(blob);
-    const a    = Object.assign(document.createElement('a'), { href: url, download: filename });
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    UI.toast(`\uD83D\uDCBE Exported as ${filename}`, 'success');
-  }
+
+    Utils.downloadAsFile(content, filename, mime);
+    UI.toast(`Exported as ${filename}`, 'success');
+  },
 };
 
 document.addEventListener('DOMContentLoaded', () => App.init());

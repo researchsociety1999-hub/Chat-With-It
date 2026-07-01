@@ -1,84 +1,50 @@
 /**
- * UI Handler
- * Manages all DOM updates, rendering, and UI interactions.
+ * UI Manager
+ * Handles all DOM manipulation, rendering, and UI state updates
  */
 
 const UI = {
+  el(id) { return document.getElementById(id); },
 
-  el(id) {
-    return document.getElementById(id);
+  // ─── Theme ────────────────────────────────────────────────────────────────
+
+  loadTheme() {
+    const stored = localStorage.getItem('cwi_theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', stored);
   },
 
-  // ─── Toast ────────────────────────────────────────────────────────────────
-
-  toast(message, type = 'info') {
-    const container = this.el('toast-container');
-    if (!container) return;
-    const toast = document.createElement('div');
-    toast.className = `toast ${type}`;
-    toast.setAttribute('role', 'status');
-    toast.setAttribute('aria-live', 'polite');
-    toast.textContent = message;
-    container.appendChild(toast);
-    setTimeout(() => toast.remove(), 3000);
+  setTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    try { localStorage.setItem('cwi_theme', theme); } catch (_) {}
   },
 
-  // ─── Status line ──────────────────────────────────────────────────────────
+  // ─── Auth UI ──────────────────────────────────────────────────────────────
 
-  setStatus(message, type = 'neutral', isHF = false) {
-    const el = isHF ? this.el('hfStatus') : this.el('status');
-    if (!el) return;
-    const colors = { ok: 'var(--green)', error: 'var(--rose)', info: 'var(--accent)', neutral: 'var(--fg-muted)' };
-    el.style.color = colors[type] || colors.neutral;
-    el.textContent = message;
+  setAuthState(ok, label) {
+    const dot    = this.el('authDot');
+    const status = this.el('authStatus');
+    if (dot)    { dot.className    = 'auth-dot ' + (ok ? 'ok' : 'err'); }
+    if (status) { status.textContent = label; }
   },
 
-  // ─── Model dropdowns ──────────────────────────────────────────────────────
+  // ─── Chat display ─────────────────────────────────────────────────────────
 
-  populateModels(models) {
-    ['modelSelect', 'modelSelectB'].forEach(id => {
-      const select = this.el(id);
-      if (!select) return;
-      const prev = select.value;
-      select.innerHTML = '';
-      const def = document.createElement('option');
-      def.value = 'none';
-      def.textContent = id === 'modelSelect' ? '— select a model —' : '— select model B —';
-      select.appendChild(def);
-      models.forEach(m => {
-        const opt = document.createElement('option');
-        opt.value = m.id;
-        const ctxLabel = m.ctx >= 1000000 ? `${Math.round(m.ctx/1000000)}M` :
-                         m.ctx >= 1000    ? `${Math.round(m.ctx/1000)}k`    : `${m.ctx || '?'}`;
-        const lock = m.uncensored ? ' 🔓' : '';
-        opt.textContent = `${m.name || m.id} [${ctxLabel}]${lock}`;
-        select.appendChild(opt);
-      });
-      if (models.some(m => m.id === prev)) select.value = prev;
-    });
-    this.updateBadge();
+  showChat() {
+    const welcome = this.el('welcome');
+    if (welcome) welcome.classList.add('hidden');
   },
 
-  updateBadge() {
-    const badge = this.el('activeBadge');
-    if (!badge) return;
-    const modelId = this.el('modelSelect')?.value;
-    if (!modelId || modelId === 'none') {
-      badge.textContent = 'No model';
-      badge.className = 'model-badge';
-      return;
-    }
-    const provider = (typeof API !== 'undefined' && API.getProvider?.()) || { badgeLabel: '', badgeClass: '' };
-    const model = AppState.allModels.find(m => m.id === modelId);
-    const name = model ? (model.name || modelId) : modelId;
-    const shortName = name.length > 28 ? name.slice(0, 26) + '…' : name;
-    badge.innerHTML = `<span style="opacity:.7;font-size:.6rem">${provider.badgeLabel || ''}</span> ${shortName}`;
-    badge.className = 'model-badge ' + (provider.badgeClass || '');
+  clearChat() {
+    const body = this.el('chatBody');
+    if (body) body.innerHTML = '';
+    const welcome = this.el('welcome');
+    if (welcome) welcome.classList.remove('hidden');
+    AppState.clearChat();
+    this.updateStats(0, 0);
+    this.updateContextBar();
   },
 
-  // ─── Chat rendering ───────────────────────────────────────────────────────
-
-  appendMessage(role, content) {
+  appendMessage(role, text) {
     const chat = this.el('chatBody');
     if (!chat) return;
 
@@ -98,13 +64,9 @@ const UI = {
     bubble.className = 'msg-bubble';
 
     if (role === 'assistant') {
-      if (window.marked) {
-        bubble.innerHTML = marked.parse(content);
-      } else {
-        bubble.textContent = content;
-      }
+      Utils.parseMarkdown(text).then(html => { bubble.innerHTML = html; });
     } else {
-      bubble.textContent = content;
+      bubble.textContent = text;
     }
 
     const ts = document.createElement('div');
@@ -118,8 +80,9 @@ const UI = {
     wrap.appendChild(col);
     chat.appendChild(wrap);
     chat.scrollTop = chat.scrollHeight;
-    return wrap;
   },
+
+  // ─── Streaming bubble ─────────────────────────────────────────────────────
 
   createStreamBubble() {
     const chat = this.el('chatBody');
@@ -174,7 +137,11 @@ const UI = {
     const content = bubble.querySelector('.bubble-stream-content');
     if (!content) return;
     if (window.marked) {
-      content.innerHTML = marked.parse(fullContent);
+      const raw = marked.parse(fullContent);
+      content.innerHTML = window.DOMPurify
+        ? DOMPurify.sanitize(raw, { USE_PROFILES: { html: true } })
+        : raw.replace(/<(script|iframe|object|embed|form)\b[^>]*>[\s\S]*?<\/\1>/gi, '')
+             .replace(/\s+on\w+\s*=/gi, ' data-removed=');
     } else {
       content.textContent = fullContent;
     }
@@ -217,108 +184,24 @@ const UI = {
   updateStats(promptToks, completionToks) {
     const max = Math.max(promptToks, completionToks, 1);
 
-    const bp = this.el('bar-prompt');
-    const bc = this.el('bar-completion');
-    const vp = this.el('val-prompt');
-    const vc = this.el('val-completion');
+    const setEl = (id, val) => { const e = this.el(id); if (e) e.textContent = Utils.formatTokens(val); };
+    const setBar = (id, pct) => { const e = this.el(id); if (e) e.style.width = (pct * 100).toFixed(1) + '%'; };
 
-    if (bp) bp.style.width = (promptToks / max * 100) + '%';
-    if (bc) bc.style.width = (completionToks / max * 100) + '%';
-    if (vp) vp.textContent = (typeof Utils !== 'undefined' && Utils.formatTokens) ? Utils.formatTokens(promptToks) : promptToks;
-    if (vc) vc.textContent = (typeof Utils !== 'undefined' && Utils.formatTokens) ? Utils.formatTokens(completionToks) : completionToks;
+    setEl('stat-prompt',     promptToks);
+    setEl('stat-completion', completionToks);
+    setEl('stat-total',      promptToks + completionToks);
+    setEl('stat-turns',      AppState.sessionStats.turnCount);
+    setBar('stat-prompt-bar',     promptToks     / max);
+    setBar('stat-completion-bar', completionToks / max);
 
-    const ctxSize = AppState.getContextLimit?.() || 8192;
-    const used = (AppState.totalPromptTokens || 0) + (AppState.totalCompletionTokens || 0);
-    const pct = AppState.getContextUsage?.() || 0;
-    const circumference = 138.2;
-
-    const ring = this.el('ctx-ring');
-    if (ring) {
-      ring.style.strokeDashoffset = circumference * (1 - pct);
-      ring.style.stroke = pct > 0.8 ? 'var(--rose)' : pct > 0.5 ? 'var(--amber)' : 'var(--teal)';
-    }
-
-    const cp = this.el('ctx-pct');
-    const cs = this.el('ctx-sub');
-    if (cp) cp.textContent = (typeof Utils !== 'undefined' && Utils.formatContextUsage) ? Utils.formatContextUsage(pct) : Math.round(pct * 100) + '%';
-    if (cs) cs.textContent = (typeof Utils !== 'undefined' && Utils.formatContextInfo) ? Utils.formatContextInfo(used, ctxSize) : `${used} / ~${Math.round(ctxSize / 1000)}k tokens`;
-
-    const turnList = this.el('turn-list');
-    if (turnList && AppState.turnTokens) {
-      turnList.innerHTML = '';
-      AppState.turnTokens.slice(-8).forEach((t, i) => {
-        const row = document.createElement('div');
-        row.style.cssText = 'display:flex;justify-content:space-between;font-size:.68rem;color:var(--fg-muted);font-family:var(--mono);padding:.1rem 0;';
-        const n = AppState.turnTokens.length - Math.min(AppState.turnTokens.length, 8) + i + 1;
-        row.innerHTML = `<span>Turn ${n}</span><span style="color:var(--accent)">${t.p}p</span><span style="color:var(--teal)">${t.c}c</span>`;
-        row.setAttribute('role', 'listitem');
-        turnList.appendChild(row);
-      });
-    }
-
-    this.updateMonitor();
-    this.updateContextDisplay();
-  },
-
-  updateMonitor() {
-    const el = this.el('monitor');
-    if (!el) return;
-    const msgs = AppState.chatHistory?.length || 0;
-    const turns = Math.floor(msgs / 2);
-    const tokens = (AppState.totalPromptTokens || 0) + (AppState.totalCompletionTokens || 0);
-    const fmt = (typeof Utils !== 'undefined' && Utils.formatTokens) ? Utils.formatTokens(tokens) : tokens;
-    el.innerHTML = `📊 <b>${msgs}</b> msgs · <b>${turns}</b> turns · <b>${fmt}</b> tokens`;
-  },
-
-  updateContextDisplay() {
-    const el = this.el('ctxUsage');
-    if (!el) return;
-    const pct = AppState.getContextUsage?.() || 0;
-    const used = (AppState.totalPromptTokens || 0) + (AppState.totalCompletionTokens || 0);
-    const limit = AppState.getContextLimit?.() || 8192;
-    el.textContent = 'ctx: ' + ((typeof Utils !== 'undefined' && Utils.formatContextInfo) ? Utils.formatContextInfo(used, limit) : `${used}/${limit}`);
-    el.style.color = pct > 0.8 ? 'var(--rose)' : pct > 0.5 ? 'var(--amber)' : 'var(--fg-dim)';
-  },
-
-  // ─── Chat state ───────────────────────────────────────────────────────────
-
-  clearChat() {
-    const chat = this.el('chatBody');
-    if (!chat) return;
-    const welcome = this.el('welcomeScreen');
-    chat.innerHTML = '';
-    if (welcome) chat.appendChild(welcome);
-    AppState.clearChat?.();
-    this.updateMonitor();
-    this.updateStats(0, 0);
-    this.showWelcome();
-  },
-
-  showWelcome() {
-    const ws = this.el('welcomeScreen');
-    if (ws) ws.style.display = '';
-  },
-
-  showChat() {
-    const ws = this.el('welcomeScreen');
-    if (ws) ws.style.display = 'none';
-  },
-
-  // ─── Layout panels ────────────────────────────────────────────────────────
-
-  toggleSidebar() {
-    const sidebar = this.el('sidebar');
-    const overlay = this.el('mobileOverlay');
-    if (!sidebar) return;
-    const isMobile = window.innerWidth <= 768;
-    if (isMobile) {
-      const open = sidebar.classList.toggle('open');
-      sidebar.classList.toggle('collapsed', !open);
-      if (overlay) overlay.classList.toggle('active', open);
-    } else {
-      const collapsed = sidebar.classList.toggle('collapsed');
-      if (overlay) overlay.classList.remove('active');
-      if (!collapsed) sidebar.classList.remove('open');
+    const chart = this.el('stat-chart');
+    if (chart && AppState.turnTokens.length) {
+      const last8 = AppState.turnTokens.slice(-8);
+      const peak  = Math.max(...last8.map(t => t.p + t.c), 1);
+      chart.innerHTML = last8.map(t => {
+        const h = Math.round(((t.p + t.c) / peak) * 44);
+        return `<div class="chart-bar" style="height:${h}px" title="P:${t.p} C:${t.c}"></div>`;
+      }).join('');
     }
   },
 
@@ -338,28 +221,63 @@ const UI = {
       send.disabled = !enabled;
       send.setAttribute('aria-disabled', String(!enabled));
     }
-    if (stop) stop.style.display = enabled ? 'none' : 'inline-flex';
+    if (stop) stop.style.display = enabled ? 'none' : 'flex';
   },
 
-  updateCharCount(count) {
+  updateCharCount(len) {
     const el = this.el('charCount');
-    if (el) el.textContent = count + ' chars';
+    if (el) el.textContent = `${len.toLocaleString()} / 32,000`;
   },
 
-  // ─── Theming ──────────────────────────────────────────────────────────────
+  // ─── Model label ──────────────────────────────────────────────────────────
 
-  setTheme(themeName) {
-    const cls = themeName ? 'theme-' + themeName.replace(/^theme-/, '') : 'theme-midnight';
-    document.body.className = cls;
-    try { localStorage.setItem('cwiTheme', cls); } catch (e) {}
+  updateModelLabel(modelName) {
+    const el = this.el('modelLabel');
+    if (el) el.textContent = modelName || 'No model selected';
   },
 
-  loadTheme() {
-    try {
-      const saved = localStorage.getItem('cwiTheme') || 'theme-midnight';
-      document.body.className = saved;
-    } catch (e) {
-      document.body.className = 'theme-midnight';
+  // ─── Context bar ──────────────────────────────────────────────────────────
+
+  updateContextBar() {
+    const bar  = this.el('ctxBar');
+    const info = this.el('ctxInfo');
+    const fill = this.el('ctxFill');
+    const pct  = AppState.getContextUsage();
+    const used = AppState.totalPromptTokens + AppState.totalCompletionTokens;
+    const lim  = AppState.getContextLimit();
+
+    if (bar) {
+      bar.style.width = (pct * 100).toFixed(1) + '%';
+      bar.className   = 'ctx-bar' + (pct > 0.9 ? ' over' : pct > 0.75 ? ' warn' : '');
     }
+    if (info) info.textContent = Utils.formatContextInfo(used, lim);
+    if (fill) fill.setAttribute('aria-valuenow', Math.round(pct * 100));
+  },
+
+  // ─── Sidebar ──────────────────────────────────────────────────────────────
+
+  toggleSidebar() {
+    const sidebar = this.el('sidebar');
+    const overlay = this.el('mobileOverlay');
+    const toggle  = this.el('sidebarToggle');
+    if (!sidebar) return;
+    const isOpen = sidebar.classList.toggle('open');
+    if (overlay) overlay.classList.toggle('show', isOpen);
+    if (toggle)  toggle.setAttribute('aria-expanded', String(isOpen));
+  },
+
+  // ─── Toast ────────────────────────────────────────────────────────────────
+
+  toast(message, type = 'info', duration = 3000) {
+    const area = this.el('toastArea');
+    if (!area) return;
+    const t = document.createElement('div');
+    t.className = `toast ${type}`;
+    t.textContent = message;
+    area.appendChild(t);
+    setTimeout(() => {
+      t.style.animation = 'slideIn .25s reverse forwards';
+      setTimeout(() => t.remove(), 260);
+    }, duration);
   },
 };
