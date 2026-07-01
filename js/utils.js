@@ -176,13 +176,23 @@ const Utils = {
   },
 
   /**
-   * Highlight search matches in text
+   * Highlight search matches in text.
+   * FIX: wraps the result in DOMPurify.sanitize (when available) so a crafted
+   * search query cannot inject arbitrary HTML into the chat via the highlight
+   * span replacement.
    */
   highlightMatches(text, query) {
     if (!query || !text) return text;
     try {
       const regex = new RegExp(`(${Utils.escapeRegex(query)})`, 'gi');
-      return text.replace(regex, '<span class="search-highlight">$1</span>');
+      const highlighted = text.replace(regex, '<span class="search-highlight">$1</span>');
+      if (typeof DOMPurify !== 'undefined') {
+        return DOMPurify.sanitize(highlighted, {
+          ALLOWED_TAGS: ['span'],
+          ALLOWED_ATTR: ['class'],
+        });
+      }
+      return highlighted;
     } catch (e) {
       console.error('Highlight error:', e);
       return text;

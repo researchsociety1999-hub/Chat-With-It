@@ -44,6 +44,12 @@ const UI = {
     this.updateContextBar();
   },
 
+  /**
+   * Append a finalized message bubble.
+   * FIX: assistant messages are now rendered through Utils.parseMarkdown
+   * (which sanitizes via DOMPurify) instead of raw textContent, so error-path
+   * or non-streaming assistant replies are also protected against XSS.
+   */
   appendMessage(role, text) {
     const chat = this.el('chatBody');
     if (!chat) return;
@@ -64,6 +70,8 @@ const UI = {
     bubble.className = 'msg-bubble';
 
     if (role === 'assistant') {
+      // FIX: route through parseMarkdown so DOMPurify sanitization is applied
+      // consistently for ALL assistant messages, not just streamed ones.
       Utils.parseMarkdown(text).then(html => { bubble.innerHTML = html; });
     } else {
       bubble.textContent = text;
@@ -283,20 +291,4 @@ const UI = {
     if (!area) return;
 
     // Deduplicate: if the same message is already showing, remove it first
-    const existing = Array.from(area.querySelectorAll('.toast'))
-      .find(t => t.dataset.msg === message);
-    if (existing) existing.remove();
-
-    const t = document.createElement('div');
-    t.className = `toast ${type}`;
-    t.dataset.msg = message;
-    t.textContent = message;
-    // Prevent overflow on mobile for long error strings
-    t.style.cssText = 'max-width:min(92vw,560px);white-space:normal;word-break:break-word';
-    area.appendChild(t);
-    setTimeout(() => {
-      t.style.animation = 'slideIn .25s reverse forwards';
-      setTimeout(() => t.remove(), 260);
-    }, duration);
-  },
-};
+    const existing = Array.from(area.querySelectorAll('.toas

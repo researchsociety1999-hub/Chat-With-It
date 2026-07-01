@@ -17,6 +17,7 @@ const App = {
       this.setupUIListeners();
       this.setupSearchListeners();
       this.setupExportListeners();
+      this._setupBeforeUnload();
 
       await this.refreshModels();
 
@@ -69,7 +70,7 @@ const App = {
         });
 
         const input = UI.el('apiKeyInput');
-        if (input) input.placeholder = provider === 'huggingface' ? 'hf_…' : 'sk-or-…';
+        if (input) input.placeholder = provider === 'huggingface' ? 'hf_\u2026' : 'sk-or-\u2026';
 
         const isAuth = AppState.isAuthenticatedFor(provider);
         UI.setAuthState(isAuth, isAuth ? `${PROVIDERS[provider].name} authenticated` : 'Not authenticated');
@@ -271,6 +272,10 @@ const App = {
         { temperature: AppState.temperature, maxTokens: AppState.maxTokens }
       );
 
+      // FIX: reset idle timer on every successful send so long conversations
+      // don't time the user out mid-session.
+      AppState._resetIdleTimer();
+
       UI.removeTyping();
 
       const assistantMessage = response.choices?.[0]?.message?.content || 'No response';
@@ -399,6 +404,7 @@ const App = {
     // Escape closes modals/dropdowns; '?' toggles shortcuts
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
+        // FIX: also close the shortcuts modal on Escape
         UI.el('shortcuts-modal')?.classList.remove('open');
         const exportMenu = UI.el('export-menu');
         if (exportMenu) exportMenu.style.display = 'none';
@@ -417,6 +423,19 @@ const App = {
     document.querySelectorAll('.persona-card').forEach(card => {
       const match = (card.dataset.prompt || AppState.defaultPersonaPrompt) === current;
       card.classList.toggle('active', match);
+    });
+  },
+
+  /**
+   * FIX: beforeunload guard — warn only when there are unsaved messages AND
+   * the user has not already exported.
+   */
+  _setupBeforeUnload() {
+    window.addEventListener('beforeunload', (e) => {
+      if (AppState.chatHistory.length > 0 && !AppState.chatExported) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
     });
   },
 

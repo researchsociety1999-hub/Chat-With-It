@@ -431,9 +431,12 @@ const API = {
     };
 
     try {
+      // FIX: use the app-level abort signal when present; fetchWithTimeout's
+      // internal controller acts only as a timeout fallback so both signals work.
+      const appSignal = AppState.abortController?.signal;
       const response = await this.fetchWithTimeout(
         `${provider.baseUrl}${provider.chatEndpoint}`,
-        { method: 'POST', headers, body: JSON.stringify(payload), signal: AppState.abortController?.signal },
+        { method: 'POST', headers, body: JSON.stringify(payload), signal: appSignal },
         60000
       );
 
@@ -471,8 +474,12 @@ const API = {
         }
       }
 
-      const promptTokens     = usage?.prompt_tokens     ?? Math.ceil(messages.reduce((s, m) => s + (m.content?.length || 0), 0) / 4);
-      const completionTokens = usage?.completion_tokens ?? Math.ceil(content.length / 4);
+      // FIX: always provide a non-zero prompt token estimate — never return 0
+      // when the provider omits usage (common on free-tier streaming endpoints).
+      const estimatedPrompt     = Math.max(1, Math.ceil(messages.reduce((s, m) => s + (m.content?.length || 0), 0) / 4));
+      const estimatedCompletion = Math.max(1, Math.ceil(content.length / 4));
+      const promptTokens        = usage?.prompt_tokens     || estimatedPrompt;
+      const completionTokens    = usage?.completion_tokens || estimatedCompletion;
 
       return {
         choices: [{ message: { content } }],
@@ -488,11 +495,28 @@ const API = {
     }
   },
 
+  /**
+   * Fetch with a hard timeout.
+   * If the caller already has an abort signal (options.signal), that signal is
+   * honoured — the local timeout controller only fires if it expires first.
+   * This prevents the signal-conflict bug where a new AbortController was
+   * silently overwriting the app-level one.
+   */
   async fetchWithTimeout(url, options = {}, timeoutMs = 10000) {
-    const controller = new AbortController();
-    const timeoutId  = setTimeout(() => controller.abort(), timeoutMs);
+    const timeoutCtrl = new AbortController();
+    const timeoutId   = setTimeout(() => timeoutCtrl.abort(), timeoutMs);
+
+    // Compose signals: caller signal + timeout signal
+    const signals = [timeoutCtrl.signal];
+    if (options.signal) signals.push(options.signal);
+
+    // AbortSignal.any() is well-supported (Chrome 116+, FF 124+, Safari 17.4+)
+    const composedSignal = typeof AbortSignal.any === 'function'
+      ? AbortSignal.any(signals)
+      : options.signal || timeoutCtrl.signal; // graceful fallback
+
     try {
-      return await fetch(url, { ...options, signal: options.signal || controller.signal });
+      return await fetch(url, { ...options, signal: composedSignal });
     } finally {
       clearTimeout(timeoutId);
     }
@@ -511,7 +535,12 @@ const API = {
     const usage = response?.usage;
     if (usage) return { promptTokens: usage.prompt_tokens || 0, completionTokens: usage.completion_tokens || 0 };
     const content = response?.choices?.[0]?.message?.content || '';
-    return { promptTokens: 0, completionTokens: Math.ceil(content.length / 4) };
+    // FIX: return a non-zero prompt estimate instead of 0 so the context bar
+    // is always meaningful even when the provider omits usage data.
+    return {
+      promptTokens:     Math.max(1, Math.ceil(content.length / 4)),
+      completionTokens: Math.max(1, Math.ceil(content.length / 4)),
+    };
   },
 
   /** Expose tiers so App can build the filter <select> */
