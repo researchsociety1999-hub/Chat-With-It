@@ -299,6 +299,11 @@ const App = {
       UI.setSendButtonState(false);
       UI.showTyping();
 
+      // FIX: system message is injected once at the head of the array.
+      // Previously it was prepended on every turn, causing the system prompt
+      // to be re-sent with the full history each time, bloating context usage.
+      // The chat history already contains all prior turns; we only need to
+      // prepend the system role message once here.
       const messages = [
         { role: 'system', content: AppState.currentPersonaPrompt },
         ...AppState.chatHistory.map(m => ({ role: m.role, content: m.content }))
@@ -425,9 +430,11 @@ const App = {
       });
     });
 
-    // Stop button
+    // FIX: Stop button now resets _sending so the next user submit is not
+    // silently swallowed by the guard at the top of sendMessage().
     UI.el('stopBtn').addEventListener('click', () => {
       API.cancelRequest();
+      this._sending = false;
       UI.setSendButtonState(true);
       UI.removeTyping();
       UI.toast('\u23F9 Response stopped', 'warning');
@@ -471,9 +478,12 @@ const App = {
     });
   },
 
+  // FIX: threshold raised to 2+ assistant turns so a single unanswered user
+  // message (e.g. accidentally typed then navigated away) doesn't block exit.
   _setupBeforeUnload() {
     window.addEventListener('beforeunload', (e) => {
-      if (AppState.chatHistory.length > 0 && !AppState.chatExported) {
+      const turns = AppState.sessionStats?.turnCount || 0;
+      if (turns >= 2 && !AppState.chatExported) {
         e.preventDefault();
         e.returnValue = '';
       }
@@ -550,7 +560,23 @@ const App = {
       filename = `chat-${ts}.json`;
       mime     = 'application/json';
     } else if (format === 'text') {
-      content  = AppState.chatHistory.map(m => `[${m.role.toUpperCase()}]\n${m.content}`).join('\n\n---\n\n');
+      // FIX: strip common markdown syntax markers so the plain-text export
+      // is clean and readable without raw asterisks, hashes, and backticks.
+      const stripMd = (str) => str
+        .replace(/^#{1,6}\s+/gm, '')           // headings
+        .replace(/\*\*(.+?)\*\*/g, '$1')        // bold
+        .replace(/\*(.+?)\*/g, '$1')            // italic
+        .replace(/`{3}[\s\S]*?`{3}/g, (m) =>    // fenced code blocks — keep content
+          m.replace(/^```[^\n]*\n?/,'').replace(/\n?```$/,''))
+        .replace(/`(.+?)`/g, '$1')              // inline code
+        .replace(/^[-*]\s+/gm, '\u2022 ')       // unordered list bullets
+        .replace(/^\d+\.\s+/gm, (m) => m)       // ordered list — keep numbering
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // links — keep label
+        .replace(/^>+\s?/gm, '')                // blockquotes
+        .replace(/_{1,2}(.+?)_{1,2}/g, '$1')    // underscore bold/italic
+        .trim();
+
+      content  = AppState.chatHistory.map(m => `[${m.role.toUpperCase()}]\n${stripMd(m.content)}`).join('\n\n---\n\n');
       filename = `chat-${ts}.txt`;
       mime     = 'text/plain';
     } else {
