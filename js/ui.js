@@ -69,7 +69,7 @@ const UI = {
     const avatar = document.createElement('div');
     avatar.className = 'msg-avatar';
     avatar.setAttribute('aria-hidden', 'true');
-    avatar.textContent = role === 'user' ? '\uD83D\uDC64' : '\uD83E\uDD16';
+    avatar.textContent = role === 'user' ? '👤' : '🤖';
 
     const col = document.createElement('div');
     col.style.cssText = 'display:flex;flex-direction:column;gap:.25rem;max-width:calc(100% - 44px)';
@@ -113,7 +113,7 @@ const UI = {
     const avatar = document.createElement('div');
     avatar.className = 'msg-avatar';
     avatar.setAttribute('aria-hidden', 'true');
-    avatar.textContent = '\uD83E\uDD16';
+    avatar.textContent = '🤖';
 
     const col = document.createElement('div');
     col.style.cssText = 'display:flex;flex-direction:column;gap:.25rem;max-width:calc(100% - 44px)';
@@ -187,7 +187,7 @@ const UI = {
     const avatar = document.createElement('div');
     avatar.className = 'msg-avatar';
     avatar.setAttribute('aria-hidden', 'true');
-    avatar.textContent = '\uD83E\uDD16';
+    avatar.textContent = '🤖';
 
     const typing = document.createElement('div');
     typing.className = 'typing-indicator';
@@ -235,11 +235,34 @@ const UI = {
     }
   },
 
+  /**
+   * Rate-limit info in stats panel.
+   */
+  updateRateLimitInfo(remaining) {
+    const el = this.el('stat-rl');
+    if (el) el.textContent = String(remaining);
+  },
+
+  /**
+   * Provider/model diagnostics line.
+   */
+  updateDiagnostics(provider, modelId) {
+    const el = this.el('stat-diag');
+    if (!el) return;
+    const providerName = provider === 'huggingface' ? 'Hugging Face' : 'OpenRouter';
+    const modelLabel = modelId === 'none' ? 'none' : modelId;
+    el.textContent = `Provider: ${providerName} · Model: ${modelLabel}`;
+  },
+
   toggleStats() {
     const panel = this.el('rightPanel');
     if (!panel) return;
     const isOpen = panel.classList.toggle('open');
-    if (isOpen) this.updateStats(AppState.totalPromptTokens || 0, AppState.totalCompletionTokens || 0);
+    if (isOpen) {
+      this.updateStats(AppState.totalPromptTokens || 0, AppState.totalCompletionTokens || 0);
+      this.updateRateLimitInfo(AppState.getRemainingRequests());
+      this.updateDiagnostics(AppState.currentProvider, AppState.selectedModel);
+    }
   },
 
   // ─── Input bar helpers ────────────────────────────────────────────────────

@@ -205,8 +205,9 @@ input[type=range]::-webkit-slider-thumb{
 }
 .privacy-panel summary{cursor:pointer;font-weight:600;color:var(--fg);margin-bottom:.25rem}
 .privacy-panel p{margin:.2rem 0}
+.privacy-panel a{color:var(--acc2);text-decoration:underline}
 
-/* ── Main area ────────────────────────────────────────────────────── */
+/* ── Main area ─────────────────────────────────────────────────────- */
 #main{flex:1;display:flex;flex-direction:column;min-width:0;overflow:hidden}
 
 /* ── Header ───────────────────────────────────────────────────────── */
@@ -421,7 +422,7 @@ input[type=range]::-webkit-slider-thumb{
 .rp-body{flex:1;overflow-y:auto;padding:.75rem}
 .stat-block{margin-bottom:1rem}
 .stat-label{font-size:.67rem;text-transform:uppercase;letter-spacing:.08em;color:var(--fg-muted);margin-bottom:.3rem}
-.stat-val{font-size:1.1rem;font-weight:700}
+.stat-val{font-size:1.1rem;font-weight:700;word-break:break-all}
 .stat-bar{height:4px;background:var(--sur3);border-radius:2px;overflow:hidden;margin-top:.35rem}
 .stat-fill{height:100%;background:var(--acc);border-radius:2px;transition:width .4s}
 .chart-wrap{display:flex;align-items:flex-end;gap:3px;height:48px;margin-top:.5rem}
@@ -640,6 +641,11 @@ kbd{
           <p>Your API key lives <strong>only in JS memory</strong> — never written to localStorage, cookies, or any server.</p>
           <p>Messages travel directly from your browser to the provider (OpenRouter / Hugging Face) over HTTPS/TLS 1.3.</p>
           <p>This app has <strong>no backend</strong> — no middleman logs or stores your conversations.</p>
+          <p>For provider-side policies, see
+            <a href="https://openrouter.ai/privacy" target="_blank" rel="noopener noreferrer">OpenRouter Privacy</a>
+            and
+            <a href="https://huggingface.co/privacy" target="_blank" rel="noopener noreferrer">Hugging Face Privacy</a>.
+          </p>
         </details>
       </div>
 
@@ -678,6 +684,7 @@ kbd{
       <button class="hbtn" id="statsBtn" title="Stats" aria-label="Toggle stats panel">📊</button>
       <button class="hbtn" id="shortcutsBtn" title="Keyboard shortcuts" aria-label="Keyboard shortcuts">?</button>
       <button class="hbtn" id="clearBtn" title="Clear chat" aria-label="Clear chat">🗑️</button>
+      <button class="hbtn" id="resetBtn" title="Reset session" aria-label="Reset session">♻️</button>
     </header>
 
     <!-- Chat -->
@@ -747,6 +754,14 @@ kbd{
       <div class="stat-block">
         <div class="stat-label">Turns</div>
         <div class="stat-val" id="stat-turns">0</div>
+      </div>
+      <div class="stat-block">
+        <div class="stat-label">Requests remaining (this minute)</div>
+        <div class="stat-val" id="stat-rl">20</div>
+      </div>
+      <div class="stat-block">
+        <div class="stat-label">Diagnostics</div>
+        <div class="stat-val" id="stat-diag">Provider: openrouter · Model: none</div>
       </div>
       <div class="stat-block">
         <div class="stat-label">Per-turn usage</div>

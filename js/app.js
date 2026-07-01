@@ -12,10 +12,10 @@ const App = {
       UI.loadTheme();
 
       if (!window.DOMPurify) {
-        UI.toast('\u26a0\ufe0f Security library (DOMPurify) failed to load \u2014 chat disabled. Try refreshing.', 'error', 10000);
+        UI.toast('⚠️ Security library (DOMPurify) failed to load — chat disabled. Try refreshing.', 'error', 10000);
         const sendBtn = UI.el('sendBtn');
         if (sendBtn) sendBtn.disabled = true;
-        console.error('DOMPurify not loaded \u2014 chat disabled for security.');
+        console.error('DOMPurify not loaded — chat disabled for security.');
         return;
       }
 
@@ -57,7 +57,7 @@ const App = {
           : 'Use your OpenRouter key (sk-or-…)';
       }
 
-      UI.toast('\u2705 ChatWithIt loaded', 'success');
+      UI.toast('✅ ChatWithIt loaded', 'success');
     } catch (error) {
       console.error('Init error:', error);
       UI.toast('Failed to initialise application', 'error');
@@ -132,6 +132,7 @@ const App = {
       UI.el('apiKeyInput').value = '';
       UI.setAuthState(false, 'Not authenticated');
       UI.el('modelSelect').innerHTML = '<option value="none" disabled selected>— authenticate first —</option>';
+      UI.updateModelLabel('No model selected');
       UI.toast('Authentication cleared', 'info');
     });
   },
@@ -266,7 +267,7 @@ const App = {
       UI.toast('Generation stopped', 'info');
     });
 
-    // Persona cards — FIX: selector is .persona-card, not .chi
+    // Persona cards
     document.querySelectorAll('.persona-card').forEach(card => {
       const activate = () => {
         const prompt = card.dataset.prompt;
@@ -427,6 +428,23 @@ const App = {
       UI.clearChat();
       UI.toast('Chat cleared', 'info');
     });
+
+    // Reset session (auth + model + chat)
+    const resetBtn = UI.el('resetBtn');
+    if (resetBtn) {
+      resetBtn.addEventListener('click', () => {
+        if (!confirm('Reset session (auth, model, chat)?')) return;
+        AppState.reset();
+        UI.clearChat();
+        const input = UI.el('apiKeyInput');
+        if (input) input.value = '';
+        UI.setAuthState(false, 'Not authenticated');
+        const sel = UI.el('modelSelect');
+        if (sel) sel.innerHTML = '<option value="none" disabled selected>— authenticate first —</option>';
+        UI.updateModelLabel('No model selected');
+        UI.toast('Session reset', 'info');
+      });
+    }
 
     // Keyboard shortcuts modal
     const modal = UI.el('shortcuts-modal');
@@ -603,7 +621,7 @@ const App = {
           const role = m.role === 'user' ? '**You**' : '**Assistant**';
           return `${role}\n\n${m.content}\n`;
         });
-        const md = `# ChatWithIt Export\n\n*Exported: ${new Date().toLocaleString()}*\n*Model: ${AppState.selectedModel}*\n\n---\n\n${lines.join('\n---\n\n')}`;
+        const md = `# ChatWithIt Export\n\n*Exported: ${new Date().toLocaleString()}*\n*Model: ${AppState.selectedModel}*\n*Provider: ${AppState.currentProvider}*\n\n---\n\n${lines.join('\n---\n\n')}`;
 
         if (format === 'md') {
           Utils.downloadAsFile(md, `${base}.md`, 'text/markdown');

@@ -224,6 +224,17 @@ const AppState = {
     this._resetIdleTimer();
   },
 
+  /**
+   * Helper for stats panel: number of requests remaining in the current
+   * 60-second window according to the local token-bucket.
+   */
+  getRemainingRequests() {
+    const now = Date.now();
+    const windowMs = 60000;
+    this._requestBucket = this._requestBucket.filter(t => now - t < windowMs);
+    return Math.max(0, this.requestLimitPerMinute - this._requestBucket.length);
+  },
+
   // ── Chat lifecycle ────────────────────────────────────────────────────────
 
   clearChat() {
