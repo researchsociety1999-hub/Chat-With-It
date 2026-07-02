@@ -1,1 +1,1 @@
-__APP__
+new_app_content
