@@ -50,11 +50,16 @@ const App = {
 
       // Initialise auth hint for current provider
       const hint = UI.el('authHint');
+      const hintLink = UI.el('authHintLink');
       if (hint) {
         const provider = AppState.currentProvider;
-        hint.textContent = provider === 'huggingface'
-          ? 'Use your Hugging Face token (hf_…)'
-          : 'Use your OpenRouter key (sk-or-…)';
+        if (provider === 'huggingface') {
+          hint.childNodes[0].textContent = 'Use your Hugging Face token (hf_…) — ';
+          if (hintLink) { hintLink.textContent = 'Get token →'; hintLink.href = 'https://huggingface.co/settings/tokens'; }
+        } else {
+          hint.childNodes[0].textContent = 'Use your OpenRouter key (sk-or-…) — ';
+          if (hintLink) { hintLink.textContent = 'Get key →'; hintLink.href = 'https://openrouter.ai/keys'; }
+        }
       }
 
       UI.toast('✅ ChatWithIt loaded', 'success');
@@ -107,10 +112,15 @@ const App = {
         UI.setAuthState(isAuth, isAuth ? `${PROVIDERS[provider].name} authenticated` : 'Not authenticated');
 
         const hint = UI.el('authHint');
+        const hintLink = UI.el('authHintLink');
         if (hint) {
-          hint.textContent = provider === 'huggingface'
-            ? 'Use your Hugging Face token (hf_…)'
-            : 'Use your OpenRouter key (sk-or-…)';
+          if (provider === 'huggingface') {
+            hint.childNodes[0].textContent = 'Use your Hugging Face token (hf_…) — ';
+            if (hintLink) { hintLink.textContent = 'Get token →'; hintLink.href = 'https://huggingface.co/settings/tokens'; }
+          } else {
+            hint.childNodes[0].textContent = 'Use your OpenRouter key (sk-or-…) — ';
+            if (hintLink) { hintLink.textContent = 'Get key →'; hintLink.href = 'https://openrouter.ai/keys'; }
+          }
         }
 
         this.refreshModels();
@@ -232,6 +242,15 @@ const App = {
     const providerCfg = API.getProvider();
     const badge = providerCfg?.badgeLabel ? `[${providerCfg.badgeLabel}] ` : '';
     sel.innerHTML = '';
+    // Update filter hint if a search is active
+    const hint = UI.el('modelFilterHint');
+    const searchVal = UI.el('searchInput')?.value?.trim();
+    const total = (this._allModelsCache || AppState.allModels).length;
+    if (hint) {
+      hint.textContent = (searchVal && models.length < total)
+        ? `${models.length} of ${total} models shown`
+        : '';
+    }
     models.forEach(m => {
       const opt = document.createElement('option');
       opt.value = m.id;
@@ -284,16 +303,30 @@ const App = {
       card.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(); } });
     });
 
-    // Welcome chips
+    // Welcome chips — persona-aware
     document.querySelectorAll('.chip').forEach(chip => {
       chip.addEventListener('click', () => {
         const userInput = UI.el('userInput');
-        if (userInput) {
-          userInput.value = chip.textContent.trim();
-          UI.updateCharCount(userInput.value.length);
-          userInput.focus();
-          this.sendMessage();
+        if (!userInput) return;
+        // Switch persona to match chip's data-persona attr if set
+        const chipPersona = chip.dataset.persona;
+        if (chipPersona) {
+          const personaMap = {
+            default:  document.querySelector('.persona-card[data-prompt*="helpful AI assistant"]'),
+            tutor:    document.querySelector('.persona-card[data-prompt*="Socratic tutor"]'),
+            creative: document.querySelector('.persona-card[data-prompt*="creative writing"]'),
+            code:     document.querySelector('.persona-card[data-prompt*="code reviewer"]'),
+            debate:   document.querySelector('.persona-card[data-prompt*="debate coach"]'),
+          };
+          const targetCard = personaMap[chipPersona];
+          if (targetCard && !targetCard.classList.contains('active')) {
+            targetCard.click();
+          }
         }
+        userInput.value = chip.textContent.trim();
+        UI.updateCharCount(userInput.value.length);
+        userInput.focus();
+        this.sendMessage();
       });
     });
   },
@@ -382,6 +415,11 @@ const App = {
         AppState.updateTokens(promptTokens, completionTokens);
         UI.updateStats(AppState.totalPromptTokens, AppState.totalCompletionTokens);
         UI.updateContextBar();
+        if (AppState.getContextUsage() > 0.9) {
+          UI.toast('⚠️ Context nearly full (>90%). Consider exporting and starting a new chat.', 'warning', 7000);
+        }
+        UI.updateRateLimitInfo(AppState.getRemainingRequests());
+        UI.updateDiagnostics(AppState.currentProvider, AppState.selectedModel);
       }
 
     } catch (error) {
@@ -393,7 +431,17 @@ const App = {
       } else if (error.code === 'UPSTREAM_RATE_LIMIT') {
         AppState.setModelCooldown(AppState.selectedModel, 60000);
         this._renderModelOptions(AppState.allModels, UI.el('modelSelect'));
-        UI.toast(error.message || 'Model temporarily overloaded — try another', 'warning', 6000);
+        // Suggest an alternative model from same or adjacent tier
+        const curModel = AppState.allModels.find(m => m.id === AppState.selectedModel);
+        const alt = AppState.allModels.find(m =>
+          m.id !== AppState.selectedModel &&
+          !AppState.isModelOnCooldown(m.id) &&
+          (!curModel || m.paramTier === curModel.paramTier)
+        ) || AppState.allModels.find(m =>
+          m.id !== AppState.selectedModel && !AppState.isModelOnCooldown(m.id)
+        );
+        const altHint = alt ? ` Try: ${alt.name}` : '';
+        UI.toast((error.message || 'Model temporarily overloaded — try another') + altHint, 'warning', 8000);
       } else if (error.code === 'RATE_LIMIT') {
         UI.toast(error.message || 'Rate limited — please wait', 'warning', 6000);
       } else if (error.code === 'AUTH') {
@@ -450,6 +498,9 @@ const App = {
     const modal = UI.el('shortcuts-modal');
     UI.el('shortcutsBtn').addEventListener('click', () => {
       modal?.classList.toggle('open');
+    });
+    UI.el('shortcutsClose')?.addEventListener('click', () => {
+      modal?.classList.remove('open');
     });
     modal?.addEventListener('click', (e) => {
       if (e.target === modal) modal.classList.remove('open');
