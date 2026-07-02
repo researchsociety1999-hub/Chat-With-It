@@ -140,6 +140,7 @@ body{
 }
 .btn-ghost:hover{background:var(--sur3);color:var(--fg)}
 .auth-hint{font-size:.7rem;color:var(--fg-muted);}
+.auth-hint a{color:var(--acc2);text-decoration:underline;}
 
 /* ── Model selector ───────────────────────────────────────────────── */
 .model-search-wrap{position:relative}
@@ -168,6 +169,7 @@ body{
 }
 .model-meta{font-size:.68rem;color:var(--fg-muted)}
 .model-count{font-size:.7rem;color:var(--fg-muted);margin-top:.25rem}
+.model-filter-hint{font-size:.67rem;color:var(--acc2);min-height:.9rem;margin-top:.1rem}
 
 /* ── Settings sliders ─────────────────────────────────────────────── */
 .slider-row{display:flex;flex-direction:column;gap:.25rem}
@@ -256,7 +258,7 @@ input[type=range]::-webkit-slider-thumb{
   position:absolute;top:calc(100% + 6px);right:0;
   background:var(--sur2);border:1px solid var(--bdr2);
   border-radius:var(--radius-sm);padding:.4rem;
-  min-width:120px;z-index:500;
+  min-width:150px;z-index:500;
   display:none;flex-direction:column;gap:.15rem;
   box-shadow:var(--shadow);
 }
@@ -460,6 +462,7 @@ input[type=range]::-webkit-slider-thumb{
   border-radius:var(--radius);padding:1.5rem;
   min-width:320px;max-width:440px;width:90%;
   box-shadow:var(--shadow);
+  position:relative;
 }
 .shortcuts-box h2{font-size:1rem;font-weight:700;margin-bottom:1rem}
 .shortcut-list{display:flex;flex-direction:column;gap:.5rem}
@@ -470,6 +473,13 @@ kbd{
   border-radius:4px;padding:.15rem .45rem;
   font-size:.75rem;font-family:monospace;
 }
+#shortcutsClose{
+  position:absolute;top:.75rem;right:.75rem;
+  background:none;border:none;color:var(--fg-muted);
+  cursor:pointer;font-size:1rem;line-height:1;
+  padding:.2rem .45rem;border-radius:var(--radius-xs);
+}
+#shortcutsClose:hover{background:var(--sur3);color:var(--fg)}
 
 /* ── Mobile overlay ───────────────────────────────────────────────── */
 #mobileOverlay{
@@ -543,7 +553,8 @@ kbd{
             <button class="btn-sm btn-primary" id="authBtn" aria-label="Authenticate">Auth</button>
           </div>
           <button class="btn-sm btn-ghost" id="clearAuthBtn" aria-label="Clear authentication">Clear auth</button>
-          <p class="auth-hint" id="authHint">Use your OpenRouter key (sk-or-…)</p>
+          <!-- authHint: first text node is updated by JS; authHintLink is the dynamic link -->
+          <p class="auth-hint" id="authHint">Use your OpenRouter key (sk-or-…) — <a id="authHintLink" href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer">Get key →</a></p>
         </div>
       </div>
 
@@ -554,6 +565,8 @@ kbd{
           <span class="search-icon" aria-hidden="true">🔍</span>
           <input id="searchInput" type="search" placeholder="Search models…" aria-label="Search models" />
         </div>
+        <!-- Filter hint: shown when search narrows the list -->
+        <div class="model-filter-hint" id="modelFilterHint" aria-live="polite"></div>
         <div class="filter-row">
           <label for="paramFilter">Size</label>
           <select id="paramFilter" aria-label="Filter by parameter size"></select>
@@ -636,7 +649,7 @@ kbd{
 
       <!-- Privacy -->
       <div class="sidebar-section">
-        <details class="privacy-panel">
+        <details class="privacy-panel" open>
           <summary>🔒 Privacy &amp; Data Flow</summary>
           <p>Your API key lives <strong>only in JS memory</strong> — never written to localStorage, cookies, or any server.</p>
           <p>Messages travel directly from your browser to the provider (OpenRouter / Hugging Face) over HTTPS/TLS 1.3.</p>
@@ -658,6 +671,7 @@ kbd{
     <header id="header" role="banner">
       <button id="sidebarToggle" aria-label="Toggle sidebar" aria-expanded="false">☰</button>
       <span class="header-title" id="headerTitle">ChatWithIt</span>
+      <!-- Active persona label — updated by UI.setPersonaLabel() -->
       <span class="header-subtitle" id="personaLabel" aria-live="polite"></span>
 
       <div class="theme-wrap">
@@ -674,17 +688,17 @@ kbd{
       <div class="export-wrap">
         <button class="hbtn" id="exportBtn" title="Export chat" aria-label="Export chat">💾</button>
         <div id="export-menu" role="menu" aria-label="Export options">
-          <button class="export-opt" id="exportMd"  role="menuitem">📄 Markdown</button>
-          <button class="export-opt" id="exportJson" role="menuitem">📦 JSON</button>
-          <button class="export-opt" id="exportTxt"  role="menuitem">📝 Plain text</button>
-          <button class="export-opt" id="exportCopy" role="menuitem">📋 Copy Markdown</button>
+          <button class="export-opt" id="exportMd"   role="menuitem">📄 Markdown</button>
+          <button class="export-opt" id="exportJson"  role="menuitem">📦 JSON</button>
+          <button class="export-opt" id="exportTxt"   role="menuitem">📝 Plain text</button>
+          <button class="export-opt" id="exportCopy"  role="menuitem">📋 Copy Markdown</button>
         </div>
       </div>
 
-      <button class="hbtn" id="statsBtn" title="Stats" aria-label="Toggle stats panel">📊</button>
+      <button class="hbtn" id="statsBtn"     title="Stats"              aria-label="Toggle stats panel">📊</button>
       <button class="hbtn" id="shortcutsBtn" title="Keyboard shortcuts" aria-label="Keyboard shortcuts">?</button>
-      <button class="hbtn" id="clearBtn" title="Clear chat" aria-label="Clear chat">🗑️</button>
-      <button class="hbtn" id="resetBtn" title="Reset session" aria-label="Reset session">♻️</button>
+      <button class="hbtn" id="clearBtn"     title="Clear chat"         aria-label="Clear chat">🗑️</button>
+      <button class="hbtn" id="resetBtn"     title="Reset session"      aria-label="Reset session">♻️</button>
     </header>
 
     <!-- Chat -->
@@ -697,11 +711,14 @@ kbd{
         <h1 class="welcome-title">ChatWithIt</h1>
         <p class="welcome-sub">Dual-provider AI playground — OpenRouter &amp; Hugging Face free tiers, no backend, keys stay in your browser.</p>
         <div class="welcome-chips" role="list">
-          <button class="chip" role="listitem">Explain quantum entanglement simply</button>
-          <button class="chip" role="listitem">Write a Python web scraper</button>
-          <button class="chip" role="listitem">Debug my JavaScript code</button>
-          <button class="chip" role="listitem">Brainstorm startup ideas</button>
-          <button class="chip" role="listitem">Summarise this article</button>
+          <!-- data-persona activates the matching sidebar card before sending -->
+          <button class="chip" data-persona="default" role="listitem">Explain quantum entanglement simply</button>
+          <button class="chip" data-persona="code"    role="listitem">Write a Python web scraper</button>
+          <button class="chip" data-persona="code"    role="listitem">Debug my JavaScript code</button>
+          <button class="chip" data-persona="default" role="listitem">Brainstorm startup ideas</button>
+          <button class="chip" data-persona="tutor"   role="listitem">Guide me through recursion step-by-step</button>
+          <button class="chip" data-persona="creative" role="listitem">Help me write an opening scene</button>
+          <button class="chip" data-persona="debate"  role="listitem">Argue both sides of remote work</button>
         </div>
       </div>
     </main>
@@ -734,7 +751,7 @@ kbd{
   <aside id="rightPanel" aria-label="Statistics">
     <div class="rp-header">
       <h3>Session Stats</h3>
-      <button id="rp-close" aria-label="Close stats">✕</button>
+      <button id="rp-close" aria-label="Close stats panel">✕</button>
     </div>
     <div class="rp-body">
       <div class="stat-block">
@@ -755,13 +772,15 @@ kbd{
         <div class="stat-label">Turns</div>
         <div class="stat-val" id="stat-turns">0</div>
       </div>
+      <!-- Live rate-limit counter — updated after every send -->
       <div class="stat-block">
         <div class="stat-label">Requests remaining (this minute)</div>
-        <div class="stat-val" id="stat-rl">20</div>
+        <div class="stat-val" id="stat-rl">—</div>
       </div>
+      <!-- Provider / model diagnostics — updated after every send -->
       <div class="stat-block">
         <div class="stat-label">Diagnostics</div>
-        <div class="stat-val" id="stat-diag">Provider: openrouter · Model: none</div>
+        <div class="stat-val" id="stat-diag" style="font-size:.75rem;font-weight:500">—</div>
       </div>
       <div class="stat-block">
         <div class="stat-label">Per-turn usage</div>
@@ -775,6 +794,8 @@ kbd{
 <!-- ── Keyboard shortcuts modal ─────────────────────────────────────- -->
 <div id="shortcuts-modal" role="dialog" aria-modal="true" aria-label="Keyboard shortcuts">
   <div class="shortcuts-box">
+    <!-- Close button inside the modal -->
+    <button id="shortcutsClose" aria-label="Close shortcuts">✕</button>
     <h2>⌨️ Keyboard Shortcuts</h2>
     <div class="shortcut-list">
       <div class="sc-row"><span>Send message</span>         <kbd>Enter</kbd></div>
