@@ -315,12 +315,14 @@ const UI = {
     const bar  = this.el('ctxBar');
     const info = this.el('ctxInfo');
     const fill = this.el('ctxFill');
+    // FIX K: pct is now uncapped (can exceed 1.0) so the 'over' CSS class fires correctly.
+    // We clamp only the visual bar width to 100%.
     const pct  = AppState.getContextUsage();
     const used = AppState.totalPromptTokens + AppState.totalCompletionTokens;
     const lim  = AppState.getContextLimit();
 
     if (bar) {
-      bar.style.width = (pct * 100).toFixed(1) + '%';
+      bar.style.width = (Math.min(pct, 1) * 100).toFixed(1) + '%';
       bar.className   = 'ctx-bar' + (pct > 0.9 ? ' over' : pct > 0.75 ? ' warn' : '');
     }
     if (info) {
@@ -330,7 +332,7 @@ const UI = {
       const limStr       = Utils.formatTokens(lim);
       info.textContent   = `${usedStr} used (${pctUsed}%), ~${pctRemaining}% remaining of ${limStr}`;
     }
-    if (fill) fill.setAttribute('aria-valuenow', Math.round(pct * 100));
+    if (fill) fill.setAttribute('aria-valuenow', Math.round(Math.min(pct, 1) * 100));
   },
 
   toggleSidebar() {
@@ -339,6 +341,7 @@ const UI = {
     const toggle  = this.el('sidebarToggle');
     if (!sidebar) return;
     const isOpen = sidebar.classList.toggle('open');
+    AppState.sidebarOpen = isOpen;
     if (overlay) overlay.classList.toggle('show', isOpen);
     if (toggle)  toggle.setAttribute('aria-expanded', String(isOpen));
   },

@@ -292,10 +292,15 @@ const AppState = {
 
   // ── Context helpers ───────────────────────────────────────────────────────
 
+  /**
+   * FIX K: Do NOT clamp to 1.0 here — callers that need the raw ratio
+   * (e.g. the context bar's 'over' class check) must see values > 1.
+   * The progress-bar width is clamped separately in UI.updateContextBar.
+   */
   getContextUsage() {
     const ctxSize = this.modelContextMap[this.selectedModel] || 8192;
     const used = this.totalPromptTokens + this.totalCompletionTokens;
-    return Math.min(used / ctxSize, 1);
+    return used / ctxSize;
   },
 
   getContextLimit() {

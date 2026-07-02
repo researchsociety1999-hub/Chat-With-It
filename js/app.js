@@ -160,6 +160,16 @@ const App = {
     UI.el('modelSelect').addEventListener('change', (e) => {
       AppState.selectedModel = e.target.value;
       AppState.persistState();
+
+      // FIX L: Reset accumulated token totals when the model changes so the
+      // context bar reflects the new model's window rather than stale data
+      // from a previous model with a different context size.
+      AppState.totalPromptTokens     = 0;
+      AppState.totalCompletionTokens = 0;
+      AppState.turnTokens            = [];
+      UI.updateStats(0, 0);
+      UI.updateContextBar();
+
       const model = AppState.allModels.find(m => m.id === AppState.selectedModel);
       if (model) {
         const ctxK = model.ctx ? `${(model.ctx / 1000).toFixed(0)}k ctx` : '';
@@ -415,6 +425,8 @@ const App = {
       UI.toast(`Rate limited — try again in ${Math.ceil(rateCheck.retryAfterMs / 1000)}s`, 'warning');
       return;
     }
+    // FIX H: record the request in the token bucket so rate limiting actually fires
+    AppState.recordRequest();
 
     const rawMessages = [
       { role: 'system', content: AppState.currentPersonaPrompt },
