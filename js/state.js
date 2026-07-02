@@ -39,12 +39,9 @@ const AppState = {
 
   // Per-model cooldown map: modelId → timestamp until which the model should be
   // treated as temporarily unavailable due to an upstream 429.
-  // FIX: added so upstream-rate-limited models are flagged for 60 s rather than
-  // purged from the list or silently retried.
   _modelCooldowns: {},
 
   // UI State
-  // TODO: roadmap — compareMode / selectedModelB: side-by-side A/B model view.
   compareMode: false,
   searchActive: false,
   sidebarOpen: false,
@@ -72,9 +69,7 @@ const AppState = {
   abortController: null,
 
   // FIX: lowered from 30 to 20 to match OpenRouter's documented free-tier cap
-  // of 20 requests/minute for :free models. Previously the local guard allowed
-  // up to 30 req/min, meaning OpenRouter's own 429 fired before the client
-  // could defend the user with a friendly message.
+  // of 20 requests/minute for :free models.
   // Ref: https://openrouter.ai/docs/api-reference/limits
   _requestBucket: [],
   requestLimitPerMinute: 20,
@@ -112,32 +107,31 @@ const AppState = {
 
   // ── Model cooldowns ───────────────────────────────────────────────────────
 
-  /**
-   * Mark a model as temporarily rate-limited for `durationMs` milliseconds.
-   * While in cooldown the model stays in the list but App shows it as unavailable.
-   */
   setModelCooldown(modelId, durationMs = 60000) {
     this._modelCooldowns[modelId] = Date.now() + durationMs;
   },
 
-  /**
-   * Returns true if the model is currently in its upstream cooldown window.
-   */
   isModelOnCooldown(modelId) {
     const until = this._modelCooldowns[modelId];
     if (!until) return false;
     if (Date.now() < until) return true;
-    delete this._modelCooldowns[modelId]; // auto-expire
+    delete this._modelCooldowns[modelId];
     return false;
   },
 
-  /**
-   * Remaining cooldown seconds for display, or 0 if not on cooldown.
-   */
   modelCooldownSecondsLeft(modelId) {
     const until = this._modelCooldowns[modelId];
     if (!until) return 0;
     return Math.max(0, Math.ceil((until - Date.now()) / 1000));
+  },
+
+  /**
+   * Returns true if any model is currently on cooldown.
+   * Used to decide whether to keep the live-countdown interval running.
+   */
+  hasActiveCooldowns() {
+    const now = Date.now();
+    return Object.values(this._modelCooldowns).some(until => until > now);
   },
 
   // ── Persistence ───────────────────────────────────────────────────────────
@@ -205,6 +199,46 @@ const AppState = {
     return true;
   },
 
+  // ── Context trimming ─────────────────────────────────────────────────────
+
+  /**
+   * FIX: Prevent silent context overflow.
+   *
+   * Estimates the token count of a messages array using a simple 4-chars≈1-token
+   * heuristic and removes the oldest user/assistant message pairs until the
+   * payload fits comfortably within the model's context limit (leaving a 10%
+   * headroom for the completion). The system prompt is always preserved.
+   *
+   * @param {Array} messages  Full messages array (system + history + new user msg)
+   * @returns {Array}         Trimmed messages array safe to send to the API
+   */
+  trimHistoryToFitContext(messages) {
+    const ctxLimit  = this.getContextLimit();
+    const safeLimit = Math.floor(ctxLimit * 0.90); // keep 10% headroom for completion
+
+    const estimateTokens = (msgs) =>
+      msgs.reduce((sum, m) => sum + Math.ceil((m.content || '').length / 4), 0);
+
+    let trimmed = [...messages];
+
+    // Only trim the conversation turns (indices 1…n-1), never the system prompt
+    // (index 0) or the latest user message (last index).
+    while (estimateTokens(trimmed) > safeLimit && trimmed.length > 2) {
+      // Remove the oldest non-system message (index 1)
+      trimmed.splice(1, 1);
+    }
+
+    if (trimmed.length < messages.length) {
+      const dropped = messages.length - trimmed.length;
+      console.warn(`[ChatWithIt] Context trim: dropped ${dropped} old message(s) to fit within ${ctxLimit} token context.`);
+      if (typeof UI !== 'undefined') {
+        UI.toast(`ℹ️ ${dropped} old message${dropped > 1 ? 's' : ''} trimmed to fit context window.`, 'info', 5000);
+      }
+    }
+
+    return trimmed;
+  },
+
   // ── Rate limiter (token-bucket, 20 req/min) ───────────────────────────────
 
   canMakeRequest() {
@@ -224,10 +258,6 @@ const AppState = {
     this._resetIdleTimer();
   },
 
-  /**
-   * Helper for stats panel: number of requests remaining in the current
-   * 60-second window according to the local token-bucket.
-   */
   getRemainingRequests() {
     const now = Date.now();
     const windowMs = 60000;
@@ -244,8 +274,6 @@ const AppState = {
     this.totalCompletionTokens = 0;
     this.turnTokens = [];
     this.chatExported = false;
-    // FIX: reset session timer so the stats panel shows time-in-session for
-    // the new conversation, not elapsed time since page load.
     this.sessionStats = {
       startTime:    Date.now(),
       messageCount: 0,

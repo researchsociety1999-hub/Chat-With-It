@@ -5,6 +5,8 @@
 
 const App = {
   _sending: false,
+  // Interval handle for live cooldown countdown in model select
+  _cooldownInterval: null,
 
   async init() {
     try {
@@ -12,7 +14,8 @@ const App = {
       UI.loadTheme();
 
       if (!window.DOMPurify) {
-        UI.toast('⚠️ Security library (DOMPurify) failed to load — chat disabled. Try refreshing.', 'error', 10000);
+        // FIX: persistent banner instead of toast-only so users cannot miss it
+        UI.showSecurityBanner('⚠️ Security library (DOMPurify) failed to load — chat disabled. Please refresh the page.');
         const sendBtn = UI.el('sendBtn');
         if (sendBtn) sendBtn.disabled = true;
         console.error('DOMPurify not loaded — chat disabled for security.');
@@ -74,7 +77,6 @@ const App = {
   buildParamFilter() {
     const sel = UI.el('paramFilter');
     if (!sel) return;
-    // Clear any options that buildParamFilter may have added on a previous call
     sel.innerHTML = '';
     PARAM_TIERS.forEach(tier => {
       const opt = document.createElement('option');
@@ -84,9 +86,12 @@ const App = {
       sel.appendChild(opt);
     });
     sel.addEventListener('change', (e) => {
+      // FIX: remember current model before filter change so we can restore it
+      // if the model survives in the newly filtered list.
+      const previousModel = AppState.selectedModel;
       AppState.paramFilter = e.target.value;
       AppState.persistState();
-      this.refreshModels();
+      this.refreshModels(previousModel);
     });
   },
 
@@ -179,7 +184,12 @@ const App = {
     });
   },
 
-  async refreshModels() {
+  /**
+   * @param {string} [restoreModelId]  If provided, prefer this model ID after
+   *   loading completes (used when the param filter changes so the previously
+   *   selected model is not lost if it still exists in the new list).
+   */
+  async refreshModels(restoreModelId) {
     const sel = UI.el('modelSelect');
     if (!sel) return;
     if (!AppState.isAuthenticatedFor(AppState.currentProvider)) {
@@ -208,7 +218,12 @@ const App = {
       UI.updateModelCount(models.length, models.length);
       this._renderModelOptions(models, sel);
 
-      if (AppState.selectedModel === 'none' || !models.find(m => m.id === AppState.selectedModel)) {
+      // FIX: prefer restoreModelId (param-filter change) then previously
+      // selected model; only fall back to first model when neither survives.
+      const preferred = restoreModelId || AppState.selectedModel;
+      const found = preferred !== 'none' && models.find(m => m.id === preferred);
+
+      if (!found) {
         const first = models[0];
         sel.value = first.id;
         AppState.selectedModel = first.id;
@@ -221,14 +236,12 @@ const App = {
           first.uncensored ? '🔓 uncensored' : ''
         ].filter(Boolean).join(' · ');
       } else {
-        // Restore the previously selected model's label and meta
-        sel.value = AppState.selectedModel;
-        const model = models.find(m => m.id === AppState.selectedModel);
-        if (model) {
-          UI.updateModelLabel(model.name);
-          const ctxK = model.ctx ? `${(model.ctx / 1000).toFixed(0)}k ctx` : '';
-          UI.el('modelMeta').textContent = [model.paramTier, ctxK, model.uncensored ? '🔓 uncensored' : ''].filter(Boolean).join(' · ');
-        }
+        sel.value = found.id;
+        AppState.selectedModel = found.id;
+        AppState.persistState();
+        UI.updateModelLabel(found.name);
+        const ctxK = found.ctx ? `${(found.ctx / 1000).toFixed(0)}k ctx` : '';
+        UI.el('modelMeta').textContent = [found.paramTier, ctxK, found.uncensored ? '🔓 uncensored' : ''].filter(Boolean).join(' · ');
       }
     } catch (error) {
       console.error('refreshModels error:', error);
@@ -242,7 +255,6 @@ const App = {
     const providerCfg = API.getProvider();
     const badge = providerCfg?.badgeLabel ? `[${providerCfg.badgeLabel}] ` : '';
     sel.innerHTML = '';
-    // Update filter hint if a search is active
     const hint = UI.el('modelFilterHint');
     const searchVal = UI.el('searchInput')?.value?.trim();
     const total = (this._allModelsCache || AppState.allModels).length;
@@ -260,6 +272,40 @@ const App = {
       if (m.id === AppState.selectedModel) opt.selected = true;
       sel.appendChild(opt);
     });
+
+    // FIX: live countdown — start a 1-second interval to refresh cooldown tags
+    // while any model is still on cooldown; clear the interval once all expire.
+    this._startCooldownCountdown(models, sel);
+  },
+
+  /**
+   * FIX: Live cooldown countdown.
+   * Ticks every second to update the ⏳ Xs tag in each model option.
+   * Automatically stops when no cooldowns remain.
+   */
+  _startCooldownCountdown(models, sel) {
+    if (this._cooldownInterval) {
+      clearInterval(this._cooldownInterval);
+      this._cooldownInterval = null;
+    }
+    if (!AppState.hasActiveCooldowns()) return;
+
+    this._cooldownInterval = setInterval(() => {
+      if (!AppState.hasActiveCooldowns()) {
+        clearInterval(this._cooldownInterval);
+        this._cooldownInterval = null;
+      }
+      // Update only the text content of existing options — no full re-render
+      const providerCfg = API.getProvider();
+      const badge = providerCfg?.badgeLabel ? `[${providerCfg.badgeLabel}] ` : '';
+      Array.from(sel.options).forEach(opt => {
+        const model = models.find(m => m.id === opt.value);
+        if (!model) return;
+        const secs = AppState.modelCooldownSecondsLeft(model.id);
+        const tag  = secs > 0 ? ` ⏳ ${secs}s` : '';
+        opt.textContent = badge + model.name + (model.uncensored ? ' 🔓' : '') + tag;
+      });
+    }, 1000);
   },
 
   // ── Chat ───────────────────────────────────────────────────────────────
@@ -298,6 +344,8 @@ const App = {
         const name = card.querySelector('strong')?.textContent || 'Persona';
         UI.setPersonaLabel(name);
         UI.toast(`Persona: ${name}`, 'info');
+        // FIX: update welcome chips to reflect the newly selected persona
+        this._updateWelcomeChips(name);
       };
       card.addEventListener('click', activate);
       card.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(); } });
@@ -308,7 +356,6 @@ const App = {
       chip.addEventListener('click', () => {
         const userInput = UI.el('userInput');
         if (!userInput) return;
-        // Switch persona to match chip's data-persona attr if set
         const chipPersona = chip.dataset.persona;
         if (chipPersona) {
           const personaMap = {
@@ -328,6 +375,51 @@ const App = {
         userInput.focus();
         this.sendMessage();
       });
+    });
+  },
+
+  /**
+   * FIX: Update welcome chip text to match the active persona.
+   * Each persona key maps to a curated set of example prompts.
+   */
+  _updateWelcomeChips(personaName) {
+    const chipSets = {
+      'Assistant': [
+        'Explain quantum entanglement simply',
+        'Write a Python web scraper',
+        'Summarise this in 3 bullet points',
+        'What are the pros and cons of microservices?',
+      ],
+      'Tutor': [
+        'Walk me through recursion step by step',
+        'Explain Big O notation with examples',
+        'How does gradient descent work?',
+        'Quiz me on JavaScript closures',
+      ],
+      'Creative Writer': [
+        'Write a noir opening paragraph',
+        'Give me a plot twist for my story',
+        'Describe a futuristic city in 3 sentences',
+        'Write dialogue between two rivals',
+      ],
+      'Code Reviewer': [
+        'Review this function for edge cases',
+        'What design pattern fits this problem?',
+        'Spot the bug in this code',
+        'How would you refactor this class?',
+      ],
+      'Debate Coach': [
+        'Steelman the opposing argument',
+        'Find the weakest point in this position',
+        'How do I rebut "slippery slope"?',
+        'Give me the strongest counter-argument',
+      ],
+    };
+    const chips = document.querySelectorAll('.chip');
+    const prompts = chipSets[personaName];
+    if (!prompts || !chips.length) return;
+    chips.forEach((chip, i) => {
+      if (prompts[i]) chip.textContent = prompts[i];
     });
   },
 
@@ -354,16 +446,17 @@ const App = {
       return;
     }
 
-    // Build message history
-    const messages = [
+    // Build message history, then FIX: trim to context window before sending
+    const rawMessages = [
       { role: 'system', content: AppState.currentPersonaPrompt },
       ...AppState.chatHistory.map(m => ({ role: m.role, content: m.content })),
       { role: 'user', content: text },
     ];
+    const messages = AppState.trimHistoryToFitContext(rawMessages);
 
     // Update state & UI
-    this._lastUserText = text;        // FIX: save for retry
-    UI.removeRetryButton();           // FIX: clear any previous retry button
+    this._lastUserText = text;
+    UI.removeRetryButton();
     AppState.addMessage('user', text);
     userInput.value = '';
     userInput.style.height = 'auto';
@@ -372,9 +465,11 @@ const App = {
     UI.appendMessage('user', text);
     UI.setSendButtonState(false);
     UI.showTyping();
+    // FIX: hide the unsaved-chat banner while sending (it'll reappear if needed
+    // after the assistant turn completes via addMessage).
+    UI.hideUnsavedBanner();
     this._sending = true;
 
-    // Create the streaming bubble immediately (typing indicator stays until first token)
     let streamBubble = null;
     let fullContent  = '';
     let firstToken   = true;
@@ -386,7 +481,6 @@ const App = {
         messages,
         AppState.selectedModel,
         (delta) => {
-          // First token: swap typing indicator for live streaming bubble
           if (firstToken) {
             UI.removeTyping();
             streamBubble = UI.createStreamBubble();
@@ -398,18 +492,15 @@ const App = {
         { temperature: AppState.temperature, maxTokens: AppState.maxTokens }
       );
 
-      // Finalise: render full markdown into the bubble
       if (streamBubble) {
         UI.finaliseStreamBubble(streamBubble, fullContent);
       } else {
-        // No tokens streamed (edge case: empty response)
         UI.removeTyping();
         const content = response?.choices?.[0]?.message?.content || '';
         fullContent = content;
         if (fullContent) UI.appendMessage('assistant', fullContent);
       }
 
-      // Save to history & update stats
       const finalContent = fullContent || response?.choices?.[0]?.message?.content || '';
       if (finalContent) {
         AppState.addMessage('assistant', finalContent);
@@ -422,8 +513,9 @@ const App = {
         }
         UI.updateRateLimitInfo(AppState.getRemainingRequests());
         UI.updateDiagnostics(AppState.currentProvider, AppState.selectedModel);
-        // FIX: show retry button after every successful turn
         UI.addRetryButton(() => this._retryLastMessage());
+        // FIX: show unsaved banner after assistant reply if history is substantial
+        UI.maybeShowUnsavedBanner();
       }
 
     } catch (error) {
@@ -435,7 +527,6 @@ const App = {
       } else if (error.code === 'UPSTREAM_RATE_LIMIT') {
         AppState.setModelCooldown(AppState.selectedModel, 60000);
         this._renderModelOptions(AppState.allModels, UI.el('modelSelect'));
-        // Suggest an alternative model from same or adjacent tier
         const curModel = AppState.allModels.find(m => m.id === AppState.selectedModel);
         const alt = AppState.allModels.find(m =>
           m.id !== AppState.selectedModel &&
@@ -449,8 +540,14 @@ const App = {
       } else if (error.code === 'RATE_LIMIT') {
         UI.toast(error.message || 'Rate limited — please wait', 'warning', 6000);
       } else if (error.code === 'AUTH') {
+        // FIX: clear and re-focus the API key input so the user can immediately
+        // try again without manually clearing the field.
+        AppState.apiKey  = '';
+        AppState.hfToken = '';
         UI.setAuthState(false, 'Authentication failed');
-        UI.toast(error.message || 'Authentication error', 'error');
+        UI.toast(error.message || 'Authentication error — please re-enter your API key', 'error');
+        const input = UI.el('apiKeyInput');
+        if (input) { input.value = ''; input.focus(); }
       } else if (error.code === 'MODEL_NOT_FREE' || error.code === 'MODEL_MISSING') {
         UI.toast(error.message || 'Model unavailable', 'error');
         await this.refreshModels();
@@ -475,28 +572,27 @@ const App = {
   // ── UI listeners ────────────────────────────────────────────────────────
 
   setupUIListeners() {
-    // Stats panel
     UI.el('statsBtn').addEventListener('click', () => UI.toggleStats());
     UI.el('rp-close').addEventListener('click', () => {
       UI.el('rightPanel')?.classList.remove('open');
     });
 
-    // Clear chat
     UI.el('clearBtn').addEventListener('click', () => {
       if (AppState.chatHistory.length && !AppState.chatExported) {
         if (!confirm('Clear this conversation?')) return;
       }
       UI.clearChat();
+      UI.hideUnsavedBanner();
       UI.toast('Chat cleared', 'info');
     });
 
-    // Reset session (auth + model + chat)
     const resetBtn = UI.el('resetBtn');
     if (resetBtn) {
       resetBtn.addEventListener('click', () => {
         if (!confirm('Reset session (auth, model, chat)?')) return;
         AppState.reset();
         UI.clearChat();
+        UI.hideUnsavedBanner();
         const input = UI.el('apiKeyInput');
         if (input) input.value = '';
         UI.setAuthState(false, 'Not authenticated');
@@ -507,7 +603,6 @@ const App = {
       });
     }
 
-    // Keyboard shortcuts modal
     const modal = UI.el('shortcuts-modal');
     UI.el('shortcutsBtn').addEventListener('click', () => {
       modal?.classList.toggle('open');
@@ -518,18 +613,15 @@ const App = {
     modal?.addEventListener('click', (e) => {
       if (e.target === modal) modal.classList.remove('open');
     });
-    // FIX: Escape key also closes the shortcuts modal
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && modal?.classList.contains('open')) {
         modal.classList.remove('open');
       }
     });
 
-    // Sidebar toggle (mobile)
     UI.el('sidebarToggle')?.addEventListener('click', () => UI.toggleSidebar());
     UI.el('mobileOverlay')?.addEventListener('click', () => UI.toggleSidebar());
 
-    // Theme menu
     const themeBtn  = UI.el('themeBtn');
     const themeMenu = UI.el('theme-menu');
     themeBtn?.addEventListener('click', (e) => {
@@ -544,7 +636,6 @@ const App = {
       });
     });
 
-    // Temperature slider
     const tempSlider = UI.el('tempSlider');
     const tempVal    = UI.el('tempVal');
     if (tempSlider) {
@@ -557,7 +648,6 @@ const App = {
       });
     }
 
-    // Max tokens slider
     const maxSlider  = UI.el('maxTokensSlider');
     const maxVal     = UI.el('maxTokensVal');
     if (maxSlider) {
@@ -570,7 +660,6 @@ const App = {
       });
     }
 
-    // Global Escape key: close all overlays
     document.addEventListener('keydown', (e) => {
       if (e.key !== 'Escape') return;
       themeMenu?.classList.remove('open');
@@ -579,7 +668,6 @@ const App = {
       if (AppState.sidebarOpen) UI.toggleSidebar();
     });
 
-    // Close menus on outside click
     document.addEventListener('click', (e) => {
       if (!e.target.closest('.theme-wrap'))  themeMenu?.classList.remove('open');
       if (!e.target.closest('.export-wrap')) UI.el('export-menu')?.classList.remove('open');
@@ -605,17 +693,15 @@ const App = {
       UI.updateModelCount(filtered.length, models.length);
       this._renderModelOptions(filtered, sel);
 
-      // Restore selected value if it survived the filter, otherwise pick first
       if (filtered.find(m => m.id === AppState.selectedModel)) {
         sel.value = AppState.selectedModel;
       } else if (filtered.length) {
         sel.value = filtered[0].id;
-        // Do NOT update AppState.selectedModel — just a visual search result
       }
     }, 150);
 
     searchInput.addEventListener('input', (e) => doSearch(e.target.value));
-    searchInput.addEventListener('search', (e) => doSearch(e.target.value)); // clear button
+    searchInput.addEventListener('search', (e) => doSearch(e.target.value));
   },
 
   // ── Export ──────────────────────────────────────────────────────────────
@@ -624,42 +710,36 @@ const App = {
     const exportBtn  = UI.el('exportBtn');
     const exportMenu = UI.el('export-menu');
 
-    // Toggle menu on button click
     exportBtn?.addEventListener('click', (e) => {
       e.stopPropagation();
       exportMenu?.classList.toggle('open');
       exportMenu.style.display = exportMenu.classList.contains('open') ? 'flex' : 'none';
     });
 
-    // Markdown export
     UI.el('exportMd')?.addEventListener('click', () => {
       this._exportChat('md');
       exportMenu?.classList.remove('open');
       if (exportMenu) exportMenu.style.display = 'none';
     });
 
-    // JSON export
     UI.el('exportJson')?.addEventListener('click', () => {
       this._exportChat('json');
       exportMenu?.classList.remove('open');
       if (exportMenu) exportMenu.style.display = 'none';
     });
 
-    // Plain text export
     UI.el('exportTxt')?.addEventListener('click', () => {
       this._exportChat('txt');
       exportMenu?.classList.remove('open');
       if (exportMenu) exportMenu.style.display = 'none';
     });
 
-    // Copy-to-clipboard Markdown export
     UI.el('exportCopy')?.addEventListener('click', () => {
       this._exportChat('copy');
       exportMenu?.classList.remove('open');
       if (exportMenu) exportMenu.style.display = 'none';
     });
 
-    // Ctrl+S → Markdown export
     document.addEventListener('keydown', (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 's') {
         e.preventDefault();
@@ -704,10 +784,10 @@ const App = {
           .then(() => UI.toast('📋 Copied to clipboard', 'success'))
           .catch(() => UI.toast('Clipboard copy failed', 'error'));
         AppState.chatExported = true;
+        UI.hideUnsavedBanner();
         return;
 
       } else {
-        // Markdown (default)
         const header = [
           `# ChatWithIt Export`,
           `**Date:** ${new Date().toLocaleString()}`,
@@ -726,6 +806,7 @@ const App = {
       }
 
       AppState.chatExported = true;
+      UI.hideUnsavedBanner();
       UI.toast(`✅ Exported as ${format.toUpperCase()}`, 'success');
     } catch (err) {
       console.error('Export error:', err);
@@ -749,14 +830,29 @@ const App = {
   _restorePersonaCard() {
     const saved = AppState.currentPersonaPrompt;
     if (!saved) return;
+    let matched = false;
     document.querySelectorAll('.persona-card').forEach(card => {
       const match = card.dataset.prompt === saved;
       card.classList.toggle('active', match);
       if (match) {
+        matched = true;
         const name = card.querySelector('strong')?.textContent || '';
         UI.setPersonaLabel(name);
+        this._updateWelcomeChips(name);
       }
     });
+    // FIX: if saved prompt no longer matches any card (e.g. after an app update
+    // changed the prompt text), fall back to the default persona silently.
+    if (!matched) {
+      AppState.currentPersonaPrompt = AppState.defaultPersonaPrompt;
+      AppState.persistState();
+      const defaultCard = document.querySelector('.persona-card[data-prompt*="helpful AI assistant"]');
+      if (defaultCard) {
+        defaultCard.classList.add('active');
+        const name = defaultCard.querySelector('strong')?.textContent || 'Assistant';
+        UI.setPersonaLabel(name);
+      }
+    }
   },
 };
 

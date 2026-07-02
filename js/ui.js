@@ -28,6 +28,71 @@ const UI = {
     if (status) { status.textContent = label; }
   },
 
+  // ─── Security banner (DOMPurify failure) ─────────────────────────────────
+
+  /**
+   * FIX: Show a persistent banner (not a toast) when DOMPurify fails to load.
+   * Toasts auto-dismiss and can be missed; this banner stays until page refresh.
+   */
+  showSecurityBanner(message) {
+    let banner = this.el('security-banner');
+    if (!banner) {
+      banner = document.createElement('div');
+      banner.id = 'security-banner';
+      banner.setAttribute('role', 'alert');
+      banner.style.cssText = [
+        'position:fixed', 'top:0', 'left:0', 'right:0', 'z-index:9999',
+        'background:#dc2626', 'color:#fff', 'text-align:center',
+        'padding:.75rem 1rem', 'font-size:.9rem', 'font-weight:600',
+        'box-shadow:0 2px 8px rgba(0,0,0,.3)',
+      ].join(';');
+      document.body.prepend(banner);
+    }
+    banner.textContent = message;
+  },
+
+  // ─── Unsaved-chat banner ──────────────────────────────────────────────────
+
+  /**
+   * FIX: Show a subtle inline banner near the export button when the user has
+   * a substantial unsaved conversation, so they are reminded before they try
+   * to close the tab (rather than seeing the native browser dialog too late).
+   * Triggered after each assistant turn once chatHistory length > 4.
+   */
+  maybeShowUnsavedBanner() {
+    if (AppState.chatExported) return;
+    if (AppState.chatHistory.length < 5) return;
+    let banner = this.el('unsaved-banner');
+    if (banner) return; // already shown
+    banner = document.createElement('div');
+    banner.id = 'unsaved-banner';
+    banner.setAttribute('role', 'status');
+    banner.style.cssText = [
+      'display:flex', 'align-items:center', 'gap:.5rem',
+      'padding:.45rem .9rem', 'margin:.5rem 1rem 0',
+      'background:var(--warn-bg,#fffbeb)', 'color:var(--warn-fg,#92400e)',
+      'border:1px solid var(--warn-border,#fde68a)', 'border-radius:.5rem',
+      'font-size:.78rem', 'font-weight:600',
+    ].join(';');
+    banner.innerHTML = '💾 Unsaved chat — <button id="unsaved-export-btn" style="background:none;border:none;cursor:pointer;font-size:.78rem;font-weight:700;color:inherit;text-decoration:underline;padding:0;margin-left:.25rem;">Export now</button>';
+    // Insert above the chat input area if possible, otherwise append to body
+    const inputBar = document.querySelector('.input-bar') || document.querySelector('#inputBar');
+    if (inputBar) {
+      inputBar.parentNode.insertBefore(banner, inputBar);
+    } else {
+      document.body.appendChild(banner);
+    }
+    this.el('unsaved-export-btn')?.addEventListener('click', () => {
+      // Trigger markdown export directly
+      if (typeof App !== 'undefined') App._exportChat('md');
+    });
+  },
+
+  hideUnsavedBanner() {
+    const banner = this.el('unsaved-banner');
+    if (banner) banner.remove();
+  },
+
   // ─── Chat display ─────────────────────────────────────────────────────────
 
   showChat() {
@@ -55,8 +120,6 @@ const UI = {
    *
    * FIX (unified render path): both streamed and non-streamed assistant messages
    * now go through Utils.parseMarkdown, which applies DOMPurify sanitization.
-   * Previously appendMessage used the same path but finaliseStreamBubble called
-   * marked.parse directly, creating two divergent sanitization branches.
    */
   appendMessage(role, text) {
     const chat = this.el('chatBody');
@@ -89,7 +152,6 @@ const UI = {
     chat.appendChild(wrap);
 
     if (role === 'assistant') {
-      // FIX: scroll after markdown renders so the bubble has its final height
       Utils.parseMarkdown(text).then(html => {
         bubble.innerHTML = html;
         chat.scrollTop = chat.scrollHeight;
@@ -119,6 +181,8 @@ const UI = {
     col.style.cssText = 'display:flex;flex-direction:column;gap:.25rem;max-width:calc(100% - 44px)';
 
     const bubble = document.createElement('div');
+    // FIX: .streaming class added here and removed in finaliseStreamBubble so
+    // CSS can visually distinguish an in-progress response from a finalised one.
     bubble.className = 'msg-bubble streaming';
 
     const content = document.createElement('span');
@@ -153,6 +217,7 @@ const UI = {
    * FIX (unified render path): delegates to Utils.parseMarkdown instead of
    * duplicating marked.parse + DOMPurify inline. This ensures the same
    * sanitization logic is used for ALL assistant output.
+   * FIX: removes .streaming class so CSS transitions to finalised state.
    */
   finaliseStreamBubble(bubble, fullContent) {
     if (!bubble) return;
@@ -229,23 +294,16 @@ const UI = {
           return `<div class="chart-bar" style="height:${h}px" title="Prompt: ${t.p} / Completion: ${t.c}" aria-hidden="true"></div>`;
         }).join('');
       } else {
-        // FIX: show placeholder bars so the chart area is never invisibly 0-height
         chart.innerHTML = '<div class="chart-bar" style="height:2px;opacity:.3" aria-hidden="true"></div>'.repeat(4);
       }
     }
   },
 
-  /**
-   * Rate-limit info in stats panel.
-   */
   updateRateLimitInfo(remaining) {
     const el = this.el('stat-rl');
     if (el) el.textContent = String(remaining);
   },
 
-  /**
-   * Provider/model diagnostics line.
-   */
   updateDiagnostics(provider, modelId) {
     const el = this.el('stat-diag');
     if (!el) return;
@@ -340,12 +398,8 @@ const UI = {
 
   // ─── Retry last message ──────────────────────────────────────────────────
 
-  /**
-   * Appends a small "↻ Retry" button beneath the last assistant reply.
-   * Removed automatically when sendMessage fires again.
-   */
   addRetryButton(onRetry) {
-    this.removeRetryButton(); // only one at a time
+    this.removeRetryButton();
     const chat = this.el('chatBody');
     if (!chat) return;
     const btn = document.createElement('button');
