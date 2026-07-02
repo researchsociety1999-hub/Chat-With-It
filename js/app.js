@@ -5,7 +5,6 @@
 
 const App = {
   _sending: false,
-  // Interval handle for live cooldown countdown in model select
   _cooldownInterval: null,
 
   async init() {
@@ -14,7 +13,6 @@ const App = {
       UI.loadTheme();
 
       if (!window.DOMPurify) {
-        // FIX: persistent banner instead of toast-only so users cannot miss it
         UI.showSecurityBanner('⚠️ Security library (DOMPurify) failed to load — chat disabled. Please refresh the page.');
         const sendBtn = UI.el('sendBtn');
         if (sendBtn) sendBtn.disabled = true;
@@ -45,13 +43,11 @@ const App = {
       await this.refreshModels();
       this._restorePersonaCard();
 
-      // Auto-expand privacy panel on first load to reinforce trust messaging
       const privacy = document.querySelector('.privacy-panel');
       if (privacy && !privacy.hasAttribute('open')) {
         privacy.setAttribute('open', '');
       }
 
-      // Initialise auth hint for current provider
       const hint = UI.el('authHint');
       const hintLink = UI.el('authHintLink');
       if (hint) {
@@ -72,8 +68,6 @@ const App = {
     }
   },
 
-  // ── Param filter ─────────────────────────────────────────────────────
-
   buildParamFilter() {
     const sel = UI.el('paramFilter');
     if (!sel) return;
@@ -86,16 +80,12 @@ const App = {
       sel.appendChild(opt);
     });
     sel.addEventListener('change', (e) => {
-      // FIX: remember current model before filter change so we can restore it
-      // if the model survives in the newly filtered list.
       const previousModel = AppState.selectedModel;
       AppState.paramFilter = e.target.value;
       AppState.persistState();
       this.refreshModels(previousModel);
     });
   },
-
-  // ── Provider ────────────────────────────────────────────────────────────
 
   setupProviderListeners() {
     document.querySelectorAll('.ptab').forEach(btn => {
@@ -134,8 +124,6 @@ const App = {
     });
   },
 
-  // ── Auth ──────────────────────────────────────────────────────────────────
-
   setupAuthListeners() {
     UI.el('authBtn').addEventListener('click', () => this.authenticate());
     UI.el('apiKeyInput').addEventListener('keydown', (e) => {
@@ -168,8 +156,6 @@ const App = {
     await this.refreshModels();
   },
 
-  // ── Models ──────────────────────────────────────────────────────────────
-
   setupModelListeners() {
     UI.el('modelSelect').addEventListener('change', (e) => {
       AppState.selectedModel = e.target.value;
@@ -184,11 +170,6 @@ const App = {
     });
   },
 
-  /**
-   * @param {string} [restoreModelId]  If provided, prefer this model ID after
-   *   loading completes (used when the param filter changes so the previously
-   *   selected model is not lost if it still exists in the new list).
-   */
   async refreshModels(restoreModelId) {
     const sel = UI.el('modelSelect');
     if (!sel) return;
@@ -218,8 +199,6 @@ const App = {
       UI.updateModelCount(models.length, models.length);
       this._renderModelOptions(models, sel);
 
-      // FIX: prefer restoreModelId (param-filter change) then previously
-      // selected model; only fall back to first model when neither survives.
       const preferred = restoreModelId || AppState.selectedModel;
       const found = preferred !== 'none' && models.find(m => m.id === preferred);
 
@@ -273,29 +252,25 @@ const App = {
       sel.appendChild(opt);
     });
 
-    // FIX: live countdown — start a 1-second interval to refresh cooldown tags
-    // while any model is still on cooldown; clear the interval once all expire.
     this._startCooldownCountdown(models, sel);
   },
 
-  /**
-   * FIX: Live cooldown countdown.
-   * Ticks every second to update the ⏳ Xs tag in each model option.
-   * Automatically stops when no cooldowns remain.
-   */
   _startCooldownCountdown(models, sel) {
-    if (this._cooldownInterval) {
-      clearInterval(this._cooldownInterval);
-      this._cooldownInterval = null;
+    if (!AppState.hasActiveCooldowns()) {
+      if (this._cooldownInterval) {
+        clearInterval(this._cooldownInterval);
+        this._cooldownInterval = null;
+      }
+      return;
     }
-    if (!AppState.hasActiveCooldowns()) return;
+    if (this._cooldownInterval) return;
 
     this._cooldownInterval = setInterval(() => {
       if (!AppState.hasActiveCooldowns()) {
         clearInterval(this._cooldownInterval);
         this._cooldownInterval = null;
+        return;
       }
-      // Update only the text content of existing options — no full re-render
       const providerCfg = API.getProvider();
       const badge = providerCfg?.badgeLabel ? `[${providerCfg.badgeLabel}] ` : '';
       Array.from(sel.options).forEach(opt => {
@@ -307,8 +282,6 @@ const App = {
       });
     }, 1000);
   },
-
-  // ── Chat ───────────────────────────────────────────────────────────────
 
   setupChatListeners() {
     const userInput = UI.el('userInput');
@@ -332,7 +305,6 @@ const App = {
       UI.toast('Generation stopped', 'info');
     });
 
-    // Persona cards
     document.querySelectorAll('.persona-card').forEach(card => {
       const activate = () => {
         const prompt = card.dataset.prompt;
@@ -344,14 +316,12 @@ const App = {
         const name = card.querySelector('strong')?.textContent || 'Persona';
         UI.setPersonaLabel(name);
         UI.toast(`Persona: ${name}`, 'info');
-        // FIX: update welcome chips to reflect the newly selected persona
         this._updateWelcomeChips(name);
       };
       card.addEventListener('click', activate);
       card.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(); } });
     });
 
-    // Welcome chips — persona-aware
     document.querySelectorAll('.chip').forEach(chip => {
       chip.addEventListener('click', () => {
         const userInput = UI.el('userInput');
@@ -378,10 +348,6 @@ const App = {
     });
   },
 
-  /**
-   * FIX: Update welcome chip text to match the active persona.
-   * Each persona key maps to a curated set of example prompts.
-   */
   _updateWelcomeChips(personaName) {
     const chipSets = {
       'Assistant': [
@@ -423,6 +389,10 @@ const App = {
     });
   },
 
+  _estimateMessagesTokens(messages) {
+    return messages.reduce((sum, m) => sum + Math.ceil((m.content || '').length / 4), 0);
+  },
+
   async sendMessage() {
     if (this._sending) return;
 
@@ -446,15 +416,14 @@ const App = {
       return;
     }
 
-    // Build message history, then FIX: trim to context window before sending
     const rawMessages = [
       { role: 'system', content: AppState.currentPersonaPrompt },
       ...AppState.chatHistory.map(m => ({ role: m.role, content: m.content })),
       { role: 'user', content: text },
     ];
     const messages = AppState.trimHistoryToFitContext(rawMessages);
+    const sentContextUsage = this._estimateMessagesTokens(messages) / AppState.getContextLimit();
 
-    // Update state & UI
     this._lastUserText = text;
     UI.removeRetryButton();
     AppState.addMessage('user', text);
@@ -465,8 +434,6 @@ const App = {
     UI.appendMessage('user', text);
     UI.setSendButtonState(false);
     UI.showTyping();
-    // FIX: hide the unsaved-chat banner while sending (it'll reappear if needed
-    // after the assistant turn completes via addMessage).
     UI.hideUnsavedBanner();
     this._sending = true;
 
@@ -508,14 +475,13 @@ const App = {
         AppState.updateTokens(promptTokens, completionTokens);
         UI.updateStats(AppState.totalPromptTokens, AppState.totalCompletionTokens);
         UI.updateContextBar();
-        if (AppState.getContextUsage() > 0.9) {
+        if (sentContextUsage > 0.9) {
           UI.toast('⚠️ Context nearly full (>90%). Consider exporting and starting a new chat.', 'warning', 7000);
         }
         UI.updateRateLimitInfo(AppState.getRemainingRequests());
         UI.updateDiagnostics(AppState.currentProvider, AppState.selectedModel);
         UI.addRetryButton(() => this._retryLastMessage());
-        // FIX: show unsaved banner after assistant reply if history is substantial
-        UI.maybeShowUnsavedBanner();
+        UI.maybeShowUnsavedBanner(() => this.exportChat('md'));
       }
 
     } catch (error) {
@@ -523,7 +489,6 @@ const App = {
       if (streamBubble) UI.removeStreamBubble(streamBubble);
 
       if (error.code === 'ABORTED') {
-        // User-initiated stop — already handled by stopBtn listener
       } else if (error.code === 'UPSTREAM_RATE_LIMIT') {
         AppState.setModelCooldown(AppState.selectedModel, 60000);
         this._renderModelOptions(AppState.allModels, UI.el('modelSelect'));
@@ -540,8 +505,6 @@ const App = {
       } else if (error.code === 'RATE_LIMIT') {
         UI.toast(error.message || 'Rate limited — please wait', 'warning', 6000);
       } else if (error.code === 'AUTH') {
-        // FIX: clear and re-focus the API key input so the user can immediately
-        // try again without manually clearing the field.
         AppState.apiKey  = '';
         AppState.hfToken = '';
         UI.setAuthState(false, 'Authentication failed');
@@ -560,16 +523,12 @@ const App = {
     }
   },
 
-  // ── Retry ──────────────────────────────────────────────────────────────
-
   _retryLastMessage() {
     if (!this._lastUserText) return;
     const userInput = UI.el('userInput');
     if (userInput) userInput.value = this._lastUserText;
     this.sendMessage();
   },
-
-  // ── UI listeners ────────────────────────────────────────────────────────
 
   setupUIListeners() {
     UI.el('statsBtn').addEventListener('click', () => UI.toggleStats());
@@ -674,8 +633,6 @@ const App = {
     });
   },
 
-  // ── Search / filter ─────────────────────────────────────────────────────
-
   setupSearchListeners() {
     const searchInput = UI.el('searchInput');
     if (!searchInput) return;
@@ -704,8 +661,6 @@ const App = {
     searchInput.addEventListener('search', (e) => doSearch(e.target.value));
   },
 
-  // ── Export ──────────────────────────────────────────────────────────────
-
   setupExportListeners() {
     const exportBtn  = UI.el('exportBtn');
     const exportMenu = UI.el('export-menu');
@@ -717,25 +672,25 @@ const App = {
     });
 
     UI.el('exportMd')?.addEventListener('click', () => {
-      this._exportChat('md');
+      this.exportChat('md');
       exportMenu?.classList.remove('open');
       if (exportMenu) exportMenu.style.display = 'none';
     });
 
     UI.el('exportJson')?.addEventListener('click', () => {
-      this._exportChat('json');
+      this.exportChat('json');
       exportMenu?.classList.remove('open');
       if (exportMenu) exportMenu.style.display = 'none';
     });
 
     UI.el('exportTxt')?.addEventListener('click', () => {
-      this._exportChat('txt');
+      this.exportChat('txt');
       exportMenu?.classList.remove('open');
       if (exportMenu) exportMenu.style.display = 'none';
     });
 
     UI.el('exportCopy')?.addEventListener('click', () => {
-      this._exportChat('copy');
+      this.exportChat('copy');
       exportMenu?.classList.remove('open');
       if (exportMenu) exportMenu.style.display = 'none';
     });
@@ -743,9 +698,13 @@ const App = {
     document.addEventListener('keydown', (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 's') {
         e.preventDefault();
-        this._exportChat('md');
+        this.exportChat('md');
       }
     });
+  },
+
+  exportChat(format) {
+    return this._exportChat(format);
   },
 
   _exportChat(format) {
@@ -814,8 +773,6 @@ const App = {
     }
   },
 
-  // ── Before-unload ─────────────────────────────────────────────────────
-
   _setupBeforeUnload() {
     window.addEventListener('beforeunload', (e) => {
       if (AppState.chatHistory.length > 0 && !AppState.chatExported) {
@@ -824,8 +781,6 @@ const App = {
       }
     });
   },
-
-  // ── Persona restore ─────────────────────────────────────────────────────
 
   _restorePersonaCard() {
     const saved = AppState.currentPersonaPrompt;
@@ -841,8 +796,6 @@ const App = {
         this._updateWelcomeChips(name);
       }
     });
-    // FIX: if saved prompt no longer matches any card (e.g. after an app update
-    // changed the prompt text), fall back to the default persona silently.
     if (!matched) {
       AppState.currentPersonaPrompt = AppState.defaultPersonaPrompt;
       AppState.persistState();

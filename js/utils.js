@@ -90,11 +90,10 @@ const Utils = {
   },
 
   /**
-   * FIX: anchor insertion and revokeObjectURL are now in a try/finally block.
-   * Previously an unexpected throw (e.g. from a sandboxed iframe blocking
-   * appendChild) would leave an orphan <a> element in the DOM forever.
+   * Download a text payload as a file.
+   * Signature is (filename, text, mimeType) to match all app call sites.
    */
-  downloadAsFile(text, filename, mimeType = 'text/plain') {
+  downloadAsFile(filename, text, mimeType = 'text/plain') {
     const blob = new Blob([text], { type: mimeType });
     const url  = window.URL.createObjectURL(blob);
     const a    = document.createElement('a');

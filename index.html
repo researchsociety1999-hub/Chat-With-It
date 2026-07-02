@@ -1,1 +1,288 @@
-new_index_content
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ChatWithIt</title>
+  <meta name="description" content="Browser-only multi-provider AI chat client for OpenRouter and Hugging Face.">
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: #121933;
+      --panel-2: #18213f;
+      --fg: #eef2ff;
+      --fg-muted: #a5b4d4;
+      --border: #273152;
+      --accent: #7c3aed;
+      --accent-2: #22c55e;
+      --warn-bg: #fffbeb;
+      --warn-fg: #92400e;
+      --warn-border: #fde68a;
+      --danger: #dc2626;
+    }
+    [data-theme="light"] {
+      --bg: #f6f8fc;
+      --panel: #ffffff;
+      --panel-2: #eef2ff;
+      --fg: #0f172a;
+      --fg-muted: #475569;
+      --border: #dbe3f2;
+      --accent: #6d28d9;
+      --accent-2: #15803d;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+    }
+    .app { display: grid; grid-template-columns: 300px 1fr 320px; min-height: 100vh; }
+    .sidebar, .right-panel, .main { border-right: 1px solid var(--border); }
+    .sidebar, .right-panel { background: var(--panel); padding: 1rem; }
+    .main { background: var(--bg); display: flex; flex-direction: column; min-width: 0; }
+    .hidden { display: none !important; }
+    .brand { font-size: 1.1rem; font-weight: 700; margin-bottom: 1rem; }
+    .section { margin-bottom: 1rem; padding: .9rem; background: var(--panel-2); border: 1px solid var(--border); border-radius: .75rem; }
+    .row { display: flex; gap: .5rem; align-items: center; }
+    .stack { display: flex; flex-direction: column; gap: .5rem; }
+    .ptabs { display: flex; gap: .5rem; }
+    .ptab, button, select, input, textarea { font: inherit; }
+    .ptab, button {
+      border: 1px solid var(--border); background: var(--panel); color: var(--fg);
+      padding: .6rem .8rem; border-radius: .65rem; cursor: pointer;
+    }
+    .ptab.active, .btn-primary { background: var(--accent); border-color: var(--accent); color: white; }
+    input, select, textarea {
+      width: 100%; background: var(--panel); color: var(--fg); border: 1px solid var(--border);
+      border-radius: .65rem; padding: .7rem .8rem;
+    }
+    textarea { resize: vertical; min-height: 54px; max-height: 160px; }
+    .muted { color: var(--fg-muted); font-size: .86rem; }
+    .auth-dot { width: .7rem; height: .7rem; border-radius: 50%; display: inline-block; }
+    .auth-dot.ok { background: #22c55e; }
+    .auth-dot.err { background: #ef4444; }
+    .chat-header, .composer { padding: 1rem; border-bottom: 1px solid var(--border); }
+    .chat-header { display: flex; justify-content: space-between; gap: 1rem; background: var(--panel); }
+    .chat-body { flex: 1; overflow: auto; padding: 1rem; display: flex; flex-direction: column; gap: 1rem; }
+    .welcome { padding: 1rem; background: var(--panel); border: 1px solid var(--border); border-radius: .9rem; }
+    .chips { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .75rem; }
+    .chip { padding: .45rem .7rem; border: 1px solid var(--border); border-radius: 999px; background: var(--panel-2); cursor: pointer; }
+    .msg { display: flex; gap: .75rem; align-items: flex-start; }
+    .msg-avatar {
+      width: 36px; height: 36px; display: grid; place-items: center; border-radius: 999px;
+      background: var(--panel); border: 1px solid var(--border); flex: 0 0 auto;
+    }
+    .msg-bubble {
+      background: var(--panel); border: 1px solid var(--border); border-radius: 1rem;
+      padding: .85rem 1rem; line-height: 1.5; overflow-wrap: anywhere;
+    }
+    .msg.user .msg-bubble { background: #1d4ed8; color: white; border-color: #1d4ed8; }
+    .msg-bubble.streaming { opacity: .92; }
+    .typing-indicator { display: inline-flex; gap: .35rem; padding: .8rem 1rem; background: var(--panel); border: 1px solid var(--border); border-radius: 999px; }
+    .typing-indicator span { width: 8px; height: 8px; border-radius: 50%; background: var(--fg-muted); animation: blink 1.2s infinite; }
+    .typing-indicator span:nth-child(2) { animation-delay: .2s; }
+    .typing-indicator span:nth-child(3) { animation-delay: .4s; }
+    @keyframes blink { 0%, 80%, 100% { opacity: .3; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-2px); } }
+    .composer { background: var(--panel); display: flex; flex-direction: column; gap: .6rem; }
+    .composer-actions { display: flex; gap: .5rem; align-items: center; justify-content: space-between; }
+    .toolbar { display: flex; gap: .5rem; flex-wrap: wrap; }
+    .persona-grid { display: grid; grid-template-columns: 1fr; gap: .5rem; }
+    .persona-card {
+      padding: .75rem; border: 1px solid var(--border); border-radius: .75rem; background: var(--panel); cursor: pointer;
+    }
+    .persona-card.active { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+    .stats-line { display: flex; justify-content: space-between; gap: .75rem; margin: .45rem 0; }
+    .bar-wrap { height: 8px; background: var(--panel-2); border-radius: 999px; overflow: hidden; border: 1px solid var(--border); }
+    .bar { height: 100%; background: var(--accent); }
+    .ctx-bar.over, .bar.over { background: var(--danger); }
+    .ctx-bar.warn, .bar.warn { background: #f59e0b; }
+    .chart { display: flex; align-items: end; gap: .35rem; min-height: 48px; }
+    .chart-bar { width: 14px; background: var(--accent); border-radius: .3rem .3rem 0 0; }
+    .toast-area { position: fixed; right: 1rem; bottom: 1rem; display: flex; flex-direction: column; gap: .5rem; z-index: 9999; }
+    .toast {
+      opacity: 0; transform: translateY(10px); transition: all .2s ease;
+      background: var(--panel); border: 1px solid var(--border); color: var(--fg);
+      padding: .75rem .9rem; border-radius: .7rem; min-width: 240px;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast-success { border-color: #22c55e; }
+    .toast-error { border-color: #ef4444; }
+    .toast-warning { border-color: #f59e0b; }
+    .retry-btn { align-self: flex-start; }
+    .right-panel { display: block; }
+    .mobile-overlay { display: none; }
+    .theme-menu, .export-menu { display: none; position: absolute; background: var(--panel); border: 1px solid var(--border); border-radius: .75rem; padding: .35rem; z-index: 10; }
+    .theme-menu.open, .export-menu.open { display: flex; flex-direction: column; gap: .35rem; }
+    .privacy-panel summary { cursor: pointer; }
+    @media (max-width: 1100px) {
+      .app { grid-template-columns: 1fr; }
+      .sidebar, .right-panel { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div id="toastArea" class="toast-area" aria-live="polite"></div>
+  <div id="mobileOverlay" class="mobile-overlay"></div>
+
+  <div class="app">
+    <aside id="sidebar" class="sidebar">
+      <div class="brand">ChatWithIt</div>
+
+      <section class="section stack">
+        <div class="ptabs" role="tablist" aria-label="Providers">
+          <button class="ptab active" data-provider="openrouter" aria-selected="true">OpenRouter</button>
+          <button class="ptab" data-provider="huggingface" aria-selected="false">Hugging Face</button>
+        </div>
+        <div class="row" style="justify-content:space-between">
+          <div class="row"><span id="authDot" class="auth-dot err"></span><span id="authStatus">Not authenticated</span></div>
+          <button id="clearAuthBtn" type="button">Clear</button>
+        </div>
+        <input id="apiKeyInput" type="password" placeholder="sk-or-…" autocomplete="off">
+        <div class="row">
+          <button id="authBtn" class="btn-primary" type="button">Authenticate</button>
+        </div>
+        <div id="authHint" class="muted">Use your OpenRouter key (sk-or-…) — <a id="authHintLink" href="https://openrouter.ai/keys" target="_blank" rel="noreferrer">Get key →</a></div>
+      </section>
+
+      <section class="section stack">
+        <label for="paramFilter">Model size</label>
+        <select id="paramFilter"></select>
+        <input id="searchInput" type="search" placeholder="Search models">
+        <div id="modelFilterHint" class="muted"></div>
+        <select id="modelSelect" aria-label="Model selection">
+          <option value="none" disabled selected>— authenticate first —</option>
+        </select>
+        <div id="modelLabel">No model selected</div>
+        <div id="modelMeta" class="muted"></div>
+        <div id="modelCount" class="muted">0 models</div>
+      </section>
+
+      <section class="section stack">
+        <div class="row" style="justify-content:space-between"><span>Temperature</span><span id="tempVal">0.7</span></div>
+        <input id="tempSlider" type="range" min="0" max="2" step="0.1" value="0.7">
+        <div class="row" style="justify-content:space-between"><span>Max tokens</span><span id="maxTokensVal">1,024</span></div>
+        <input id="maxTokensSlider" type="range" min="128" max="8192" step="128" value="1024">
+      </section>
+
+      <section class="section stack">
+        <div class="row" style="justify-content:space-between"><span id="personaLabel">Persona: Assistant</span><button id="shortcutsBtn" type="button">Shortcuts</button></div>
+        <div class="persona-grid">
+          <div class="persona-card active" tabindex="0" data-prompt="You are a helpful AI assistant. Be concise, accurate, and developer-friendly. Use Markdown formatting in your responses."><strong>Assistant</strong><div class="muted">Balanced default helper.</div></div>
+          <div class="persona-card" tabindex="0" data-prompt="You are a Socratic tutor. Teach step by step, ask guiding questions, and help the user reason toward the answer."><strong>Tutor</strong><div class="muted">Step-by-step teacher.</div></div>
+          <div class="persona-card" tabindex="0" data-prompt="You are a creative writing assistant. Generate vivid, original prose, dialogue, and story ideas while matching the user's requested tone."><strong>Creative Writer</strong><div class="muted">Ideas, prose, and dialogue.</div></div>
+          <div class="persona-card" tabindex="0" data-prompt="You are a code reviewer. Find bugs, edge cases, maintainability issues, and offer practical refactors with concise examples."><strong>Code Reviewer</strong><div class="muted">Bugs, refactors, edge cases.</div></div>
+          <div class="persona-card" tabindex="0" data-prompt="You are a debate coach. Help build strong arguments, steelman opposing views, and sharpen rebuttals logically and respectfully."><strong>Debate Coach</strong><div class="muted">Arguments and rebuttals.</div></div>
+        </div>
+      </section>
+    </aside>
+
+    <main class="main">
+      <header class="chat-header">
+        <div class="stack" style="gap:.35rem; min-width:0;">
+          <div class="row" style="justify-content:space-between; gap:1rem; flex-wrap:wrap;">
+            <strong>Browser-only AI chat</strong>
+            <div class="toolbar">
+              <button id="sidebarToggle" type="button">Menu</button>
+              <button id="statsBtn" type="button">Stats</button>
+              <button id="clearBtn" type="button">Clear</button>
+              <button id="resetBtn" type="button">Reset</button>
+            </div>
+          </div>
+          <div id="ctxInfo" class="muted">0 used (0%), ~100% remaining of 8,192</div>
+          <div id="ctxFill" class="bar-wrap" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="ctxBar" class="bar"></div></div>
+        </div>
+        <div class="row" style="align-items:flex-start; gap:.5rem; position:relative;">
+          <div class="theme-wrap" style="position:relative;">
+            <button id="themeBtn" type="button">Theme</button>
+            <div id="theme-menu" class="theme-menu">
+              <button class="theme-opt" data-theme="dark" type="button">Dark</button>
+              <button class="theme-opt" data-theme="light" type="button">Light</button>
+            </div>
+          </div>
+          <div class="export-wrap" style="position:relative;">
+            <button id="exportBtn" type="button">Export</button>
+            <div id="export-menu" class="export-menu">
+              <button id="exportMd" type="button">Markdown</button>
+              <button id="exportJson" type="button">JSON</button>
+              <button id="exportTxt" type="button">Text</button>
+              <button id="exportCopy" type="button">Copy</button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <section id="welcome" class="welcome" style="margin:1rem;">
+        <strong>Start chatting</strong>
+        <div class="muted" style="margin-top:.35rem;">Choose a model, pick a persona, and send a prompt. Your key stays in memory only.</div>
+        <div class="chips">
+          <button class="chip" type="button" data-persona="default">Explain quantum entanglement simply</button>
+          <button class="chip" type="button" data-persona="default">Write a Python web scraper</button>
+          <button class="chip" type="button" data-persona="default">Summarise this in 3 bullet points</button>
+          <button class="chip" type="button" data-persona="default">What are the pros and cons of microservices?</button>
+        </div>
+      </section>
+
+      <div id="chatBody" class="chat-body" aria-live="polite"></div>
+
+      <div id="composerWrap">
+        <div class="composer">
+          <textarea id="userInput" placeholder="Send a message…" aria-label="Message input"></textarea>
+          <div class="composer-actions">
+            <div class="toolbar">
+              <span id="charCount" class="muted">0 / 32,000</span>
+              <span id="modelLabelInline" class="muted"></span>
+            </div>
+            <div class="toolbar">
+              <button id="stopBtn" type="button" style="display:none">Stop</button>
+              <button id="sendBtn" class="btn-primary" type="button">Send</button>
+            </div>
+          </div>
+          <details class="privacy-panel">
+            <summary>Privacy</summary>
+            <div class="muted" style="margin-top:.5rem; line-height:1.5;">Your API key is stored only in browser memory for this session. This app has no backend server; requests go directly from your browser to the selected provider.</div>
+          </details>
+        </div>
+      </div>
+    </main>
+
+    <aside id="rightPanel" class="right-panel">
+      <div class="row" style="justify-content:space-between; margin-bottom:1rem;">
+        <strong>Session stats</strong>
+        <button id="rp-close" type="button">Close</button>
+      </div>
+      <div class="section stack">
+        <div class="stats-line"><span>Prompt</span><span id="stat-prompt">0</span></div>
+        <div class="bar-wrap"><div id="stat-prompt-bar" class="bar"></div></div>
+        <div class="stats-line"><span>Completion</span><span id="stat-completion">0</span></div>
+        <div class="bar-wrap"><div id="stat-completion-bar" class="bar"></div></div>
+        <div class="stats-line"><span>Total</span><span id="stat-total">0</span></div>
+        <div class="stats-line"><span>Turns</span><span id="stat-turns">0</span></div>
+        <div class="stats-line"><span>Req/min left</span><span id="stat-rl">0</span></div>
+        <div id="stat-diag" class="muted">Provider: OpenRouter · Model: none</div>
+        <div id="stat-chart" class="chart"></div>
+      </div>
+    </aside>
+  </div>
+
+  <div id="shortcuts-modal" class="hidden" style="position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:999; padding:2rem;">
+    <div style="max-width:520px; margin:0 auto; background:var(--panel); border:1px solid var(--border); border-radius:1rem; padding:1rem;">
+      <div class="row" style="justify-content:space-between; margin-bottom:.75rem;"><strong>Shortcuts</strong><button id="shortcutsClose" type="button">Close</button></div>
+      <div class="muted" style="line-height:1.6;">
+        Enter = send<br>
+        Shift+Enter = newline<br>
+        Ctrl/Cmd+S = export markdown<br>
+        Escape = close menus/modals
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/state.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
