@@ -1,6 +1,7 @@
 /**
- * UI Manager
- * Handles all DOM manipulation, rendering, and UI state updates
+ * UI Manager — redesigned
+ * Glassmorphism dark/light, animated messages, message actions, scroll-to-bottom,
+ * Ctrl+K model search focus, smooth scroll, header model badge.
  */
 
 const UI = {
@@ -20,8 +21,8 @@ const UI = {
   setAuthState(ok, label) {
     const dot    = this.el('authDot');
     const status = this.el('authStatus');
-    if (dot)    { dot.className    = 'auth-dot ' + (ok ? 'ok' : 'err'); }
-    if (status) { status.textContent = label; }
+    if (dot)    dot.className    = 'auth-dot ' + (ok ? 'ok' : 'err');
+    if (status) status.textContent = label;
   },
 
   showSecurityBanner(message) {
@@ -30,12 +31,12 @@ const UI = {
       banner = document.createElement('div');
       banner.id = 'security-banner';
       banner.setAttribute('role', 'alert');
-      banner.style.cssText = [
-        'position:fixed', 'top:0', 'left:0', 'right:0', 'z-index:9999',
-        'background:#dc2626', 'color:#fff', 'text-align:center',
-        'padding:.75rem 1rem', 'font-size:.9rem', 'font-weight:600',
-        'box-shadow:0 2px 8px rgba(0,0,0,.3)',
-      ].join(';');
+      Object.assign(banner.style, {
+        position:'fixed',top:'0',left:'0',right:'0',zIndex:'9999',
+        background:'#dc2626',color:'#fff',textAlign:'center',
+        padding:'.75rem 1rem',fontSize:'.9rem',fontWeight:'600',
+        boxShadow:'0 2px 8px rgba(0,0,0,.3)',
+      });
       document.body.prepend(banner);
     }
     banner.textContent = message;
@@ -44,35 +45,19 @@ const UI = {
   maybeShowUnsavedBanner(onExport) {
     if (AppState.chatExported) return;
     if (AppState.chatHistory.length < 5) return;
-    let banner = this.el('unsaved-banner');
-    if (banner) return;
-    banner = document.createElement('div');
+    if (this.el('unsaved-banner')) return;
+    const banner = document.createElement('div');
     banner.id = 'unsaved-banner';
     banner.setAttribute('role', 'status');
-    banner.style.cssText = [
-      'display:flex', 'align-items:center', 'gap:.5rem',
-      'padding:.45rem .9rem', 'margin:.5rem 0 0',
-      'background:var(--warn-bg,#fffbeb)', 'color:var(--warn-fg,#92400e)',
-      'border:1px solid var(--warn-border,#fde68a)', 'border-radius:.5rem',
-      'font-size:.78rem', 'font-weight:600',
-    ].join(';');
-    banner.innerHTML = '💾 Unsaved chat — <button id="unsaved-export-btn" style="background:none;border:none;cursor:pointer;font-size:.78rem;font-weight:700;color:inherit;text-decoration:underline;padding:0;margin-left:.25rem;">Export now</button>';
-    const anchor = this.el('composerWrap') || this.el('chatBody') || document.body;
-    if (anchor.id === 'chatBody') {
-      anchor.parentNode.insertBefore(banner, anchor.nextSibling);
-    } else if (anchor !== document.body) {
-      anchor.prepend(banner);
-    } else {
-      document.body.appendChild(banner);
-    }
-    this.el('unsaved-export-btn')?.addEventListener('click', () => {
-      if (typeof onExport === 'function') onExport();
-    });
+    banner.innerHTML = '💾 Unsaved — <button id="unsaved-export-btn" style="background:none;border:none;cursor:pointer;font-size:inherit;font-weight:800;color:inherit;text-decoration:underline;padding:0;margin-left:.2rem;">Export now</button>';
+    const anchor = this.el('composerWrap');
+    if (anchor) anchor.parentNode.insertBefore(banner, anchor);
+    this.el('unsaved-export-btn')?.addEventListener('click', () => { if (typeof onExport === 'function') onExport(); });
   },
 
   hideUnsavedBanner() {
-    const banner = this.el('unsaved-banner');
-    if (banner) banner.remove();
+    const b = this.el('unsaved-banner');
+    if (b) b.remove();
   },
 
   showChat() {
@@ -88,12 +73,12 @@ const UI = {
     AppState.clearChat();
     this.updateStats(0, 0);
     this.updateContextBar();
+    this._updateScrollBtn();
   },
 
-  appendMessage(role, text) {
-    const chat = this.el('chatBody');
-    if (!chat) return;
+  // ── Message rendering ────────────────────────────────────────────────────
 
+  _buildMsgWrap(role) {
     const wrap = document.createElement('div');
     wrap.className = `msg ${role}`;
     wrap.setAttribute('role', 'article');
@@ -104,30 +89,63 @@ const UI = {
     avatar.textContent = role === 'user' ? '👤' : '🤖';
 
     const col = document.createElement('div');
-    col.style.cssText = 'display:flex;flex-direction:column;gap:.25rem;max-width:calc(100% - 44px)';
+    col.className = 'msg-col';
 
-    const bubble = document.createElement('div');
-    bubble.className = 'msg-bubble';
-
-    const ts = document.createElement('div');
-    ts.style.cssText = 'font-size:.68rem;color:var(--fg-muted);padding:0 .25rem';
-    ts.textContent = new Date().toLocaleTimeString();
-    ts.setAttribute('aria-hidden', 'true');
-
-    col.appendChild(bubble);
-    col.appendChild(ts);
     wrap.appendChild(avatar);
     wrap.appendChild(col);
+    return { wrap, col };
+  },
+
+  _buildMeta(role, bubble) {
+    const meta = document.createElement('div');
+    meta.className = 'msg-meta';
+
+    const ts = document.createElement('span');
+    ts.className = 'msg-time';
+    ts.textContent = new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+    ts.setAttribute('aria-hidden', 'true');
+
+    const actions = document.createElement('div');
+    actions.className = 'msg-actions';
+
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'msg-action-btn';
+    copyBtn.title = 'Copy';
+    copyBtn.textContent = '📋';
+    copyBtn.addEventListener('click', () => {
+      const text = bubble._rawText || bubble.textContent;
+      Utils.copyToClipboard(text).then(ok => {
+        if (ok) { copyBtn.textContent = '✅'; setTimeout(() => { copyBtn.textContent = '📋'; }, 1500); }
+      });
+    });
+
+    actions.appendChild(copyBtn);
+    meta.appendChild(ts);
+    meta.appendChild(actions);
+    return meta;
+  },
+
+  appendMessage(role, text) {
+    const chat = this.el('chatBody');
+    if (!chat) return;
+
+    const { wrap, col } = this._buildMsgWrap(role);
+    const bubble = document.createElement('div');
+    bubble.className = 'msg-bubble';
+    bubble._rawText = text;
+
+    col.appendChild(bubble);
+    col.appendChild(this._buildMeta(role, bubble));
     chat.appendChild(wrap);
 
     if (role === 'assistant') {
       Utils.parseMarkdown(text).then(html => {
         bubble.innerHTML = html;
-        chat.scrollTop = chat.scrollHeight;
+        this._scrollToBottom();
       });
     } else {
       bubble.textContent = text;
-      chat.scrollTop = chat.scrollHeight;
+      this._scrollToBottom();
     }
   },
 
@@ -135,18 +153,7 @@ const UI = {
     const chat = this.el('chatBody');
     if (!chat) return null;
 
-    const wrap = document.createElement('div');
-    wrap.className = 'msg assistant';
-    wrap.setAttribute('role', 'article');
-
-    const avatar = document.createElement('div');
-    avatar.className = 'msg-avatar';
-    avatar.setAttribute('aria-hidden', 'true');
-    avatar.textContent = '🤖';
-
-    const col = document.createElement('div');
-    col.style.cssText = 'display:flex;flex-direction:column;gap:.25rem;max-width:calc(100% - 44px)';
-
+    const { wrap, col } = this._buildMsgWrap('assistant');
     const bubble = document.createElement('div');
     bubble.className = 'msg-bubble streaming';
 
@@ -154,17 +161,10 @@ const UI = {
     content.className = 'bubble-stream-content';
     bubble.appendChild(content);
 
-    const ts = document.createElement('div');
-    ts.style.cssText = 'font-size:.68rem;color:var(--fg-muted);padding:0 .25rem';
-    ts.textContent = new Date().toLocaleTimeString();
-    ts.setAttribute('aria-hidden', 'true');
-
     col.appendChild(bubble);
-    col.appendChild(ts);
-    wrap.appendChild(avatar);
-    wrap.appendChild(col);
+    col.appendChild(this._buildMeta('assistant', bubble));
     chat.appendChild(wrap);
-    chat.scrollTop = chat.scrollHeight;
+    this._scrollToBottom();
     return bubble;
   },
 
@@ -173,33 +173,31 @@ const UI = {
     const content = bubble.querySelector('.bubble-stream-content');
     if (content) {
       content.textContent += delta;
-      const chat = this.el('chatBody');
-      if (chat) chat.scrollTop = chat.scrollHeight;
+      bubble._rawText = (bubble._rawText || '') + delta;
+      this._scrollToBottom();
     }
   },
 
   finaliseStreamBubble(bubble, fullContent) {
     if (!bubble) return;
     bubble.classList.remove('streaming');
+    bubble._rawText = fullContent;
     const content = bubble.querySelector('.bubble-stream-content');
     if (!content) return;
     Utils.parseMarkdown(fullContent).then(html => {
       content.innerHTML = html;
-      const chat = this.el('chatBody');
-      if (chat) chat.scrollTop = chat.scrollHeight;
+      this._scrollToBottom();
     });
   },
 
   removeStreamBubble(bubble) {
     if (!bubble) return;
-    const wrap = bubble.closest('.msg');
-    if (wrap) wrap.remove();
+    bubble.closest('.msg')?.remove();
   },
 
   showTyping() {
     const chat = this.el('chatBody');
-    if (!chat) return;
-    if (this.el('typing-indicator')) return;
+    if (!chat || this.el('typing-indicator')) return;
     const wrap = document.createElement('div');
     wrap.className = 'msg assistant';
     wrap.id = 'typing-indicator';
@@ -218,20 +216,43 @@ const UI = {
     wrap.appendChild(avatar);
     wrap.appendChild(typing);
     chat.appendChild(wrap);
-    chat.scrollTop = chat.scrollHeight;
+    this._scrollToBottom();
   },
 
   removeTyping() {
-    const t = this.el('typing-indicator');
-    if (t) t.remove();
+    this.el('typing-indicator')?.remove();
   },
+
+  // ── Scroll helpers ───────────────────────────────────────────────────────
+
+  _scrollToBottom() {
+    const chat = this.el('chatBody');
+    if (chat) chat.scrollTop = chat.scrollHeight;
+    this._updateScrollBtn();
+  },
+
+  _updateScrollBtn() {
+    const chat = this.el('chatBody');
+    const btn  = this.el('scrollToBottom');
+    if (!chat || !btn) return;
+    const atBottom = chat.scrollHeight - chat.clientHeight - chat.scrollTop < 80;
+    btn.classList.toggle('show', !atBottom && chat.scrollHeight > chat.clientHeight + 100);
+  },
+
+  initScrollBtn() {
+    const chat = this.el('chatBody');
+    const btn  = this.el('scrollToBottom');
+    if (!chat || !btn) return;
+    chat.addEventListener('scroll', Utils.throttle(() => this._updateScrollBtn(), 120));
+    btn.addEventListener('click', () => this._scrollToBottom());
+  },
+
+  // ── Stats ────────────────────────────────────────────────────────────────
 
   updateStats(promptToks, completionToks) {
     const max = Math.max(promptToks, completionToks, 1);
-
-    const setEl = (id, val) => { const e = this.el(id); if (e) e.textContent = Utils.formatTokens(val); };
+    const setEl  = (id, val) => { const e = this.el(id); if (e) e.textContent = Utils.formatTokens(val); };
     const setBar = (id, pct) => { const e = this.el(id); if (e) e.style.width = (pct * 100).toFixed(1) + '%'; };
-
     setEl('stat-prompt',     promptToks);
     setEl('stat-completion', completionToks);
     setEl('stat-total',      promptToks + completionToks);
@@ -245,11 +266,11 @@ const UI = {
         const last8 = AppState.turnTokens.slice(-8);
         const peak  = Math.max(...last8.map(t => t.p + t.c), 1);
         chart.innerHTML = last8.map(t => {
-          const h = Math.max(2, Math.round(((t.p + t.c) / peak) * 44));
-          return `<div class="chart-bar" style="height:${h}px" title="Prompt: ${t.p} / Completion: ${t.c}" aria-hidden="true"></div>`;
+          const h = Math.max(3, Math.round(((t.p + t.c) / peak) * 44));
+          return `<div class="chart-bar" style="height:${h}px" title="P:${t.p} C:${t.c}" aria-hidden="true"></div>`;
         }).join('');
       } else {
-        chart.innerHTML = '<div class="chart-bar" style="height:2px;opacity:.3" aria-hidden="true"></div>'.repeat(4);
+        chart.innerHTML = '<div class="chart-bar" style="height:3px;opacity:.25"></div>'.repeat(4);
       }
     }
   },
@@ -262,9 +283,8 @@ const UI = {
   updateDiagnostics(provider, modelId) {
     const el = this.el('stat-diag');
     if (!el) return;
-    const providerName = provider === 'huggingface' ? 'Hugging Face' : 'OpenRouter';
-    const modelLabel = modelId === 'none' ? 'none' : modelId;
-    el.textContent = `Provider: ${providerName} · Model: ${modelLabel}`;
+    const name = provider === 'huggingface' ? 'Hugging Face' : 'OpenRouter';
+    el.innerHTML = `Provider: ${name}<br>Model: ${modelId === 'none' ? 'none' : modelId}`;
   },
 
   toggleStats() {
@@ -278,29 +298,42 @@ const UI = {
     }
   },
 
+  // ── Send button ──────────────────────────────────────────────────────────
+
   setSendButtonState(enabled) {
     const send = this.el('sendBtn');
     const stop = this.el('stopBtn');
-    if (send) {
-      send.disabled = !enabled;
-      send.setAttribute('aria-disabled', String(!enabled));
-    }
-    if (stop) stop.style.display = enabled ? 'none' : 'flex';
+    if (send) { send.disabled = !enabled; send.setAttribute('aria-disabled', String(!enabled)); }
+    if (stop) stop.style.display = enabled ? 'none' : 'inline-flex';
   },
+
+  // ── Char count ───────────────────────────────────────────────────────────
 
   updateCharCount(len) {
     const el = this.el('charCount');
-    if (el) el.textContent = `${len.toLocaleString()} / 32,000`;
+    if (!el) return;
+    el.textContent = len > 0 ? `${len.toLocaleString()} chars` : '';
+    el.className = 'char-count' + (len > 28000 ? ' over' : len > 24000 ? ' warn' : '');
   },
 
+  // ── Model label ──────────────────────────────────────────────────────────
+
   updateModelLabel(modelName) {
-    const el = this.el('modelLabel');
-    if (el) el.textContent = modelName || 'No model selected';
+    const el    = this.el('modelLabel');
+    const badge = this.el('modelBadge');
+    const inl   = this.el('modelLabelInline');
+    const short = modelName ? modelName.split('(')[0].trim() : 'No model';
+    if (el)    el.textContent  = modelName || 'No model selected';
+    if (badge) {
+      badge.textContent = short;
+      badge.className   = 'model-badge' + (AppState.currentProvider === 'huggingface' ? ' hf' : '');
+    }
+    if (inl)   inl.textContent = short !== 'No model' ? short : '';
   },
 
   setPersonaLabel(name) {
     const el = this.el('personaLabel');
-    if (el) el.textContent = name ? `Persona: ${name}` : '';
+    if (el) el.textContent = name ? `Active: ${name}` : '';
   },
 
   updateModelCount(current, total) {
@@ -311,29 +344,29 @@ const UI = {
       : `${current} of ${total} models`;
   },
 
+  // ── Context bar ──────────────────────────────────────────────────────────
+
   updateContextBar() {
     const bar  = this.el('ctxBar');
     const info = this.el('ctxInfo');
     const fill = this.el('ctxFill');
-    // FIX K: pct is now uncapped (can exceed 1.0) so the 'over' CSS class fires correctly.
-    // We clamp only the visual bar width to 100%.
     const pct  = AppState.getContextUsage();
     const used = AppState.totalPromptTokens + AppState.totalCompletionTokens;
     const lim  = AppState.getContextLimit();
 
     if (bar) {
       bar.style.width = (Math.min(pct, 1) * 100).toFixed(1) + '%';
-      bar.className   = 'ctx-bar' + (pct > 0.9 ? ' over' : pct > 0.75 ? ' warn' : '');
+      bar.className   = 'ctx-fill' + (pct > 0.9 ? ' over' : pct > 0.75 ? ' warn' : '');
     }
     if (info) {
-      const pctUsed      = Math.round(pct * 100);
-      const pctRemaining = Math.max(0, 100 - pctUsed);
-      const usedStr      = Utils.formatTokens(used);
-      const limStr       = Utils.formatTokens(lim);
-      info.textContent   = `${usedStr} used (${pctUsed}%), ~${pctRemaining}% remaining of ${limStr}`;
+      const pctUsed = Math.round(pct * 100);
+      const limStr  = Utils.formatTokens(lim);
+      info.textContent = `${pctUsed}% of ${limStr}`;
     }
     if (fill) fill.setAttribute('aria-valuenow', Math.round(Math.min(pct, 1) * 100));
   },
+
+  // ── Sidebar ──────────────────────────────────────────────────────────────
 
   toggleSidebar() {
     const sidebar = this.el('sidebar');
@@ -346,6 +379,8 @@ const UI = {
     if (toggle)  toggle.setAttribute('aria-expanded', String(isOpen));
   },
 
+  // ── Retry button ─────────────────────────────────────────────────────────
+
   addRetryButton(onRetry) {
     this.removeRetryButton();
     const chat = this.el('chatBody');
@@ -354,30 +389,29 @@ const UI = {
     btn.id = 'retryBtn';
     btn.className = 'retry-btn';
     btn.setAttribute('aria-label', 'Retry last message');
-    btn.textContent = '↻ Retry';
+    btn.textContent = '↻ Retry last message';
     btn.addEventListener('click', () => { this.removeRetryButton(); onRetry(); });
     chat.appendChild(btn);
-    chat.scrollTop = chat.scrollHeight;
+    this._scrollToBottom();
   },
 
   removeRetryButton() {
-    const el = this.el('retryBtn');
-    if (el) el.remove();
+    this.el('retryBtn')?.remove();
   },
+
+  // ── Toast ────────────────────────────────────────────────────────────────
 
   toast(message, type = 'info', duration = 3000) {
     const area = this.el('toastArea');
     if (!area) return;
-
-    const existing = Array.from(area.querySelectorAll('.toast')).find(t => t.dataset.msg === message);
-    if (existing) existing.remove();
-
+    Array.from(area.querySelectorAll('.toast')).find(t => t.dataset.msg === message)?.remove();
     const toast = document.createElement('div');
     toast.className = `toast toast-${type}`;
-    toast.textContent = message;
+    const text = document.createElement('span');
+    text.textContent = message;
+    toast.appendChild(text);
     toast.dataset.msg = message;
     toast.setAttribute('role', 'alert');
-    toast.setAttribute('aria-live', 'polite');
     area.appendChild(toast);
     requestAnimationFrame(() => toast.classList.add('show'));
     setTimeout(() => {
