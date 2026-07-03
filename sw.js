@@ -1,9 +1,16 @@
 /**
  * Service Worker — ChatWithIt
  * Caches app shell for offline use. Never caches API calls to providers.
+ *
+ * CACHE_NAME bump strategy: increment the version suffix (v2, v3, …) whenever
+ * JS or CSS files change. The activate handler deletes all previous caches so
+ * returning users always get fresh code once the new SW takes control.
  */
 
-const CACHE_NAME = 'chatwithit-v1';
+// FIX: bumped to v2 so returning users pick up updated JS/CSS files.
+// Increment this string on every deployment that changes cached assets.
+const CACHE_NAME = 'chatwithit-v2';
+
 const PRECACHE_URLS = [
   './',
   './index.html',
@@ -19,9 +26,18 @@ const PRECACHE_URLS = [
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(PRECACHE_URLS))
-      .then(() => self.skipWaiting())
+    caches.open(CACHE_NAME).then(async (cache) => {
+      // FIX: cache each URL individually so a single missing file (e.g. a new
+      // asset not yet deployed) does not abort the entire SW install.
+      const results = await Promise.allSettled(
+        PRECACHE_URLS.map(url => cache.add(url))
+      );
+      results.forEach((r, i) => {
+        if (r.status === 'rejected') {
+          console.warn(`[SW] Failed to precache ${PRECACHE_URLS[i]}:`, r.reason);
+        }
+      });
+    }).then(() => self.skipWaiting())
   );
 });
 

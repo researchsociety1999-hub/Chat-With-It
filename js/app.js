@@ -489,7 +489,10 @@ const App = {
     API.createAbortController();
 
     try {
-      const response = await API.sendMessageStream(
+      // FIX: wire Utils.retryWithBackoff for transient network errors (not auth/rate-limit errors).
+      // We define the streaming call as a thunk and wrap it — on a genuine network drop it will
+      // retry up to 2 times with exponential backoff before surfacing the error to the user.
+      const doStream = () => API.sendMessageStream(
         messages,
         AppState.selectedModel,
         (delta) => {
@@ -505,6 +508,14 @@ const App = {
         },
         { temperature: AppState.temperature, maxTokens: AppState.maxTokens }
       );
+
+      // Only retry on transient network failures — propagate API error codes immediately.
+      const response = await Utils.retryWithBackoff(
+        doStream,
+        2,    // max retries
+        800,  // base delay ms
+        (err) => !err.code   // only retry when there is no structured error code
+      ).catch(err => { throw err; });
 
       if (streamBubble) {
         UI.finaliseStreamBubble(streamBubble, fullContent);
@@ -676,6 +687,16 @@ const App = {
       UI.el('export-menu')?.classList.remove('open');
       modal?.classList.remove('open');
       if (AppState.sidebarOpen) UI.toggleSidebar();
+    });
+
+    // FIX: Ctrl+K model search — moved here from inline <script> in index.html
+    // so all keyboard shortcuts live in one place and are consistently managed.
+    document.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        const s = UI.el('searchInput');
+        if (s) { s.focus(); s.select(); }
+      }
     });
 
     document.addEventListener('click', (e) => {

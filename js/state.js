@@ -224,7 +224,6 @@ const AppState = {
       return false;
     }
     this.chatHistory.push({ role, content, timestamp: Date.now() });
-    this.sessionStats.messageCount++;
     if (role === 'assistant') this.sessionStats.turnCount++;
     this.chatExported = false;
     this._resetIdleTimer();
@@ -234,6 +233,10 @@ const AppState = {
       const excess = this.chatHistory.length - this.MAX_HISTORY;
       this.chatHistory.splice(0, excess);
     }
+
+    // FIX: sync messageCount to actual array length AFTER any trim,
+    // so the stats panel never shows a count higher than reality.
+    this.sessionStats.messageCount = this.chatHistory.length;
 
     this.persistHistory();
     return true;
