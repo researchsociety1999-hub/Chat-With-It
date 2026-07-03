@@ -76,12 +76,84 @@ const UI = {
     this._updateScrollBtn();
   },
 
+  // ── Confirm modal (replaces native confirm() — Zara/Priya fix) ──────────
+
+  confirmModal(message, onConfirm) {
+    const overlay = document.createElement('div');
+    overlay.className = 'confirm-overlay';
+    overlay.setAttribute('role', 'presentation');
+
+    const box = document.createElement('div');
+    box.className = 'confirm-box';
+    box.setAttribute('role', 'alertdialog');
+    box.setAttribute('aria-modal', 'true');
+    box.setAttribute('aria-label', message);
+    box.tabIndex = -1;
+
+    const msg = document.createElement('p');
+    msg.className = 'confirm-msg';
+    msg.textContent = message;
+
+    const actions = document.createElement('div');
+    actions.className = 'confirm-actions';
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.className = 'btn-secondary confirm-cancel';
+    cancelBtn.textContent = 'Cancel';
+
+    const confirmBtn = document.createElement('button');
+    confirmBtn.className = 'btn-primary confirm-confirm';
+    confirmBtn.textContent = 'Confirm';
+
+    actions.appendChild(cancelBtn);
+    actions.appendChild(confirmBtn);
+    box.appendChild(msg);
+    box.appendChild(actions);
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+
+    requestAnimationFrame(() => {
+      overlay.classList.add('open');
+      box.focus();
+    });
+
+    const close = () => { overlay.classList.remove('open'); setTimeout(() => overlay.remove(), 200); };
+    cancelBtn.addEventListener('click', close);
+    confirmBtn.addEventListener('click', () => { onConfirm(); close(); });
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+    overlay.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+  },
+
+  // ── Chat divider (Sofia fix — persona change indicator) ──────────────────
+
+  appendDivider(text) {
+    const chat = this.el('chatBody');
+    if (!chat) return;
+    const div = document.createElement('div');
+    div.className = 'chat-divider';
+    div.setAttribute('aria-hidden', 'true');
+    div.textContent = `— ${text} —`;
+    chat.appendChild(div);
+    this._scrollToBottom();
+  },
+
+  // ── Accessible announcer (Priya fix — dedicated live region) ────────────
+
+  announce(text) {
+    const live = this.el('chatAnnouncer');
+    if (!live) return;
+    // Toggle content to force re-announcement even for identical text
+    live.textContent = '';
+    requestAnimationFrame(() => { live.textContent = text; });
+  },
+
   // ── Message rendering ────────────────────────────────────────────────────
 
   _buildMsgWrap(role) {
     const wrap = document.createElement('div');
     wrap.className = `msg ${role}`;
     wrap.setAttribute('role', 'article');
+    wrap.setAttribute('aria-label', role === 'user' ? 'You said' : 'Assistant said');
 
     const avatar = document.createElement('div');
     avatar.className = 'msg-avatar';
@@ -111,6 +183,7 @@ const UI = {
     const copyBtn = document.createElement('button');
     copyBtn.className = 'msg-action-btn';
     copyBtn.title = 'Copy';
+    copyBtn.setAttribute('aria-label', 'Copy message');
     copyBtn.textContent = '📋';
     copyBtn.addEventListener('click', () => {
       const text = bubble._rawText || bubble.textContent;
@@ -142,6 +215,7 @@ const UI = {
       Utils.parseMarkdown(text).then(html => {
         bubble.innerHTML = html;
         this._scrollToBottom();
+        this.announce('Assistant replied');
       });
     } else {
       bubble.textContent = text;
@@ -174,7 +248,7 @@ const UI = {
     if (content) {
       content.textContent += delta;
       bubble._rawText = (bubble._rawText || '') + delta;
-      this._scrollToBottom();
+      // Scroll driven by rAF in App._scheduleScroll() — no direct call here
     }
   },
 
@@ -187,6 +261,7 @@ const UI = {
     Utils.parseMarkdown(fullContent).then(html => {
       content.innerHTML = html;
       this._scrollToBottom();
+      this.announce('Assistant finished reply');
     });
   },
 
@@ -225,10 +300,14 @@ const UI = {
 
   // ── Scroll helpers ───────────────────────────────────────────────────────
 
+  // FIX Marcus: _scrollToBottom uses rAF to avoid forced reflows on streaming tokens.
   _scrollToBottom() {
     const chat = this.el('chatBody');
-    if (chat) chat.scrollTop = chat.scrollHeight;
-    this._updateScrollBtn();
+    if (!chat) return;
+    requestAnimationFrame(() => {
+      chat.scrollTop = chat.scrollHeight;
+      this._updateScrollBtn();
+    });
   },
 
   _updateScrollBtn() {
@@ -300,11 +379,12 @@ const UI = {
 
   // ── Send button ──────────────────────────────────────────────────────────
 
+  // FIX Sofia: visibility:hidden reserves layout space — no composer reflow
   setSendButtonState(enabled) {
     const send = this.el('sendBtn');
     const stop = this.el('stopBtn');
     if (send) { send.disabled = !enabled; send.setAttribute('aria-disabled', String(!enabled)); }
-    if (stop) stop.style.display = enabled ? 'none' : 'inline-flex';
+    if (stop) stop.style.visibility = enabled ? 'hidden' : 'visible';
   },
 
   // ── Char count ───────────────────────────────────────────────────────────
@@ -347,12 +427,12 @@ const UI = {
   // ── Context bar ──────────────────────────────────────────────────────────
 
   updateContextBar() {
-    const bar  = this.el('ctxBar');
-    const info = this.el('ctxInfo');
-    const fill = this.el('ctxFill');
-    const pct  = AppState.getContextUsage();
-    const used = AppState.totalPromptTokens + AppState.totalCompletionTokens;
-    const lim  = AppState.getContextLimit();
+    const bar   = this.el('ctxBar');
+    const info  = this.el('ctxInfo');
+    // FIX Priya: aria-valuenow belongs on the progressbar container (ctxTrack), not the fill.
+    const track = this.el('ctxTrack');
+    const pct   = AppState.getContextUsage();
+    const lim   = AppState.getContextLimit();
 
     if (bar) {
       bar.style.width = (Math.min(pct, 1) * 100).toFixed(1) + '%';
@@ -363,7 +443,11 @@ const UI = {
       const limStr  = Utils.formatTokens(lim);
       info.textContent = `${pctUsed}% of ${limStr}`;
     }
-    if (fill) fill.setAttribute('aria-valuenow', Math.round(Math.min(pct, 1) * 100));
+    if (track) {
+      const val = Math.round(Math.min(pct, 1) * 100);
+      track.setAttribute('aria-valuenow', val);
+      track.setAttribute('aria-valuetext', `${val}% of context used`);
+    }
   },
 
   // ── Sidebar ──────────────────────────────────────────────────────────────

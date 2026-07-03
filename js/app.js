@@ -6,6 +6,7 @@
 const App = {
   _sending: false,
   _cooldownInterval: null,
+  _scrollScheduled: false, // FIX Marcus: rAF scroll throttle flag
 
   async init() {
     try {
@@ -42,6 +43,7 @@ const App = {
 
       await this.refreshModels();
       this._restorePersonaCard();
+      UI.initScrollBtn();
 
       const privacy = document.querySelector('.privacy-panel');
       if (privacy && !privacy.hasAttribute('open')) {
@@ -66,6 +68,17 @@ const App = {
       console.error('Init error:', error);
       UI.toast('Failed to initialise application', 'error');
     }
+  },
+
+  // FIX Marcus: rAF-throttled scroll — called per streaming token
+  _scheduleScroll() {
+    if (this._scrollScheduled) return;
+    this._scrollScheduled = true;
+    requestAnimationFrame(() => {
+      const chat = UI.el('chatBody');
+      if (chat) chat.scrollTop = chat.scrollHeight;
+      this._scrollScheduled = false;
+    });
   },
 
   buildParamFilter() {
@@ -191,10 +204,10 @@ const App = {
     try {
       const models = await API.fetchModels(AppState.currentProvider, AppState.paramFilter || 'all');
       AppState.lastModelFetch = Date.now();
+      // FIX Dev: single source of truth — no separate App-level _allModelsCache
       AppState.allModels = models;
       AppState.modelContextMap = {};
       models.forEach(m => { AppState.modelContextMap[m.id] = m.ctx || 8192; });
-      this._allModelsCache = models;
 
       sel.innerHTML = '';
       if (!models.length) {
@@ -243,7 +256,8 @@ const App = {
     sel.innerHTML = '';
     const hint = UI.el('modelFilterHint');
     const searchVal = UI.el('searchInput')?.value?.trim();
-    const total = (this._allModelsCache || AppState.allModels).length;
+    // FIX Dev: use AppState.allModels directly
+    const total = AppState.allModels.length;
     if (hint) {
       hint.textContent = (searchVal && models.length < total)
         ? `${models.length} of ${total} models shown`
@@ -297,18 +311,21 @@ const App = {
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); this.sendMessage(); }
     });
 
+    // FIX Marcus: debounce textarea resize to avoid forced reflow on every keystroke
+    const resizeInput = Utils.debounce((el) => {
+      el.style.height = 'auto';
+      el.style.height = Math.min(el.scrollHeight, 160) + 'px';
+    }, 16);
+
     userInput.addEventListener('input', (e) => {
       UI.updateCharCount(e.target.value.length);
-      e.target.style.height = 'auto';
-      e.target.style.height = Math.min(e.target.scrollHeight, 160) + 'px';
+      resizeInput(e.target);
     });
 
     UI.el('sendBtn').addEventListener('click', () => this.sendMessage());
 
     UI.el('stopBtn').addEventListener('click', () => {
       API.cancelRequest();
-      // FIX O: reset _sending flag immediately so a subsequent Send click is not
-      // silently swallowed while the finally-block in sendMessage() has not yet run.
       this._sending = false;
       UI.setSendButtonState(true);
       UI.removeTyping();
@@ -321,10 +338,19 @@ const App = {
         if (!prompt) return;
         AppState.currentPersonaPrompt = prompt;
         AppState.persistState();
-        document.querySelectorAll('.persona-card').forEach(c => c.classList.remove('active'));
+        // FIX Priya: update aria-pressed on all persona cards
+        document.querySelectorAll('.persona-card').forEach(c => {
+          c.classList.remove('active');
+          c.setAttribute('aria-pressed', 'false');
+        });
         card.classList.add('active');
+        card.setAttribute('aria-pressed', 'true');
         const name = card.querySelector('strong')?.textContent || 'Persona';
         UI.setPersonaLabel(name);
+        // FIX Sofia: insert a divider in chat when persona changes mid-conversation
+        if (AppState.chatHistory.length > 0) {
+          UI.appendDivider(`Persona changed to ${name}`);
+        }
         UI.toast(`Persona: ${name}`, 'info');
         this._updateWelcomeChips(name);
       };
@@ -403,8 +429,12 @@ const App = {
     return messages.reduce((sum, m) => sum + Math.ceil((m.content || '').length / 4), 0);
   },
 
-  async sendMessage() {
+  async sendMessage(options = {}) {
+    // FIX Zara/Dev: guard against DOMPurify not loaded
+    if (!window.DOMPurify) return;
+
     if (this._sending) return;
+    const { isRetry = false } = options;
 
     const userInput = UI.el('userInput');
     const text = userInput?.value.trim();
@@ -420,12 +450,16 @@ const App = {
       return;
     }
 
-    const rateCheck = AppState.canMakeRequest();
-    if (!rateCheck.allowed) {
-      UI.toast(`Rate limited — try again in ${Math.ceil(rateCheck.retryAfterMs / 1000)}s`, 'warning');
-      return;
+    // FIX S: retries bypass the rate-limit bucket — they are re-attempts,
+    // not new requests, and should not consume an additional slot.
+    if (!isRetry) {
+      const rateCheck = AppState.canMakeRequest();
+      if (!rateCheck.allowed) {
+        UI.toast(`Rate limited — try again in ${Math.ceil(rateCheck.retryAfterMs / 1000)}s`, 'warning');
+        return;
+      }
+      AppState.recordRequest();
     }
-    AppState.recordRequest();
 
     const rawMessages = [
       { role: 'system', content: AppState.currentPersonaPrompt },
@@ -466,6 +500,8 @@ const App = {
           }
           fullContent += delta;
           UI.appendStreamToken(streamBubble, delta);
+          // FIX Marcus: throttled rAF scroll instead of direct scrollTop
+          this._scheduleScroll();
         },
         { temperature: AppState.temperature, maxTokens: AppState.maxTokens }
       );
@@ -534,56 +570,53 @@ const App = {
     }
   },
 
-  /**
-   * FIX S: _retryLastMessage bypasses the rate-limit bucket — a retry is a
-   * re-attempt of a failed request, not a new one, so it should not consume
-   * an additional slot. We call _sendMessageInternal directly, which skips
-   * the canMakeRequest / recordRequest path in sendMessage().
-   */
   _retryLastMessage() {
     if (!this._lastUserText || this._sending) return;
     const userInput = UI.el('userInput');
     if (userInput) userInput.value = this._lastUserText;
-    // Re-use sendMessage but restore _lastUserText so it is not lost on retry
     const saved = this._lastUserText;
-    this.sendMessage();
-    // sendMessage clears _lastUserText via its own flow; restore it so
-    // subsequent retries still work if this one also fails.
+    this.sendMessage({ isRetry: true });
     if (!this._lastUserText) this._lastUserText = saved;
   },
 
   setupUIListeners() {
-    const modal = UI.el('shortcuts-modal');
-    const themeMenu  = UI.el('theme-menu');
+    const modal     = UI.el('shortcuts-modal');
+    const themeMenu = UI.el('theme-menu');
 
     UI.el('statsBtn').addEventListener('click', () => UI.toggleStats());
     UI.el('rp-close').addEventListener('click', () => {
       UI.el('rightPanel')?.classList.remove('open');
     });
 
+    // FIX Sofia/Zara: replaced native confirm() with accessible modal
     UI.el('clearBtn').addEventListener('click', () => {
+      const doClear = () => {
+        UI.clearChat();
+        UI.hideUnsavedBanner();
+        UI.toast('Chat cleared', 'info');
+      };
       if (AppState.chatHistory.length && !AppState.chatExported) {
-        if (!confirm('Clear this conversation?')) return;
+        UI.confirmModal('Clear this conversation?', doClear);
+      } else {
+        doClear();
       }
-      UI.clearChat();
-      UI.hideUnsavedBanner();
-      UI.toast('Chat cleared', 'info');
     });
 
     const resetBtn = UI.el('resetBtn');
     if (resetBtn) {
       resetBtn.addEventListener('click', () => {
-        if (!confirm('Reset session (auth, model, chat)?')) return;
-        AppState.reset();
-        UI.clearChat();
-        UI.hideUnsavedBanner();
-        const input = UI.el('apiKeyInput');
-        if (input) input.value = '';
-        UI.setAuthState(false, 'Not authenticated');
-        const sel = UI.el('modelSelect');
-        if (sel) sel.innerHTML = '<option value="none" disabled selected>— authenticate first —</option>';
-        UI.updateModelLabel('No model selected');
-        UI.toast('Session reset', 'info');
+        UI.confirmModal('Reset session (auth, model, chat)?', () => {
+          AppState.reset();
+          UI.clearChat();
+          UI.hideUnsavedBanner();
+          const input = UI.el('apiKeyInput');
+          if (input) input.value = '';
+          UI.setAuthState(false, 'Not authenticated');
+          const sel = UI.el('modelSelect');
+          if (sel) sel.innerHTML = '<option value="none" disabled selected>— authenticate first —</option>';
+          UI.updateModelLabel('No model selected');
+          UI.toast('Session reset', 'info');
+        });
       });
     }
 
@@ -624,8 +657,8 @@ const App = {
       });
     }
 
-    const maxSlider  = UI.el('maxTokensSlider');
-    const maxVal     = UI.el('maxTokensVal');
+    const maxSlider = UI.el('maxTokensSlider');
+    const maxVal    = UI.el('maxTokensVal');
     if (maxSlider) {
       maxSlider.value = AppState.maxTokens;
       if (maxVal) maxVal.textContent = AppState.maxTokens.toLocaleString();
@@ -636,7 +669,7 @@ const App = {
       });
     }
 
-    // FIX R: single consolidated keydown listener instead of two overlapping ones
+    // FIX R: single consolidated Escape handler — no duplicate listeners
     document.addEventListener('keydown', (e) => {
       if (e.key !== 'Escape') return;
       themeMenu?.classList.remove('open');
@@ -656,8 +689,9 @@ const App = {
     if (!searchInput) return;
 
     const doSearch = Utils.debounce((query) => {
-      const sel     = UI.el('modelSelect');
-      const models  = this._allModelsCache || AppState.allModels;
+      const sel    = UI.el('modelSelect');
+      // FIX Dev: use AppState.allModels directly
+      const models = AppState.allModels;
       if (!models?.length || !sel) return;
 
       const q = query.trim().toLowerCase();
@@ -683,35 +717,18 @@ const App = {
     const exportBtn  = UI.el('exportBtn');
     const exportMenu = UI.el('export-menu');
 
+    // FIX Sofia: CSS class-only toggle — no style.display manipulation
     exportBtn?.addEventListener('click', (e) => {
       e.stopPropagation();
       exportMenu?.classList.toggle('open');
-      exportMenu.style.display = exportMenu.classList.contains('open') ? 'flex' : 'none';
     });
 
-    UI.el('exportMd')?.addEventListener('click', () => {
-      this.exportChat('md');
-      exportMenu?.classList.remove('open');
-      if (exportMenu) exportMenu.style.display = 'none';
-    });
+    const closeExport = () => exportMenu?.classList.remove('open');
 
-    UI.el('exportJson')?.addEventListener('click', () => {
-      this.exportChat('json');
-      exportMenu?.classList.remove('open');
-      if (exportMenu) exportMenu.style.display = 'none';
-    });
-
-    UI.el('exportTxt')?.addEventListener('click', () => {
-      this.exportChat('txt');
-      exportMenu?.classList.remove('open');
-      if (exportMenu) exportMenu.style.display = 'none';
-    });
-
-    UI.el('exportCopy')?.addEventListener('click', () => {
-      this.exportChat('copy');
-      exportMenu?.classList.remove('open');
-      if (exportMenu) exportMenu.style.display = 'none';
-    });
+    UI.el('exportMd')?.addEventListener('click',   () => { this.exportChat('md');   closeExport(); });
+    UI.el('exportJson')?.addEventListener('click',  () => { this.exportChat('json'); closeExport(); });
+    UI.el('exportTxt')?.addEventListener('click',   () => { this.exportChat('txt');  closeExport(); });
+    UI.el('exportCopy')?.addEventListener('click',  () => { this.exportChat('copy'); closeExport(); });
 
     document.addEventListener('keydown', (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 's') {
@@ -791,13 +808,9 @@ const App = {
     }
   },
 
-  /**
-   * FIX U: Only show the "Leave site?" dialog after at least 3 messages
-   * (i.e. one full user+assistant exchange). Short or aborted sessions
-   * should not trigger the prompt on every refresh.
-   */
   _setupBeforeUnload() {
     window.addEventListener('beforeunload', (e) => {
+      // FIX: only warn if there are at least 3 messages (not just 1 orphan)
       if (AppState.chatHistory.length >= 3 && !AppState.chatExported) {
         e.preventDefault();
         e.returnValue = '';
@@ -812,6 +825,7 @@ const App = {
     document.querySelectorAll('.persona-card').forEach(card => {
       const match = card.dataset.prompt === saved;
       card.classList.toggle('active', match);
+      card.setAttribute('aria-pressed', String(match));
       if (match) {
         matched = true;
         const name = card.querySelector('strong')?.textContent || '';
@@ -825,6 +839,7 @@ const App = {
       const defaultCard = document.querySelector('.persona-card[data-prompt*="helpful AI assistant"]');
       if (defaultCard) {
         defaultCard.classList.add('active');
+        defaultCard.setAttribute('aria-pressed', 'true');
         const name = defaultCard.querySelector('strong')?.textContent || 'Assistant';
         UI.setPersonaLabel(name);
       }

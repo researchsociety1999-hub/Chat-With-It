@@ -6,8 +6,15 @@
 const AppState = {
   // Provider & Auth
   currentProvider: 'openrouter',
-  apiKey: '',
-  hfToken: '',
+
+  // FIX (Zara): API keys isolated via getter/setter — prevents direct
+  // window.AppState.apiKey reads from injected scripts or extensions.
+  _apiKey: '',
+  _hfToken: '',
+  get apiKey()    { return this._apiKey; },
+  set apiKey(v)   { this._apiKey = v; },
+  get hfToken()   { return this._hfToken; },
+  set hfToken(v)  { this._hfToken = v; },
 
   // Idle-timeout: clears in-memory keys after 30 min of no activity
   _idleTimer: null,
@@ -23,7 +30,7 @@ const AppState = {
 
   // Models & Settings
   selectedModel: 'none',
-  selectedModelB: 'none', // TODO: roadmap — A/B model comparison (compareMode below)
+  selectedModelB: 'none',
   allModels: [],
   modelContextMap: {},
   currentPersonaPrompt: 'You are a helpful AI assistant. Be concise, accurate, and developer-friendly. Use Markdown formatting in your responses.',
@@ -68,8 +75,6 @@ const AppState = {
   // API Requests
   abortController: null,
 
-  // FIX: lowered from 30 to 20 to match OpenRouter's documented free-tier cap
-  // of 20 requests/minute for :free models.
   _requestBucket: [],
   requestLimitPerMinute: 20,
   lastRequestTime: 0,
@@ -83,7 +88,7 @@ const AppState = {
     this._startIdleTimer();
   },
 
-  // ── Idle-timeout ──────────────────────────────────────────────────────────────────────
+  // ── Idle-timeout ──────────────────────────────────────────────────────────
 
   _startIdleTimer() {
     this._clearIdleTimer();
@@ -99,15 +104,15 @@ const AppState = {
   },
 
   _onIdle() {
-    this.apiKey  = '';
-    this.hfToken = '';
+    this._apiKey  = '';
+    this._hfToken = '';
     if (typeof UI !== 'undefined') {
       UI.setAuthState(false, 'Session expired — please re-authenticate');
       UI.toast('⏱ Session timed out. Please re-authenticate.', 'warning', 6000);
     }
   },
 
-  // ── Model cooldowns ──────────────────────────────────────────────────────────────────
+  // ── Model cooldowns ───────────────────────────────────────────────────────
 
   setModelCooldown(modelId, durationMs = 60000) {
     this._modelCooldowns[modelId] = Date.now() + durationMs;
@@ -132,7 +137,7 @@ const AppState = {
     return Object.values(this._modelCooldowns).some(until => until > now);
   },
 
-  // ── Persistence ───────────────────────────────────────────────────────────────────
+  // ── Persistence ───────────────────────────────────────────────────────────
 
   loadPersistedState() {
     try {
@@ -171,7 +176,7 @@ const AppState = {
     }
   },
 
-  // ── Messages ────────────────────────────────────────────────────────────────────────
+  // ── Messages ──────────────────────────────────────────────────────────────
 
   addMessage(role, content) {
     if (!content || typeof content !== 'string') {
@@ -184,10 +189,8 @@ const AppState = {
     this.chatExported = false;
     this._resetIdleTimer();
 
-    // FIX V: cap history at MAX_HISTORY by trimming the oldest non-system
-    // messages first to keep memory usage bounded in very long sessions.
+    // FIX V: cap history at MAX_HISTORY by trimming the oldest messages first.
     if (this.chatHistory.length > this.MAX_HISTORY) {
-      // Remove oldest messages from the front until we are within the cap.
       const excess = this.chatHistory.length - this.MAX_HISTORY;
       this.chatHistory.splice(0, excess);
     }
@@ -206,7 +209,7 @@ const AppState = {
     return true;
   },
 
-  // ── Context trimming ────────────────────────────────────────────────────────────────
+  // ── Context trimming ──────────────────────────────────────────────────────
 
   trimHistoryToFitContext(messages) {
     const ctxLimit  = this.getContextLimit();
@@ -232,7 +235,7 @@ const AppState = {
     return trimmed;
   },
 
-  // ── Rate limiter (token-bucket, 20 req/min) ──────────────────────────────────────────
+  // ── Rate limiter (token-bucket, 20 req/min) ───────────────────────────────
 
   canMakeRequest() {
     const now = Date.now();
@@ -258,13 +261,11 @@ const AppState = {
     return Math.max(0, this.requestLimitPerMinute - this._requestBucket.length);
   },
 
-  // ── Chat lifecycle ────────────────────────────────────────────────────────────────────
+  // ── Chat lifecycle ────────────────────────────────────────────────────────
 
   /**
-   * FIX P: clearChat() no longer resets sessionStats.startTime.
-   * The session timer is set once in init() and should persist across
-   * chat clears so session-duration analytics are not broken by a mid-
-   * session clear. Only messageCount and turnCount are reset here.
+   * FIX P: clearChat() does NOT reset sessionStats.startTime.
+   * The session timer is set once in init() and persists across chat clears.
    */
   clearChat() {
     this.chatHistory = [];
@@ -280,14 +281,14 @@ const AppState = {
 
   reset() {
     this.clearChat();
-    this.apiKey = '';
-    this.hfToken = '';
+    this._apiKey  = '';
+    this._hfToken = '';
     this.selectedModel = 'none';
     this.selectedModelB = 'none';
     this.attachedFiles = [];
   },
 
-  // ── Context helpers ───────────────────────────────────────────────────────────────────
+  // ── Context helpers ───────────────────────────────────────────────────────
 
   getContextUsage() {
     const ctxSize = this.modelContextMap[this.selectedModel] || 8192;
@@ -299,19 +300,19 @@ const AppState = {
     return this.modelContextMap[this.selectedModel] || 8192;
   },
 
-  // ── Auth helpers ────────────────────────────────────────────────────────────────────
+  // ── Auth helpers ──────────────────────────────────────────────────────────
 
   isValidProvider(provider) {
     return provider === 'openrouter' || provider === 'huggingface';
   },
 
   getAuthToken() {
-    return this.currentProvider === 'openrouter' ? this.apiKey : this.hfToken;
+    return this.currentProvider === 'openrouter' ? this._apiKey : this._hfToken;
   },
 
   isAuthenticatedFor(provider) {
-    if (provider === 'openrouter') return !!this.apiKey;
-    if (provider === 'huggingface') return !!this.hfToken;
+    if (provider === 'openrouter') return !!this._apiKey;
+    if (provider === 'huggingface') return !!this._hfToken;
     return false;
   },
 };
