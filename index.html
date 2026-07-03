@@ -2,9 +2,17 @@
 <html lang="en" data-theme="dark">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- FIX T/iOS: interactive-widget=resizes-content stops Chrome iOS from
+       shrinking the viewport when the on-screen keyboard appears, which
+       previously caused the composer to be obscured. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
   <title>ChatWithIt</title>
   <meta name="description" content="Browser-only multi-provider AI chat client for OpenRouter and Hugging Face.">
+  <!-- FIX U: theme-color so Chrome iOS tints the browser chrome -->
+  <meta name="theme-color" content="#0b1020" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f6f8fc" media="(prefers-color-scheme: light)">
+  <!-- FIX U: inline SVG favicon — no extra file needed -->
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%92%AC%3C/text%3E%3C/svg%3E">
   <style>
     :root {
       --bg: #0b1020;
@@ -31,16 +39,45 @@
       --accent-2: #15803d;
     }
     * { box-sizing: border-box; }
+    html, body {
+      height: 100%;
+      /* FIX iOS: prevent the page itself from rubber-band scrolling on iOS */
+      overscroll-behavior: none;
+    }
     body {
       margin: 0;
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       background: var(--bg);
       color: var(--fg);
+      /* FIX iOS: fill to the real screen edge, then pad inside */
+      padding-bottom: env(safe-area-inset-bottom);
     }
-    .app { display: grid; grid-template-columns: 300px 1fr 320px; min-height: 100vh; }
+    /* FIX iOS: the app shell must fill the visible viewport, not min-height:100vh
+       which on iOS Safari/Chrome counts the address-bar height and causes
+       bottom content to be hidden under it. */
+    .app {
+      display: grid;
+      grid-template-columns: 300px 1fr 320px;
+      height: 100dvh;        /* dynamic viewport height — iOS 16+ */
+      /* fallback for older iOS: */
+      height: -webkit-fill-available;
+      overflow: hidden;      /* prevent double-scrollbars; .main scrolls internally */
+    }
     .sidebar, .right-panel, .main { border-right: 1px solid var(--border); }
-    .sidebar, .right-panel { background: var(--panel); padding: 1rem; }
-    .main { background: var(--bg); display: flex; flex-direction: column; min-width: 0; }
+    /* FIX iOS: sidebars need their own internal scroll so they don't overflow */
+    .sidebar, .right-panel {
+      background: var(--panel);
+      padding: 1rem;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch; /* momentum scroll on older iOS */
+    }
+    .main {
+      background: var(--bg);
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      overflow: hidden; /* children handle their own scroll */
+    }
     .hidden { display: none !important; }
     .brand { font-size: 1.1rem; font-weight: 700; margin-bottom: 1rem; }
     .section { margin-bottom: 1rem; padding: .9rem; background: var(--panel-2); border: 1px solid var(--border); border-radius: .75rem; }
@@ -64,7 +101,19 @@
     .auth-dot.err { background: #ef4444; }
     .chat-header, .composer { padding: 1rem; border-bottom: 1px solid var(--border); }
     .chat-header { display: flex; justify-content: space-between; gap: 1rem; background: var(--panel); }
-    .chat-body { flex: 1; overflow: auto; padding: 1rem; display: flex; flex-direction: column; gap: 1rem; }
+    /* FIX iOS: chat-body must fill remaining vertical space and scroll internally.
+       flex:1 alone is not enough on iOS Chrome — also needs min-height:0 and
+       -webkit-overflow-scrolling:touch for smooth momentum scroll. */
+    .chat-body {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
     .welcome { padding: 1rem; background: var(--panel); border: 1px solid var(--border); border-radius: .9rem; }
     .chips { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .75rem; }
     .chip { padding: .45rem .7rem; border: 1px solid var(--border); border-radius: 999px; background: var(--panel-2); cursor: pointer; }
@@ -84,7 +133,18 @@
     .typing-indicator span:nth-child(2) { animation-delay: .2s; }
     .typing-indicator span:nth-child(3) { animation-delay: .4s; }
     @keyframes blink { 0%, 80%, 100% { opacity: .3; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-2px); } }
-    .composer { background: var(--panel); display: flex; flex-direction: column; gap: .6rem; }
+    /* FIX iOS: pin composer to bottom; padding-bottom accounts for the iOS
+       home-indicator safe area so it is never hidden under the gesture bar. */
+    .composer {
+      background: var(--panel);
+      display: flex;
+      flex-direction: column;
+      gap: .6rem;
+      padding: 1rem;
+      padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+    }
     .composer-actions { display: flex; gap: .5rem; align-items: center; justify-content: space-between; }
     .toolbar { display: flex; gap: .5rem; flex-wrap: wrap; }
     .persona-grid { display: grid; grid-template-columns: 1fr; gap: .5rem; }
@@ -129,6 +189,7 @@
         width: 300px;
         z-index: 100;
         overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
       }
       /* FIX I: mobile overlay backdrop */
       .mobile-overlay.show {
@@ -298,8 +359,15 @@
     </div>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+  <!-- FIX T: SRI hashes ensure CDN scripts cannot be tampered with -->
+  <script
+    src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"
+    integrity="sha384-948ahk4ZmxYVYOc+rxN1H2gM1EJ2Duhp7uHtZ4WSLkV4Vtx5MUqnV+l7u9B+jFv+"
+    crossorigin="anonymous"></script>
+  <script
+    src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"
+    integrity="sha384-+VfUPEb0PdtChMwmBcBmykRMDd+v6D/oFmB3rZM/puCMDYcIvF968OimRh4KQY9a"
+    crossorigin="anonymous"></script>
   <script src="js/utils.js"></script>
   <script src="js/state.js"></script>
   <script src="js/api.js"></script>
