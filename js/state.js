@@ -82,8 +82,13 @@ const AppState = {
   // FIX V: cap in-memory chat history to prevent unbounded growth in long sessions.
   MAX_HISTORY: 200,
 
+  // Chat history persistence
+  HISTORY_STORAGE_KEY: 'cwiChatHistory',
+  HISTORY_TTL_MS: 7 * 24 * 60 * 60 * 1000, // 7 days
+
   init() {
     this.loadPersistedState();
+    this.loadPersistedHistory();
     this.sessionStats.startTime = Date.now();
     this._startIdleTimer();
   },
@@ -176,6 +181,41 @@ const AppState = {
     }
   },
 
+  // ── Chat history persistence (7-day TTL) ─────────────────────────────────
+
+  loadPersistedHistory() {
+    try {
+      const raw = localStorage.getItem(this.HISTORY_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (!parsed || !Array.isArray(parsed.messages)) return;
+      if (Date.now() - (parsed.savedAt || 0) > this.HISTORY_TTL_MS) {
+        localStorage.removeItem(this.HISTORY_STORAGE_KEY);
+        return;
+      }
+      this.chatHistory = parsed.messages;
+      this.sessionStats.messageCount = this.chatHistory.length;
+      this.sessionStats.turnCount = this.chatHistory.filter(m => m.role === 'assistant').length;
+    } catch (e) {
+      console.error('Failed to load persisted history:', e);
+    }
+  },
+
+  persistHistory() {
+    try {
+      localStorage.setItem(this.HISTORY_STORAGE_KEY, JSON.stringify({
+        savedAt: Date.now(),
+        messages: this.chatHistory,
+      }));
+    } catch (e) {
+      console.error('Failed to persist history:', e);
+    }
+  },
+
+  clearPersistedHistory() {
+    try { localStorage.removeItem(this.HISTORY_STORAGE_KEY); } catch (e) {}
+  },
+
   // ── Messages ──────────────────────────────────────────────────────────────
 
   addMessage(role, content) {
@@ -195,6 +235,7 @@ const AppState = {
       this.chatHistory.splice(0, excess);
     }
 
+    this.persistHistory();
     return true;
   },
 
@@ -276,6 +317,7 @@ const AppState = {
     this.chatExported = false;
     this.sessionStats.messageCount = 0;
     this.sessionStats.turnCount    = 0;
+    this.clearPersistedHistory();
     // sessionStats.startTime intentionally NOT reset — set once in init()
   },
 

@@ -32,6 +32,8 @@ const Utils = {
 
   /**
    * Validate API key format.
+   * Trims whitespace first — copy-paste trailing spaces are the #1 cause of
+   * "invalid key" errors for first-time users.
    * Accepts:
    *   OpenRouter/OpenAI: sk-xxx or sk-or-xxx (20+ chars)
    *   Anthropic:         sk-ant-xxx          (20+ chars)
@@ -114,7 +116,9 @@ const Utils = {
 
   /**
    * Parse markdown and sanitize output to prevent XSS.
-   * Uses DOMPurify if available, otherwise strips dangerous tags/attributes manually.
+   * Uses marked + DOMPurify when available.
+   * Falls back gracefully to plain-text rendering if either CDN script failed
+   * to load (SRI mismatch, network error, etc.) — keeps the app functional.
    */
   async parseMarkdown(text) {
     if (typeof marked !== 'undefined') {
@@ -123,6 +127,8 @@ const Utils = {
         if (typeof DOMPurify !== 'undefined') {
           return DOMPurify.sanitize(raw, { USE_PROFILES: { html: true } });
         }
+        // DOMPurify unavailable — strip dangerous tags manually
+        console.warn('DOMPurify unavailable — using manual HTML sanitisation.');
         return raw
           .replace(/<(script|iframe|object|embed|link|meta|form)\b[^>]*>[\s\S]*?<\/\1>/gi, '')
           .replace(/<(script|iframe|object|embed|link|meta|form)\b[^>]*\/?>/gi, '')
@@ -132,6 +138,8 @@ const Utils = {
         return Utils.sanitizeHtml(text);
       }
     }
+    // marked unavailable — render as safe plain text
+    console.warn('marked unavailable — falling back to plain-text rendering.');
     return Utils.sanitizeHtml(text);
   },
 
