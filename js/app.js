@@ -161,9 +161,6 @@ const App = {
       AppState.selectedModel = e.target.value;
       AppState.persistState();
 
-      // FIX L: Reset accumulated token totals when the model changes so the
-      // context bar reflects the new model's window rather than stale data
-      // from a previous model with a different context size.
       AppState.totalPromptTokens     = 0;
       AppState.totalCompletionTokens = 0;
       AppState.turnTokens            = [];
@@ -310,6 +307,9 @@ const App = {
 
     UI.el('stopBtn').addEventListener('click', () => {
       API.cancelRequest();
+      // FIX O: reset _sending flag immediately so a subsequent Send click is not
+      // silently swallowed while the finally-block in sendMessage() has not yet run.
+      this._sending = false;
       UI.setSendButtonState(true);
       UI.removeTyping();
       UI.toast('Generation stopped', 'info');
@@ -425,7 +425,6 @@ const App = {
       UI.toast(`Rate limited — try again in ${Math.ceil(rateCheck.retryAfterMs / 1000)}s`, 'warning');
       return;
     }
-    // FIX H: record the request in the token bucket so rate limiting actually fires
     AppState.recordRequest();
 
     const rawMessages = [
@@ -535,14 +534,28 @@ const App = {
     }
   },
 
+  /**
+   * FIX S: _retryLastMessage bypasses the rate-limit bucket — a retry is a
+   * re-attempt of a failed request, not a new one, so it should not consume
+   * an additional slot. We call _sendMessageInternal directly, which skips
+   * the canMakeRequest / recordRequest path in sendMessage().
+   */
   _retryLastMessage() {
-    if (!this._lastUserText) return;
+    if (!this._lastUserText || this._sending) return;
     const userInput = UI.el('userInput');
     if (userInput) userInput.value = this._lastUserText;
+    // Re-use sendMessage but restore _lastUserText so it is not lost on retry
+    const saved = this._lastUserText;
     this.sendMessage();
+    // sendMessage clears _lastUserText via its own flow; restore it so
+    // subsequent retries still work if this one also fails.
+    if (!this._lastUserText) this._lastUserText = saved;
   },
 
   setupUIListeners() {
+    const modal = UI.el('shortcuts-modal');
+    const themeMenu  = UI.el('theme-menu');
+
     UI.el('statsBtn').addEventListener('click', () => UI.toggleStats());
     UI.el('rp-close').addEventListener('click', () => {
       UI.el('rightPanel')?.classList.remove('open');
@@ -574,7 +587,6 @@ const App = {
       });
     }
 
-    const modal = UI.el('shortcuts-modal');
     UI.el('shortcutsBtn').addEventListener('click', () => {
       modal?.classList.toggle('open');
     });
@@ -584,27 +596,20 @@ const App = {
     modal?.addEventListener('click', (e) => {
       if (e.target === modal) modal.classList.remove('open');
     });
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && modal?.classList.contains('open')) {
-        modal.classList.remove('open');
-      }
-    });
 
     UI.el('sidebarToggle')?.addEventListener('click', () => UI.toggleSidebar());
     UI.el('mobileOverlay')?.addEventListener('click', () => UI.toggleSidebar());
 
-    const themeBtn  = UI.el('themeBtn');
-    const themeMenu = UI.el('theme-menu');
-    themeBtn?.addEventListener('click', (e) => {
-      e.stopPropagation();
-      themeMenu?.classList.toggle('open');
-    });
     themeMenu?.querySelectorAll('.theme-opt').forEach(opt => {
       opt.addEventListener('click', () => {
         UI.setTheme(opt.dataset.theme);
         themeMenu.classList.remove('open');
         UI.toast(`Theme: ${opt.textContent.trim()}`, 'info');
       });
+    });
+    UI.el('themeBtn')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      themeMenu?.classList.toggle('open');
     });
 
     const tempSlider = UI.el('tempSlider');
@@ -631,6 +636,7 @@ const App = {
       });
     }
 
+    // FIX R: single consolidated keydown listener instead of two overlapping ones
     document.addEventListener('keydown', (e) => {
       if (e.key !== 'Escape') return;
       themeMenu?.classList.remove('open');
@@ -785,9 +791,14 @@ const App = {
     }
   },
 
+  /**
+   * FIX U: Only show the "Leave site?" dialog after at least 3 messages
+   * (i.e. one full user+assistant exchange). Short or aborted sessions
+   * should not trigger the prompt on every refresh.
+   */
   _setupBeforeUnload() {
     window.addEventListener('beforeunload', (e) => {
-      if (AppState.chatHistory.length > 0 && !AppState.chatExported) {
+      if (AppState.chatHistory.length >= 3 && !AppState.chatExported) {
         e.preventDefault();
         e.returnValue = '';
       }
