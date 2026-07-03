@@ -53,6 +53,7 @@ const PARAM_TIERS = [
 
 /**
  * Comprehensive curated list of permanently-free models.
+ * FIX Q: models with type:'embedding' are filtered out of the chat UI.
  */
 const CURATED_FREE = {
   openrouter: [
@@ -136,7 +137,8 @@ const CURATED_FREE = {
     // ── Moonshot ─────────────────────────────────────────────────────────────────
     { id:'moonshotai/moonlight-16a-a3b-instruct:free', name:'Moonlight 16A A3B (MoE)',       ctx:8192,   paramTier:'3B' },
     // ── Snowflake ────────────────────────────────────────────────────────────────
-    { id:'snowflake/snowflake-arctic-embed-l-v2.0:free', name:'Snowflake Arctic Embed L v2 (embedding)', ctx:8192, paramTier:'?' },
+    // FIX Q: marked type:'embedding' so it is excluded from the chat model list
+    { id:'snowflake/snowflake-arctic-embed-l-v2.0:free', name:'Snowflake Arctic Embed L v2', ctx:8192, paramTier:'?', type:'embedding' },
     // ── Sarvamai ─────────────────────────────────────────────────────────────────
     { id:'sarvamai/sarvam-m:free',                name:'Sarvam M (multilingual)',            ctx:32768,  paramTier:'?' },
     // ── Creative / RP ─────────────────────────────────────────────────────────────
@@ -226,14 +228,6 @@ const API = {
 
   /**
    * Parse a raw provider error response into a user-friendly object.
-   *
-   * FIX: distinguishes UPSTREAM_RATE_LIMIT (temporary per-model congestion from
-   * the underlying provider, e.g. Chutes) from RATE_LIMIT (OpenRouter account
-   * quota exhausted). Previously both collapsed into one code, so a congested
-   * model triggered App.refreshModels() and tried to swap it out — now only
-   * true quota exhaustion and missing/paid models trigger a list refresh.
-   * An upstream 429 instead sets a 60-second per-model cooldown via
-   * AppState.setModelCooldown() in App.sendMessage().
    */
   parseProviderError(status, rawText = '') {
     let parsed = null;
@@ -252,11 +246,6 @@ const API = {
     }
 
     if (status === 429) {
-      // Upstream/provider-level congestion: the model itself is rate-limited by
-      // its hosting provider (e.g. Chutes, Together, Fireworks). This is
-      // temporary and does NOT mean the user has hit their OpenRouter quota.
-      // Phrases observed in the wild: "upstream", "provider", "try another",
-      // "model is currently overloaded", "too many requests to provider".
       const isUpstream =
         normalized.includes('upstream') ||
         normalized.includes('provider') ||
@@ -308,7 +297,8 @@ const API = {
     let models;
 
     if (!token) {
-      models = CURATED_FREE[providerName] || [];
+      // FIX Q: filter out embedding-only models from the curated fallback
+      models = (CURATED_FREE[providerName] || []).filter(m => m.type !== 'embedding');
     } else {
       try {
         const headers = {
@@ -332,7 +322,7 @@ const API = {
         models = this.processModels(data, providerName);
       } catch (err) {
         console.warn('Model fetch failed, using curated list:', err.message);
-        models = CURATED_FREE[providerName] || [];
+        models = (CURATED_FREE[providerName] || []).filter(m => m.type !== 'embedding');
       }
     }
 
@@ -360,17 +350,22 @@ const API = {
             ctx:        m.context_length || curated?.ctx || 8192,
             paramTier:  curated?.paramTier || '?',
             uncensored: curated?.uncensored || false,
+            type:       curated?.type || 'chat',
           };
-        });
+        })
+        // FIX Q: exclude embedding models from live-fetched list too
+        .filter(m => m.type !== 'embedding');
     } else {
       const liveIds = new Set((data.data || []).map(m => m.id));
-      models = CURATED_FREE.huggingface.map(m => ({ ...m, live: liveIds.has(m.id) }));
+      models = CURATED_FREE.huggingface
+        .filter(m => m.type !== 'embedding')
+        .map(m => ({ ...m, live: liveIds.has(m.id) }));
       (data.data || []).forEach(lm => {
         if (!curatedMap[lm.id]) {
           models.push({
             id: lm.id,
             name: lm.id.split('/').pop().replace(/-/g, ' '),
-            ctx: 8192, paramTier: '?', uncensored: false, live: true,
+            ctx: 8192, paramTier: '?', uncensored: false, live: true, type: 'chat',
           });
         }
       });
@@ -379,7 +374,7 @@ const API = {
     const seen = new Set();
     models = models.filter(m => { if (seen.has(m.id)) return false; seen.add(m.id); return true; });
     models.sort((a, b) => a.name.localeCompare(b.name));
-    return models.length > 0 ? models : (CURATED_FREE[providerName] || []);
+    return models.length > 0 ? models : (CURATED_FREE[providerName] || []).filter(m => m.type !== 'embedding');
   },
 
   /** @deprecated — kept for backward compat; calls sendMessageStream */
@@ -387,16 +382,13 @@ const API = {
     return this.sendMessageStream(messages, modelId, null, options);
   },
 
+  /**
+   * FIX M: Removed duplicate canMakeRequest() + recordRequest() that previously
+   * lived here alongside the identical check in app.js:sendMessage(). Rate-limit
+   * enforcement now lives exclusively in app.js so every send costs exactly one
+   * bucket slot.
+   */
   async sendMessageStream(messages, modelId, onToken, options = {}) {
-    const rateCheck = AppState.canMakeRequest();
-    if (!rateCheck.allowed) {
-      throw Object.assign(
-        new Error(`Rate limited. Try again in ${Math.ceil(rateCheck.retryAfterMs / 1000)}s.`),
-        { retryAfterMs: rateCheck.retryAfterMs, code: 'RATE_LIMIT' }
-      );
-    }
-
-    AppState.recordRequest();
     const provider = this.getProvider();
     const token = AppState.getAuthToken();
 
@@ -448,6 +440,14 @@ const API = {
         const { done, value } = await reader.read();
         if (done) break;
         buffer += decoder.decode(value, { stream: true });
+
+        // FIX W: safety valve — if buffer grows unbounded (no newlines from server)
+        // discard excess to prevent memory exhaustion.
+        if (buffer.length > 1_000_000) {
+          console.warn('[ChatWithIt] SSE buffer overflow — truncating.');
+          buffer = '';
+        }
+
         const lines = buffer.split('\n');
         buffer = lines.pop() || '';
         for (const line of lines) {
@@ -464,10 +464,12 @@ const API = {
         }
       }
 
-      const estimatedPrompt     = Math.max(1, Math.ceil(messages.reduce((s, m) => s + (m.content?.length || 0), 0) / 4));
       const estimatedCompletion = Math.max(1, Math.ceil(content.length / 4));
-      const promptTokens        = usage?.prompt_tokens     || estimatedPrompt;
-      const completionTokens    = usage?.completion_tokens || estimatedCompletion;
+      // FIX N: prompt tokens are unknown without server-sent usage metadata;
+      // use 0 rather than fabricating a value from content length (which would
+      // double-count and fill the context bar at 2× speed).
+      const promptTokens     = usage?.prompt_tokens     || 0;
+      const completionTokens = usage?.completion_tokens || estimatedCompletion;
 
       return {
         choices: [{ message: { content } }],
@@ -510,9 +512,11 @@ const API = {
   extractTokenUsage(response) {
     const usage = response?.usage;
     if (usage) return { promptTokens: usage.prompt_tokens || 0, completionTokens: usage.completion_tokens || 0 };
+    // FIX N: when server usage metadata is absent only estimate completion;
+    // prompt token count is unknown so default to 0 to avoid double-counting.
     const content = response?.choices?.[0]?.message?.content || '';
     return {
-      promptTokens:     Math.max(1, Math.ceil(content.length / 4)),
+      promptTokens:     0,
       completionTokens: Math.max(1, Math.ceil(content.length / 4)),
     };
   },
