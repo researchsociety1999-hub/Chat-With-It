@@ -8,6 +8,9 @@
   <meta name="theme-color" content="#0d0f1a" media="(prefers-color-scheme: dark)">
   <meta name="theme-color" content="#f0f4ff" media="(prefers-color-scheme: light)">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='88'%3E%F0%9F%92%AC%3C/text%3E%3C/svg%3E">
+  <!-- FIX U: PWA manifest link -->
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="css/profiles.css">
   <style>
 /* ─── Design Tokens ─────────────────────────────────────────────────────── */
 :root {
@@ -697,6 +700,8 @@ input[type="range"]::-moz-range-thumb {
   font-weight: 700;
   font-size: .88rem;
   animation: stopPulse 2s infinite;
+  /* FIX: visibility:hidden keeps layout stable; display:none caused reflow */
+  visibility: hidden;
 }
 @keyframes stopPulse { 0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,0)} 50%{box-shadow:0 0 0 5px rgba(239,68,68,.15)} }
 
@@ -906,6 +911,93 @@ input[type="range"]::-moz-range-thumb {
 }
 .shortcut-desc { color: var(--fg-muted); align-self: center; }
 
+/* ─── Confirm Modal (FIX: was missing, UI.confirmModal() needs these) ────── */
+.confirm-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.6);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+.confirm-overlay.open {
+  display: flex;
+  animation: fadeIn .15s ease;
+}
+.confirm-box {
+  background: var(--panel-solid);
+  border: 1px solid var(--border-2);
+  border-radius: 1.1rem;
+  padding: 1.5rem;
+  max-width: 380px;
+  width: 100%;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  animation: modalSlide .18s ease;
+}
+.confirm-msg {
+  font-size: .95rem;
+  font-weight: 600;
+  color: var(--fg);
+  line-height: 1.5;
+}
+.confirm-actions {
+  display: flex;
+  gap: .6rem;
+  justify-content: flex-end;
+}
+.confirm-cancel {
+  padding: .5rem 1rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-2);
+  background: var(--panel-2);
+  color: var(--fg-muted);
+  font-size: .85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.confirm-cancel:hover { background: var(--border); color: var(--fg); }
+.confirm-confirm {
+  padding: .5rem 1.1rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #fff;
+  font-size: .85rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 12px var(--accent-glow);
+  transition: all var(--transition);
+}
+.confirm-confirm:hover { background: #6d28d9; }
+
+/* ─── Chat Divider (FIX: was missing, UI.appendDivider() needs this) ─────── */
+.chat-divider {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  font-size: .73rem;
+  color: var(--fg-subtle);
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  padding: .25rem 0;
+  user-select: none;
+}
+.chat-divider::before,
+.chat-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
 /* ─── Unsaved Banner ─────────────────────────────────────────────────────── */
 #unsaved-banner {
   display: flex;
@@ -980,6 +1072,9 @@ input[type="range"]::-moz-range-thumb {
   </style>
 </head>
 <body>
+  <!-- FIX: ARIA live region for screen-reader announcements (UI.announce()) -->
+  <div id="chatAnnouncer" aria-live="assertive" aria-atomic="true" class="sr-only" style="position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0"></div>
+
   <div id="toastArea" class="toast-area" aria-live="polite"></div>
   <div id="mobileOverlay" class="mobile-overlay"></div>
 
@@ -1009,6 +1104,11 @@ input[type="range"]::-moz-range-thumb {
         <input id="apiKeyInput" type="password" placeholder="sk-or-…" autocomplete="off" spellcheck="false">
         <button id="authBtn" class="btn btn-primary" type="button" style="width:100%">Authenticate</button>
         <div id="authHint" class="muted" style="font-size:.73rem">OpenRouter key (sk-or-…) — <a id="authHintLink" href="https://openrouter.ai/keys" target="_blank" rel="noreferrer" style="color:var(--accent-2)">Get key →</a></div>
+        <!-- FIX: Profiles panel (feature 3) -->
+        <div class="profiles-wrapper" style="margin-top:.25rem">
+          <button id="profilesToggleBtn" aria-expanded="false" aria-haspopup="true">🔑 Profiles</button>
+          <div id="profilesPanel" role="menu" aria-label="API key profiles"></div>
+        </div>
       </div>
 
       <!-- Model -->
@@ -1080,7 +1180,7 @@ input[type="range"]::-moz-range-thumb {
           </div>
           <div class="ctx-row">
             <span id="ctxInfo" class="ctx-label">0%</span>
-            <div class="ctx-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="ctxFill">
+            <div class="ctx-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="ctxTrack">
               <div id="ctxBar" class="ctx-fill"></div>
             </div>
           </div>
@@ -1147,7 +1247,8 @@ input[type="range"]::-moz-range-thumb {
               <span id="modelLabelInline" class="model-inline"></span>
             </div>
             <div class="composer-btns">
-              <button id="stopBtn" class="btn" type="button" style="display:none">⏹ Stop</button>
+              <!-- FIX: visibility:hidden (not display:none) — keeps layout stable for ui.js setSendButtonState() -->
+              <button id="stopBtn" class="btn" type="button">⏹ Stop</button>
               <button id="sendBtn" class="btn btn-primary" type="button">Send ↑</button>
             </div>
           </div>
@@ -1216,5 +1317,19 @@ input[type="range"]::-moz-range-thumb {
   <script src="js/api.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/app.js"></script>
+  <script src="js/profiles.js"></script>
+  <!-- FIX Ctrl+K: wire keyboard shortcut to focus model search -->
+  <script>
+    document.addEventListener('keydown', function(e) {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        var s = document.getElementById('searchInput');
+        if (s) { s.focus(); s.select(); }
+      }
+    });
+    document.addEventListener('DOMContentLoaded', function() {
+      if (typeof Profiles !== 'undefined') Profiles.init();
+    });
+  </script>
 </body>
 </html>
