@@ -1099,7 +1099,7 @@ input[type="range"]::-moz-range-thumb {
             <span id="authDot" class="auth-dot err"></span>
             <span id="authStatus">Not authenticated</span>
           </div>
-          <button id="clearAuthBtn" class="btn btn-sm btn-ghost" type="button" title="Clear credentials">✕</button>
+          <button id="clearAuthBtn" class="btn btn-sm btn-ghost" type="button" title="Clear credentials" aria-label="Clear credentials">✕</button>
         </div>
         <input id="apiKeyInput" type="password" placeholder="sk-or-…" autocomplete="off" spellcheck="false">
         <button id="authBtn" class="btn btn-primary" type="button" style="width:100%">Authenticate</button>
@@ -1188,7 +1188,7 @@ input[type="range"]::-moz-range-thumb {
         <div class="header-actions">
           <button id="sidebarToggle" class="btn btn-ghost btn-icon" type="button" aria-label="Toggle sidebar" title="Menu">☰</button>
           <button id="statsBtn" class="btn btn-ghost btn-sm" type="button" title="Session stats">📊 <span>Stats</span></button>
-          <button id="clearBtn" class="btn btn-ghost btn-sm" type="button" title="Clear chat">🗑 <span>Clear</span></button>
+          <button id="clearBtn" class="btn btn-ghost btn-sm" type="button" title="Clear chat" aria-label="Clear chat">🗑 <span>Clear</span></button>
           <div class="menu-wrap">
             <button id="exportBtn" class="btn btn-ghost btn-sm" type="button" title="Export chat">⬇ <span>Export</span></button>
             <div id="export-menu" class="dropdown-menu">
@@ -1200,13 +1200,13 @@ input[type="range"]::-moz-range-thumb {
             </div>
           </div>
           <div class="menu-wrap">
-            <button id="themeBtn" class="btn btn-ghost btn-icon" type="button" title="Theme">🎨</button>
+            <button id="themeBtn" class="btn btn-ghost btn-icon" type="button" title="Toggle theme" aria-label="Toggle theme">🎨</button>
             <div id="theme-menu" class="dropdown-menu">
               <button class="menu-item theme-opt" data-theme="dark"  type="button">🌙 Dark</button>
               <button class="menu-item theme-opt" data-theme="light" type="button">☀️ Light</button>
             </div>
           </div>
-          <button id="resetBtn" class="btn btn-ghost btn-icon btn-danger" type="button" title="Reset session">↺</button>
+          <button id="resetBtn" class="btn btn-ghost btn-icon btn-danger" type="button" title="Reset session" aria-label="Reset session">↺</button>
         </div>
       </header>
 
@@ -1228,7 +1228,7 @@ input[type="range"]::-moz-range-thumb {
         </div>
 
         <!-- Scroll to bottom button -->
-        <button id="scrollToBottom" type="button" title="Scroll to bottom">↓</button>
+        <button id="scrollToBottom" type="button" title="Scroll to bottom" aria-label="Scroll to bottom">↓</button>
       </div>
 
       <!-- Composer -->
@@ -1248,8 +1248,8 @@ input[type="range"]::-moz-range-thumb {
             </div>
             <div class="composer-btns">
               <!-- FIX: visibility:hidden (not display:none) — keeps layout stable for ui.js setSendButtonState() -->
-              <button id="stopBtn" class="btn" type="button">⏹ Stop</button>
-              <button id="sendBtn" class="btn btn-primary" type="button">Send ↑</button>
+              <button id="stopBtn" class="btn" type="button" aria-label="Stop generation">⏹ Stop</button>
+              <button id="sendBtn" class="btn btn-primary" type="button" aria-label="Send message">Send ↑</button>
             </div>
           </div>
         </div>
@@ -1264,7 +1264,7 @@ input[type="range"]::-moz-range-thumb {
     <aside id="rightPanel" class="right-panel">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.25rem">
         <span class="rp-title">Session Stats</span>
-        <button id="rp-close" class="btn btn-ghost btn-icon btn-sm" type="button" title="Close">✕</button>
+        <button id="rp-close" class="btn btn-ghost btn-icon btn-sm" type="button" title="Close stats" aria-label="Close stats panel">✕</button>
       </div>
       <div class="card">
         <div class="stat-row"><span>Prompt tokens</span><span id="stat-prompt">0</span></div>
@@ -1291,7 +1291,7 @@ input[type="range"]::-moz-range-thumb {
     <div class="modal-box">
       <div class="modal-header">
         <strong>⌨ Keyboard Shortcuts</strong>
-        <button id="shortcutsClose" class="btn btn-ghost btn-icon" type="button">✕</button>
+        <button id="shortcutsClose" class="btn btn-ghost btn-icon" type="button" aria-label="Close shortcuts">✕</button>
       </div>
       <div class="shortcut-grid">
         <kbd class="shortcut-key">Enter</kbd><span class="shortcut-desc">Send message</span>
@@ -1330,6 +1330,16 @@ input[type="range"]::-moz-range-thumb {
     document.addEventListener('DOMContentLoaded', function() {
       if (typeof Profiles !== 'undefined') Profiles.init();
     });
+  </script>
+  <!-- Service Worker registration — activates PWA install + offline caching -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function() {
+        navigator.serviceWorker.register('./sw.js').catch(function(err) {
+          console.warn('Service worker registration failed:', err);
+        });
+      });
+    }
   </script>
 </body>
 </html>
