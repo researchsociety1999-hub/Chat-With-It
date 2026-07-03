@@ -19,25 +19,64 @@
   border-color: var(--accent, #6366f1);
 }
 
+/* Wrapper: position:relative so the panel anchors to it */
+.profiles-wrapper {
+  position: relative;
+  display: inline-block;
+  /* Allow the absolutely-positioned panel to overflow the sidebar */
+  overflow: visible;
+}
+
 #profilesPanel {
   display: none;
   position: absolute;
+  /* Anchor to the LEFT edge of the button so it never overflows right */
   top: calc(100% + 6px);
-  right: 0;
-  z-index: 200;
+  left: 0;
+  right: auto;
+  z-index: 9999;
+
+  /* Fixed width on desktop, but never wider than the viewport */
   width: 320px;
+  max-width: calc(100vw - 24px);
+
   background: var(--bg-secondary, #1e2333);
   border: 1px solid var(--border, #2d3654);
   border-radius: 10px;
   box-shadow: 0 8px 32px rgba(0,0,0,0.4);
   padding: 12px;
   animation: profilesFadeIn 0.15s ease;
+
+  /* Ensure the panel itself never overflows the viewport width */
+  box-sizing: border-box;
 }
 #profilesPanel.open { display: block; }
 
 @keyframes profilesFadeIn {
   from { opacity: 0; transform: translateY(-6px); }
   to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Mobile: bottom-sheet style when viewport is narrow ─────────────────── */
+@media (max-width: 480px) {
+  #profilesPanel {
+    /* Detach from button flow and pin to viewport bottom */
+    position: fixed;
+    top: auto;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 8px);
+    left: 12px;
+    right: 12px;
+    width: auto;
+    max-width: 100%;
+    border-radius: 14px 14px 10px 10px;
+    box-shadow: 0 -4px 32px rgba(0,0,0,0.5);
+    animation: profilesSlideUp 0.2s ease;
+  }
+
+  @keyframes profilesSlideUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
 }
 
 .profiles-list {
@@ -47,6 +86,8 @@
   margin-bottom: 10px;
   max-height: 260px;
   overflow-y: auto;
+  /* Smooth momentum scroll on iOS */
+  -webkit-overflow-scrolling: touch;
 }
 
 .profiles-empty {
@@ -95,6 +136,7 @@
 .profile-actions {
   display: flex;
   gap: 4px;
+  flex-shrink: 0;
 }
 
 .profile-btn {
@@ -105,6 +147,9 @@
   border: 1px solid var(--border, #2d3654);
   background: transparent;
   transition: background 0.12s, color 0.12s;
+  /* Increase tap target on touch devices */
+  min-height: 28px;
+  min-width: 36px;
 }
 .profile-use {
   color: var(--accent, #6366f1);
@@ -126,10 +171,13 @@
   gap: 6px;
   border-top: 1px solid var(--border, #2d3654);
   padding-top: 10px;
+  /* Wrap on very narrow screens so input + button don't squash */
+  flex-wrap: wrap;
 }
 
 .profiles-add input {
   flex: 1;
+  min-width: 0; /* prevents flex child from overflowing */
   font-size: 0.82rem;
   padding: 6px 9px;
   border-radius: 6px;
@@ -137,6 +185,7 @@
   background: var(--bg-primary, #0b1020);
   color: var(--text-primary, #e5e7eb);
   outline: none;
+  box-sizing: border-box;
 }
 .profiles-add input:focus {
   border-color: var(--accent, #6366f1);
@@ -152,13 +201,8 @@
   color: var(--accent, #6366f1);
   border: 1px solid rgba(99,102,241,0.3);
   transition: background 0.12s;
+  flex-shrink: 0;
 }
 .profiles-add .btn-secondary:hover {
   background: rgba(99,102,241,0.22);
-}
-
-/* Wrapper for relative positioning of the toggle + panel */
-.profiles-wrapper {
-  position: relative;
-  display: inline-block;
 }
