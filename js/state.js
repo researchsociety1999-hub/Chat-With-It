@@ -70,10 +70,12 @@ const AppState = {
 
   // FIX: lowered from 30 to 20 to match OpenRouter's documented free-tier cap
   // of 20 requests/minute for :free models.
-  // Ref: https://openrouter.ai/docs/api-reference/limits
   _requestBucket: [],
   requestLimitPerMinute: 20,
   lastRequestTime: 0,
+
+  // FIX V: cap in-memory chat history to prevent unbounded growth in long sessions.
+  MAX_HISTORY: 200,
 
   init() {
     this.loadPersistedState();
@@ -81,7 +83,7 @@ const AppState = {
     this._startIdleTimer();
   },
 
-  // ── Idle-timeout ──────────────────────────────────────────────────────────
+  // ── Idle-timeout ──────────────────────────────────────────────────────────────────────
 
   _startIdleTimer() {
     this._clearIdleTimer();
@@ -105,7 +107,7 @@ const AppState = {
     }
   },
 
-  // ── Model cooldowns ───────────────────────────────────────────────────────
+  // ── Model cooldowns ──────────────────────────────────────────────────────────────────
 
   setModelCooldown(modelId, durationMs = 60000) {
     this._modelCooldowns[modelId] = Date.now() + durationMs;
@@ -125,16 +127,12 @@ const AppState = {
     return Math.max(0, Math.ceil((until - Date.now()) / 1000));
   },
 
-  /**
-   * Returns true if any model is currently on cooldown.
-   * Used to decide whether to keep the live-countdown interval running.
-   */
   hasActiveCooldowns() {
     const now = Date.now();
     return Object.values(this._modelCooldowns).some(until => until > now);
   },
 
-  // ── Persistence ───────────────────────────────────────────────────────────
+  // ── Persistence ───────────────────────────────────────────────────────────────────
 
   loadPersistedState() {
     try {
@@ -173,7 +171,7 @@ const AppState = {
     }
   },
 
-  // ── Messages ──────────────────────────────────────────────────────────────
+  // ── Messages ────────────────────────────────────────────────────────────────────────
 
   addMessage(role, content) {
     if (!content || typeof content !== 'string') {
@@ -185,6 +183,15 @@ const AppState = {
     if (role === 'assistant') this.sessionStats.turnCount++;
     this.chatExported = false;
     this._resetIdleTimer();
+
+    // FIX V: cap history at MAX_HISTORY by trimming the oldest non-system
+    // messages first to keep memory usage bounded in very long sessions.
+    if (this.chatHistory.length > this.MAX_HISTORY) {
+      // Remove oldest messages from the front until we are within the cap.
+      const excess = this.chatHistory.length - this.MAX_HISTORY;
+      this.chatHistory.splice(0, excess);
+    }
+
     return true;
   },
 
@@ -199,32 +206,18 @@ const AppState = {
     return true;
   },
 
-  // ── Context trimming ─────────────────────────────────────────────────────
+  // ── Context trimming ────────────────────────────────────────────────────────────────
 
-  /**
-   * FIX: Prevent silent context overflow.
-   *
-   * Estimates the token count of a messages array using a simple 4-chars≈1-token
-   * heuristic and removes the oldest user/assistant message pairs until the
-   * payload fits comfortably within the model's context limit (leaving a 10%
-   * headroom for the completion). The system prompt is always preserved.
-   *
-   * @param {Array} messages  Full messages array (system + history + new user msg)
-   * @returns {Array}         Trimmed messages array safe to send to the API
-   */
   trimHistoryToFitContext(messages) {
     const ctxLimit  = this.getContextLimit();
-    const safeLimit = Math.floor(ctxLimit * 0.90); // keep 10% headroom for completion
+    const safeLimit = Math.floor(ctxLimit * 0.90);
 
     const estimateTokens = (msgs) =>
       msgs.reduce((sum, m) => sum + Math.ceil((m.content || '').length / 4), 0);
 
     let trimmed = [...messages];
 
-    // Only trim the conversation turns (indices 1…n-1), never the system prompt
-    // (index 0) or the latest user message (last index).
     while (estimateTokens(trimmed) > safeLimit && trimmed.length > 2) {
-      // Remove the oldest non-system message (index 1)
       trimmed.splice(1, 1);
     }
 
@@ -239,7 +232,7 @@ const AppState = {
     return trimmed;
   },
 
-  // ── Rate limiter (token-bucket, 20 req/min) ───────────────────────────────
+  // ── Rate limiter (token-bucket, 20 req/min) ──────────────────────────────────────────
 
   canMakeRequest() {
     const now = Date.now();
@@ -265,8 +258,14 @@ const AppState = {
     return Math.max(0, this.requestLimitPerMinute - this._requestBucket.length);
   },
 
-  // ── Chat lifecycle ────────────────────────────────────────────────────────
+  // ── Chat lifecycle ────────────────────────────────────────────────────────────────────
 
+  /**
+   * FIX P: clearChat() no longer resets sessionStats.startTime.
+   * The session timer is set once in init() and should persist across
+   * chat clears so session-duration analytics are not broken by a mid-
+   * session clear. Only messageCount and turnCount are reset here.
+   */
   clearChat() {
     this.chatHistory = [];
     this.attachedFiles = [];
@@ -274,11 +273,9 @@ const AppState = {
     this.totalCompletionTokens = 0;
     this.turnTokens = [];
     this.chatExported = false;
-    this.sessionStats = {
-      startTime:    Date.now(),
-      messageCount: 0,
-      turnCount:    0,
-    };
+    this.sessionStats.messageCount = 0;
+    this.sessionStats.turnCount    = 0;
+    // sessionStats.startTime intentionally NOT reset — set once in init()
   },
 
   reset() {
@@ -290,13 +287,8 @@ const AppState = {
     this.attachedFiles = [];
   },
 
-  // ── Context helpers ───────────────────────────────────────────────────────
+  // ── Context helpers ───────────────────────────────────────────────────────────────────
 
-  /**
-   * FIX K: Do NOT clamp to 1.0 here — callers that need the raw ratio
-   * (e.g. the context bar's 'over' class check) must see values > 1.
-   * The progress-bar width is clamped separately in UI.updateContextBar.
-   */
   getContextUsage() {
     const ctxSize = this.modelContextMap[this.selectedModel] || 8192;
     const used = this.totalPromptTokens + this.totalCompletionTokens;
@@ -307,7 +299,7 @@ const AppState = {
     return this.modelContextMap[this.selectedModel] || 8192;
   },
 
-  // ── Auth helpers ──────────────────────────────────────────────────────────
+  // ── Auth helpers ────────────────────────────────────────────────────────────────────
 
   isValidProvider(provider) {
     return provider === 'openrouter' || provider === 'huggingface';
