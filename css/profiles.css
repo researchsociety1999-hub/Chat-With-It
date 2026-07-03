@@ -1,0 +1,164 @@
+/* ── Profiles panel ──────────────────────────────────────────────────────── */
+
+#profilesToggleBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  background: var(--bg-secondary, #1e2333);
+  color: var(--text-secondary, #9ca3af);
+  border: 1px solid var(--border, #2d3654);
+  transition: color 0.15s, border-color 0.15s;
+}
+#profilesToggleBtn:hover {
+  color: var(--text-primary, #e5e7eb);
+  border-color: var(--accent, #6366f1);
+}
+
+#profilesPanel {
+  display: none;
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 200;
+  width: 320px;
+  background: var(--bg-secondary, #1e2333);
+  border: 1px solid var(--border, #2d3654);
+  border-radius: 10px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  padding: 12px;
+  animation: profilesFadeIn 0.15s ease;
+}
+#profilesPanel.open { display: block; }
+
+@keyframes profilesFadeIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.profiles-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.profiles-empty {
+  font-size: 0.8rem;
+  color: var(--text-muted, #6b7280);
+  text-align: center;
+  padding: 12px 0;
+  margin: 0;
+}
+
+.profile-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 9px;
+  border-radius: 7px;
+  background: var(--bg-tertiary, #252d42);
+  border: 1px solid transparent;
+  transition: border-color 0.15s;
+}
+.profile-row.profile-active {
+  border-color: var(--accent, #6366f1);
+  background: rgba(99,102,241,0.08);
+}
+
+.profile-badge {
+  flex-shrink: 0;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 2px 5px;
+  border-radius: 4px;
+  letter-spacing: 0.04em;
+}
+.badge-or  { background: #7c3aed22; color: #a78bfa; border: 1px solid #7c3aed55; }
+.badge-hf  { background: #0ea5e922; color: #38bdf8; border: 1px solid #0ea5e955; }
+
+.profile-name {
+  flex: 1;
+  font-size: 0.83rem;
+  color: var(--text-primary, #e5e7eb);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.profile-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.profile-btn {
+  font-size: 0.73rem;
+  padding: 3px 8px;
+  border-radius: 5px;
+  cursor: pointer;
+  border: 1px solid var(--border, #2d3654);
+  background: transparent;
+  transition: background 0.12s, color 0.12s;
+}
+.profile-use {
+  color: var(--accent, #6366f1);
+}
+.profile-use:hover {
+  background: rgba(99,102,241,0.15);
+}
+.profile-del {
+  color: var(--text-muted, #6b7280);
+}
+.profile-del:hover {
+  background: rgba(239,68,68,0.15);
+  color: #f87171;
+  border-color: #f8717155;
+}
+
+.profiles-add {
+  display: flex;
+  gap: 6px;
+  border-top: 1px solid var(--border, #2d3654);
+  padding-top: 10px;
+}
+
+.profiles-add input {
+  flex: 1;
+  font-size: 0.82rem;
+  padding: 6px 9px;
+  border-radius: 6px;
+  border: 1px solid var(--border, #2d3654);
+  background: var(--bg-primary, #0b1020);
+  color: var(--text-primary, #e5e7eb);
+  outline: none;
+}
+.profiles-add input:focus {
+  border-color: var(--accent, #6366f1);
+}
+
+.profiles-add .btn-secondary {
+  font-size: 0.78rem;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  background: rgba(99,102,241,0.12);
+  color: var(--accent, #6366f1);
+  border: 1px solid rgba(99,102,241,0.3);
+  transition: background 0.12s;
+}
+.profiles-add .btn-secondary:hover {
+  background: rgba(99,102,241,0.22);
+}
+
+/* Wrapper for relative positioning of the toggle + panel */
+.profiles-wrapper {
+  position: relative;
+  display: inline-block;
+}
