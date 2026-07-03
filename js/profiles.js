@@ -131,19 +131,30 @@ const Profiles = (() => {
         activate(btn.dataset.id);
         renderProfilesPanel();
         if (typeof UI !== 'undefined') {
-          UI.setAuthState(true);
+          // FIX: pass a label string so authStatus element is not set to "undefined"
+          const providerName = AppState.currentProvider === 'openrouter' ? 'OpenRouter' : 'Hugging Face';
+          UI.setAuthState(true, `${providerName} authenticated`);
           UI.toast('Profile activated — reloading models…', 'success', 3000);
         }
-        if (typeof App !== 'undefined') App.loadModels();
+        // FIX: was App.loadModels() which does not exist — correct method is App.refreshModels()
+        if (typeof App !== 'undefined') App.refreshModels();
       });
     });
 
     panel.querySelectorAll('.profile-del').forEach(btn => {
       btn.addEventListener('click', () => {
-        if (!confirm('Delete this profile?')) return;
-        remove(btn.dataset.id);
-        renderProfilesPanel();
-        if (typeof UI !== 'undefined') UI.toast('Profile deleted', 'info', 2000);
+        // FIX: use UI.confirmModal() instead of native confirm() for consistency + accessibility
+        const doDelete = () => {
+          remove(btn.dataset.id);
+          renderProfilesPanel();
+          if (typeof UI !== 'undefined') UI.toast('Profile deleted', 'info', 2000);
+        };
+        if (typeof UI !== 'undefined' && typeof UI.confirmModal === 'function') {
+          UI.confirmModal('Delete this profile?', doDelete);
+        } else {
+          // Fallback if UI is not yet available (should not happen in normal flow)
+          if (confirm('Delete this profile?')) doDelete();
+        }
       });
     });
 
