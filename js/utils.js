@@ -106,7 +106,7 @@ const Utils = {
       a.click();
     } finally {
       if (document.body.contains(a)) document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
+            setTimeout(() => window.URL.revokeObjectURL(url), 1000);
     }
   },
 
