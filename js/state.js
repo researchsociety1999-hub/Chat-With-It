@@ -7,6 +7,10 @@ const AppState = {
   // Provider & Auth
   currentProvider: 'openrouter',
 
+  // Theme and high contrast state
+  theme: 'dark',
+  highContrast: false,
+
   // FIX (Zara): API keys isolated via getter/setter — prevents direct
   // window.AppState.apiKey reads from injected scripts or extensions.
   _apiKey: '',
@@ -89,8 +93,46 @@ const AppState = {
   init() {
     this.loadPersistedState();
     this.loadPersistedHistory();
+    this.loadThemeState();
     this.sessionStats.startTime = Date.now();
     this._startIdleTimer();
+  },
+
+  // ── Theme State ──────────────────────────────────────────────────────────
+
+  loadThemeState() {
+    try {
+      const theme = localStorage.getItem('cwi_theme');
+      if (theme) this.theme = theme;
+      const hc = localStorage.getItem('cwi_high_contrast');
+      if (hc === 'true') this.highContrast = true;
+    } catch (e) {
+      console.error('Failed to load theme state:', e);
+    }
+  },
+
+  setTheme(theme) {
+    this.theme = theme;
+    try { localStorage.setItem('cwi_theme', theme); } catch (e) {}
+    this.applyTheme();
+  },
+
+  setHighContrast(enabled) {
+    this.highContrast = enabled;
+    try { localStorage.setItem('cwi_high_contrast', String(enabled)); } catch (e) {}
+    this.applyHighContrast();
+  },
+
+  applyTheme() {
+    document.documentElement.setAttribute('data-theme', this.theme);
+  },
+
+  applyHighContrast() {
+    if (this.highContrast) {
+      document.documentElement.classList.add('high-contrast');
+    } else {
+      document.documentElement.classList.remove('high-contrast');
+    }
   },
 
   // ── Idle-timeout ──────────────────────────────────────────────────────────

@@ -3,9 +3,33 @@
  * Glassmorphism dark/light, animated messages, message actions, scroll-to-bottom,
  * Ctrl+K model search focus, smooth scroll, header model badge.
  */
-
 const UI = {
   el(id) { return document.getElementById(id); },
+
+  initEnhancements() {
+    // 1. Add role="log" and aria-live to chat message list for accessibility
+    const chatList = this.el('chatBody');
+    if (chatList) {
+      chatList.setAttribute('role', 'log');
+      chatList.setAttribute('aria-live', 'polite');
+      chatList.setAttribute('aria-relevant', 'additions');
+    }
+
+    // 4. All inputs must have associated labels
+    // (handled via index.html label/aria-label already, but ensure dynamic inputs get them)
+    const inputs = document.querySelectorAll('input, select, textarea, button');
+    inputs.forEach(input => {
+      if (!input.getAttribute('aria-label') && !input.getAttribute('aria-labelledby') && input.id) {
+        const label = document.querySelector(`label[for="${input.id}"]`);
+        if (!label) {
+          // Skip if already has accessible name via children
+          if (!input.textContent.trim()) {
+            input.setAttribute('aria-label', input.placeholder || input.id);
+          }
+        }
+      }
+    });
+  },
 
   loadTheme() {
     let stored = 'dark';
@@ -80,8 +104,7 @@ const UI = {
     this._updateScrollBtn();
   },
 
-  // ── Confirm modal (replaces native confirm() — Zara/Priya fix) ──────────
-
+  // Confirm modal (replaces native confirm() — Zara/Priya fix)
   confirmModal(message, onConfirm) {
     const overlay = document.createElement('div');
     overlay.className = 'confirm-overlay';
@@ -128,8 +151,7 @@ const UI = {
     overlay.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
   },
 
-  // ── Chat divider (Sofia fix — persona change indicator) ──────────────────
-
+  // Chat divider (Sofia fix — persona change indicator)
   appendDivider(text) {
     const chat = this.el('chatBody');
     if (!chat) return;
@@ -141,18 +163,15 @@ const UI = {
     this._scrollToBottom();
   },
 
-  // ── Accessible announcer (Priya fix — dedicated live region) ────────────
-
+  // Accessible announcer (Priya fix — dedicated live region)
   announce(text) {
     const live = this.el('chatAnnouncer');
     if (!live) return;
-    // Toggle content to force re-announcement even for identical text
     live.textContent = '';
     requestAnimationFrame(() => { live.textContent = text; });
   },
 
-  // ── Message rendering ────────────────────────────────────────────────────
-
+  // Message rendering
   _buildMsgWrap(role) {
     const wrap = document.createElement('div');
     wrap.className = `msg ${role}`;
@@ -238,7 +257,6 @@ const UI = {
     const content = document.createElement('span');
     content.className = 'bubble-stream-content';
     bubble.appendChild(content);
-
     col.appendChild(bubble);
     col.appendChild(this._buildMeta('assistant', bubble));
     chat.appendChild(wrap);
@@ -252,7 +270,6 @@ const UI = {
     if (content) {
       content.textContent += delta;
       bubble._rawText = (bubble._rawText || '') + delta;
-      // Scroll driven by rAF in App._scheduleScroll() — no direct call here
     }
   },
 
@@ -302,9 +319,7 @@ const UI = {
     this.el('typing-indicator')?.remove();
   },
 
-  // ── Scroll helpers ───────────────────────────────────────────────────────
-
-  // FIX Marcus: _scrollToBottom uses rAF to avoid forced reflows on streaming tokens.
+  // Scroll helpers
   _scrollToBottom() {
     const chat = this.el('chatBody');
     if (!chat) return;
@@ -330,8 +345,7 @@ const UI = {
     btn.addEventListener('click', () => this._scrollToBottom());
   },
 
-  // ── Stats ────────────────────────────────────────────────────────────────
-
+  // Stats
   updateStats(promptToks, completionToks) {
     const max = Math.max(promptToks, completionToks, 1);
     const setEl  = (id, val) => { const e = this.el(id); if (e) e.textContent = Utils.formatTokens(val); };
@@ -385,9 +399,7 @@ const UI = {
     }
   },
 
-  // ── Send button ──────────────────────────────────────────────────────────
-
-  // FIX Sofia: visibility:hidden reserves layout space — no composer reflow
+  // Send button
   setSendButtonState(enabled) {
     const send = this.el('sendBtn');
     const stop = this.el('stopBtn');
@@ -395,8 +407,7 @@ const UI = {
     if (stop) stop.style.visibility = enabled ? 'hidden' : 'visible';
   },
 
-  // ── Char count ───────────────────────────────────────────────────────────
-
+  // Char count
   updateCharCount(len) {
     const el = this.el('charCount');
     if (!el) return;
@@ -404,8 +415,7 @@ const UI = {
     el.className = 'char-count' + (len > 28000 ? ' over' : len > 24000 ? ' warn' : '');
   },
 
-  // ── Model label ──────────────────────────────────────────────────────────
-
+  // Model label
   updateModelLabel(modelName) {
     const el    = this.el('modelLabel');
     const badge = this.el('modelBadge');
@@ -432,12 +442,10 @@ const UI = {
       : `${current} of ${total} models`;
   },
 
-  // ── Context bar ──────────────────────────────────────────────────────────
-
+  // Context bar
   updateContextBar() {
     const bar   = this.el('ctxBar');
     const info  = this.el('ctxInfo');
-    // FIX Priya: aria-valuenow belongs on the progressbar container (ctxTrack), not the fill.
     const track = this.el('ctxTrack');
     const pct   = AppState.getContextUsage();
     const lim   = AppState.getContextLimit();
@@ -458,8 +466,7 @@ const UI = {
     }
   },
 
-  // ── Sidebar ──────────────────────────────────────────────────────────────
-
+  // Sidebar
   toggleSidebar() {
     const sidebar = this.el('sidebar');
     const overlay = this.el('mobileOverlay');
@@ -471,8 +478,7 @@ const UI = {
     if (toggle)  toggle.setAttribute('aria-expanded', String(isOpen));
   },
 
-  // ── Retry button ─────────────────────────────────────────────────────────
-
+  // Retry button
   addRetryButton(onRetry) {
     this.removeRetryButton();
     const chat = this.el('chatBody');
@@ -491,8 +497,7 @@ const UI = {
     this.el('retryBtn')?.remove();
   },
 
-  // ── Toast ────────────────────────────────────────────────────────────────
-
+  // Toast
   toast(message, type = 'info', duration = 3000) {
     const area = this.el('toastArea');
     if (!area) return;

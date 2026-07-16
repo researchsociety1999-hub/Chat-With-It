@@ -7,6 +7,8 @@
   <meta name="description" content="Browser-only multi-provider AI chat. No backend. No logs. Your key never leaves your device.">
   <meta name="theme-color" content="#0d0f1a" media="(prefers-color-scheme: dark)">
   <meta name="theme-color" content="#f0f4ff" media="(prefers-color-scheme: light)">
+  <!-- High contrast mode -->
+  <meta name="theme-color" content="#000000" media="(prefers-contrast: more)">
   <!-- PWA: standalone display disables browser chrome; mobile-web-app-capable activates it on Android -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -43,10 +45,47 @@
   --shadow:      0 8px 32px rgba(0,0,0,.45);
   --shadow-sm:   0 2px 8px rgba(0,0,0,.3);
   --blur:        blur(18px);
-  --transition:  .18s cubic-bezier(.4,0,.2,1);
+  --transition:  .2s cubic-bezier(.4,0,.2,1);
   --sidebar-w:   280px;
   --rp-w:        300px;
 }
+
+/* High Contrast Mode */
+html.high-contrast {
+  --bg:          #000000;
+  --bg2:         #000000;
+  --panel:       rgba(0,0,0,0.9);
+  --panel-solid: #000000;
+  --panel-2:     rgba(255,255,255,0.05);
+  --border:      #ffffff;
+  --border-2:    #ffffff;
+  --fg:          #ffffff;
+  --fg-muted:    #cccccc;
+  --fg-subtle:   #999999;
+  --accent:      #ffff00;
+  --accent-glow: rgba(255,255,0,0.3);
+  --accent-2:    #00ffff;
+  --accent-3:    #ff00ff;
+  --user-bubble: #0066cc;
+  --ai-bubble:   #003366;
+  --danger:      #ff0000;
+  --success:     #00ff00;
+  --warn:        #ffff00;
+  --shadow:      0 8px 32px rgba(255,255,255,0.5);
+  --shadow-sm:   0 2px 8px rgba(255,255,255,0.3);
+}
+
+/* Remove background images in high contrast mode for better legibility */
+html.high-contrast body {
+  background-image: none !important;
+  background-color: var(--bg) !important;
+}
+
+/* Ensure proper transitions for theme changes */
+html {
+  transition: background-color .2s ease, color .2s ease;
+}
+
 [data-theme="light"] {
   --bg:          #f0f4ff;
   --bg2:         #e6ecfb;
@@ -67,66 +106,50 @@
   --shadow-sm:   0 2px 8px rgba(100,116,200,.12);
 }
 
-/* ─── Reset & Base ───────────────────────────────────────────────────────── */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html {
-  height: 100%;
-  overscroll-behavior: none;
-  -webkit-text-size-adjust: 100%;
-  /* Prevent pinch-zoom and double-tap zoom in PWA standalone mode.
-     touch-action:pan-x pan-y allows normal scrolling but blocks scale gestures. */
-  touch-action: pan-x pan-y;
-}
-body {
-  height: 100%;
-  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  background: var(--bg);
-  color: var(--fg);
-  line-height: 1.6;
-  overscroll-behavior: none;
-  padding-bottom: env(safe-area-inset-bottom);
-  touch-action: pan-x pan-y;
-  background-image:
-    radial-gradient(ellipse 80% 60% at 20% -10%, rgba(124,58,237,.18) 0%, transparent 60%),
-    radial-gradient(ellipse 60% 40% at 80% 110%, rgba(6,182,212,.12) 0%, transparent 60%);
-  background-attachment: fixed;
-}
 [data-theme="light"] body {
   background-image:
     radial-gradient(ellipse 80% 60% at 20% -10%, rgba(109,40,217,.08) 0%, transparent 60%),
     radial-gradient(ellipse 60% 40% at 80% 110%, rgba(8,145,178,.07) 0%, transparent 60%);
 }
 
-/* ─── Scrollbar ──────────────────────────────────────────────────────────── */
-::-webkit-scrollbar { width: 5px; height: 5px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 99px; }
-::-webkit-scrollbar-thumb:hover { background: var(--fg-subtle); }
+/* Mobile Composer Fixes */
+@media (max-width: 768px) {
+  #composerWrap {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    background: var(--panel);
+    padding: .75rem 1rem;
+    padding-bottom: calc(.75rem + env(safe-area-inset-bottom,0px));
+    border-top: 1px solid var(--border);
+  }
 
-/* ─── Layout Shell ───────────────────────────────────────────────────────── */
-.app {
-  display: grid;
-  grid-template-columns: var(--sidebar-w) 1fr var(--rp-w);
-  grid-template-rows: 1fr;
-  height: 100dvh;
-  height: -webkit-fill-available;
-  overflow: hidden;
+  .main {
+    padding-bottom: 80px; /* Space for fixed composer */
+  }
+
+  /* Ensure touch targets are at least 44x44px */
+  .btn, .menu-item, .persona-card, .chip, .confirm-btn {
+    min-height: 44px;
+    min-width: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Adjust chat body padding for mobile keyboard */
+  .chat-body {
+    padding-bottom: 80px; /* Space for composer when keyboard is up */
+  }
 }
 
-/* ─── Sidebar ────────────────────────────────────────────────────────────── */
-.sidebar {
-  background: var(--panel);
-  -webkit-backdrop-filter: var(--blur);
-  backdrop-filter: var(--blur);
-  border-right: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  overflow-y: auto;
-  overflow-x: hidden;
-  -webkit-overflow-scrolling: touch;
-  padding: 1.25rem 1rem 1rem;
-  gap: .75rem;
-  transition: transform var(--transition);
+/* Prevent horizontal scroll at key breakpoints */
+@media (width: 375px), (width: 768px), (width: 1440px) {
+  body {
+    overflow-x: hidden;
+  }
 }
 .brand {
   display: flex;
@@ -1093,6 +1116,7 @@ input[type="range"]::-moz-range-thumb {
         <span class="brand-icon">💬</span>
         ChatWithIt
         <span class="brand-badge">Free</span>
+        <button id="lockBtn" class="btn btn-ghost btn-sm" type="button" title="Lock app" aria-label="Lock app" style="margin-left:auto">🔒</button>
       </div>
 
       <!-- Provider -->
@@ -1102,6 +1126,7 @@ input[type="range"]::-moz-range-thumb {
           <button class="ptab active" data-provider="openrouter" aria-selected="true">OpenRouter</button>
           <button class="ptab" data-provider="huggingface" aria-selected="false">HF</button>
         </div>
+        <label for="apiKeyInput" class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)">API Key</label>
         <div class="auth-row">
           <div class="auth-pill">
             <span id="authDot" class="auth-dot err"></span>
@@ -1109,7 +1134,7 @@ input[type="range"]::-moz-range-thumb {
           </div>
           <button id="clearAuthBtn" class="btn btn-sm btn-ghost" type="button" title="Clear credentials" aria-label="Clear credentials">✕</button>
         </div>
-        <input id="apiKeyInput" type="password" placeholder="sk-or-…" autocomplete="off" spellcheck="false">
+        <input id="apiKeyInput" type="password" placeholder="sk-or-…" autocomplete="off" spellcheck="false" aria-label="API Key">
         <button id="authBtn" class="btn btn-primary" type="button" style="width:100%">Authenticate</button>
         <div id="authHint" class="muted" style="font-size:.73rem">OpenRouter key (sk-or-…) — <a id="authHintLink" href="https://openrouter.ai/keys" target="_blank" rel="noreferrer" style="color:var(--accent-2)">Get key →</a></div>
         <!-- FIX: Profiles panel (feature 3) -->
@@ -1122,8 +1147,10 @@ input[type="range"]::-moz-range-thumb {
       <!-- Model -->
       <div class="card">
         <div class="card-title">Model</div>
-        <select id="paramFilter"></select>
-        <input id="searchInput" type="search" placeholder="🔍 Search models…">
+        <label for="paramFilter" class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)">Parameter filter</label>
+        <select id="paramFilter" aria-label="Parameter filter"></select>
+        <label for="searchInput" class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)">Search models</label>
+        <input id="searchInput" type="search" placeholder="🔍 Search models…" aria-label="Search models">
         <div id="modelFilterHint" class="muted" style="font-size:.72rem"></div>
         <select id="modelSelect" aria-label="Model selection">
           <option value="none" disabled selected>— authenticate first —</option>
@@ -1137,13 +1164,13 @@ input[type="range"]::-moz-range-thumb {
       <div class="card">
         <div class="card-title">Generation</div>
         <div class="row" style="justify-content:space-between;font-size:.8rem">
-          <span>Temperature</span><span id="tempVal" style="font-weight:700">0.7</span>
+          <label for="tempSlider">Temperature</label><span id="tempVal" style="font-weight:700">0.7</span>
         </div>
-        <input id="tempSlider" type="range" min="0" max="2" step="0.1" value="0.7">
+        <input id="tempSlider" type="range" min="0" max="2" step="0.1" value="0.7" aria-label="Temperature">
         <div class="row" style="justify-content:space-between;font-size:.8rem">
-          <span>Max tokens</span><span id="maxTokensVal" style="font-weight:700">1,024</span>
+          <label for="maxTokensSlider">Max tokens</label><span id="maxTokensVal" style="font-weight:700">1,024</span>
         </div>
-        <input id="maxTokensSlider" type="range" min="128" max="8192" step="128" value="1024">
+        <input id="maxTokensSlider" type="range" min="128" max="8192" step="128" value="1024" aria-label="Max tokens">
       </div>
 
       <!-- Personas -->
@@ -1212,15 +1239,17 @@ input[type="range"]::-moz-range-thumb {
             <div id="theme-menu" class="dropdown-menu">
               <button class="menu-item theme-opt" data-theme="dark"  type="button">🌙 Dark</button>
               <button class="menu-item theme-opt" data-theme="light" type="button">☀️ Light</button>
+              <button class="menu-item theme-opt" data-theme="system" type="button">💻 System</button>
             </div>
           </div>
+          <button id="highContrastBtn" class="btn btn-ghost btn-icon" type="button" title="Toggle high contrast mode" aria-label="Toggle high contrast mode">◐</button>
           <button id="resetBtn" class="btn btn-ghost btn-icon btn-danger" type="button" title="Reset session" aria-label="Reset session">↺</button>
         </div>
       </header>
 
       <div class="main-wrapper">
         <!-- Chat body -->
-        <div id="chatBody" class="chat-body" aria-live="polite">
+        <div id="chatBody" class="chat-body" role="log" aria-live="polite" aria-relevant="additions">
           <!-- Welcome -->
           <div id="welcome" class="welcome">
             <div class="welcome-logo">💬</div>

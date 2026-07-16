@@ -206,3 +206,31 @@
 .profiles-add .btn-secondary:hover {
   background: rgba(99,102,241,0.22);
 }
+
+/* ── High Contrast Mode additions ────────────────────────────────────────── */
+html.high-contrast #profilesPanel,
+html.high-contrast .profiles-wrapper {
+  background: #000 !important;
+  border-color: #fff !important;
+  color: #fff !important;
+}
+html.high-contrast .profile-row {
+  background: #000 !important;
+  border-color: #fff !important;
+}
+html.high-contrast .profile-name {
+  color: #fff !important;
+}
+html.high-contrast .profile-btn {
+  border-color: #fff !important;
+  color: #fff !important;
+}
+html.high-contrast .profile-btn:hover {
+  background: #fff !important;
+  color: #000 !important;
+}
+html.high-contrast .profiles-add .btn-secondary {
+  background: #000 !important;
+  color: #fff !important;
+  border-color: #fff !important;
+}

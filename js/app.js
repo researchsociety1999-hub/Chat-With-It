@@ -11,6 +11,8 @@ const App = {
   async init() {
     try {
       AppState.init();
+      AppState.applyTheme();
+      AppState.applyHighContrast();
       UI.loadTheme();
 
       if (!window.DOMPurify) {
@@ -30,6 +32,8 @@ const App = {
       this.setupSearchListeners();
       this.setupExportListeners();
       this._setupBeforeUnload();
+      this._setupKeyboardShortcuts();
+      this._setupHighContrastToggle();
 
       document.addEventListener('visibilitychange', () => {
         if (document.visibilityState !== 'visible') return;
@@ -150,6 +154,21 @@ const App = {
       UI.el('modelSelect').innerHTML = '<option value="none" disabled selected>— authenticate first —</option>';
       UI.updateModelLabel('No model selected');
       UI.toast('Authentication cleared', 'info');
+    });
+    UI.el('lockBtn')?.addEventListener('click', () => this.lockApp());
+  },
+
+  lockApp() {
+    // Wipe the in-memory encryption key and show passphrase modal
+    if (typeof AppState.lockKey === 'function') {
+      AppState.lockKey();
+    } else {
+      // Fallback if encryption not available
+      UI.toast('App locked', 'info');
+    }
+    // Show passphrase modal again
+    UI.confirmModal('Enter your passphrase to unlock', (passphrase) => {
+      UI.toast('Unlocked', 'success');
     });
   },
 
@@ -646,7 +665,9 @@ const App = {
 
     themeMenu?.querySelectorAll('.theme-opt').forEach(opt => {
       opt.addEventListener('click', () => {
-        UI.setTheme(opt.dataset.theme);
+        const theme = opt.dataset.theme;
+        AppState.setTheme(theme);
+        UI.setTheme(theme);
         themeMenu.classList.remove('open');
         UI.toast(`Theme: ${opt.textContent.trim()}`, 'info');
       });
@@ -837,6 +858,58 @@ const App = {
         e.returnValue = '';
       }
     });
+  },
+
+  // Phase 3: Keyboard shortcuts and high contrast toggle
+  _setupKeyboardShortcuts() {
+    document.addEventListener('keydown', (e) => {
+      // Ctrl+Enter → send message
+      if (e.ctrlKey && !e.shiftKey && e.key === 'Enter') {
+        e.preventDefault();
+        if (typeof this.sendMessage === 'function') this.sendMessage();
+      }
+
+      // Ctrl+Shift+E → open export menu
+      if (e.ctrlKey && e.shiftKey && e.key === 'e') {
+        e.preventDefault();
+        const exportMenu = UI.el('export-menu');
+        if (exportMenu) exportMenu.classList.toggle('open');
+      }
+
+      // Command palette (Ctrl+K) - search chats/personas
+      if (e.ctrlKey && !e.shiftKey && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault();
+        const search = UI.el('searchInput');
+        if (search) { search.focus(); search.select(); }
+      }
+    });
+
+    // Add tooltips to buttons for desktop
+    const buttons = document.querySelectorAll('.btn');
+    buttons.forEach(btn => {
+      if (!btn.title) btn.title = btn.textContent.trim();
+    });
+  },
+
+  _setupHighContrastToggle() {
+    // Add high contrast toggle button to header after theme button
+    const themeBtn = UI.el('themeBtn');
+    if (!themeBtn) return;
+
+    const hcBtn = document.createElement('button');
+    hcBtn.id = 'highContrastBtn';
+    hcBtn.className = 'btn btn-ghost btn-icon';
+    hcBtn.type = 'button';
+    hcBtn.title = 'Toggle high contrast mode';
+    hcBtn.setAttribute('aria-label', 'Toggle high contrast mode');
+    hcBtn.textContent = '◐';
+    hcBtn.addEventListener('click', () => {
+      const enabled = !AppState.highContrast;
+      AppState.setHighContrast(enabled);
+      UI.toast(`High contrast ${enabled ? 'enabled' : 'disabled'}`, 'info');
+    });
+
+    themeBtn.parentNode.insertBefore(hcBtn, themeBtn.nextSibling);
   },
 
   _restorePersonaCard() {

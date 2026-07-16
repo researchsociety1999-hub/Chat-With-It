@@ -9,7 +9,7 @@
 
 // FIX: bumped to v2 so returning users pick up updated JS/CSS files.
 // Increment this string on every deployment that changes cached assets.
-const CACHE_NAME = 'chatwithit-v2';
+const CACHE_NAME = 'chatwithit-v3';
 
 const PRECACHE_URLS = [
   './',
