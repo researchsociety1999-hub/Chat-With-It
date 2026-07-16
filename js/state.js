@@ -3,7 +3,9 @@
  * Manages all application state with validation and updates
  */
 
-const AppState = {
+import { Utils } from './utils.js';
+
+export const AppState = {
   // Provider & Auth
   currentProvider: 'openrouter',
 
@@ -403,3 +405,5 @@ const AppState = {
     return false;
   },
 };
+
+export default AppState;

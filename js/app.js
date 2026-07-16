@@ -3,7 +3,14 @@
  * Orchestrates state, UI, and API interactions.
  */
 
-const App = {
+import { AppState } from './state.js';
+import { UI } from './ui.js';
+import { API, PROVIDERS, PARAM_TIERS } from './api.js';
+import { Utils } from './utils.js';
+import { Profiles } from './profiles.js';
+import DOMPurify from 'dompurify';
+
+export const App = {
   _sending: false,
   _cooldownInterval: null,
   _scrollScheduled: false, // FIX Marcus: rAF scroll throttle flag
@@ -15,7 +22,9 @@ const App = {
       AppState.applyHighContrast();
       UI.loadTheme();
 
-      if (!window.DOMPurify) {
+      // DOMPurify is bundled via npm — if the import failed the app cannot
+      // safely render markdown, so disable chat and surface a banner.
+      if (typeof DOMPurify === 'undefined' || !DOMPurify.sanitize) {
         UI.showSecurityBanner('⚠️ Security library (DOMPurify) failed to load — chat disabled. Please refresh the page.');
         const sendBtn = UI.el('sendBtn');
         if (sendBtn) sendBtn.disabled = true;
@@ -34,6 +43,11 @@ const App = {
       this._setupBeforeUnload();
       this._setupKeyboardShortcuts();
       this._setupHighContrastToggle();
+
+      // Phase 4: profiles panel is a module — init it directly
+      if (typeof Profiles !== 'undefined' && typeof Profiles.init === 'function') {
+        Profiles.init();
+      }
 
       document.addEventListener('visibilitychange', () => {
         if (document.visibilityState !== 'visible') return;
@@ -771,6 +785,8 @@ const App = {
     UI.el('exportJson')?.addEventListener('click',  () => { this.exportChat('json'); closeExport(); });
     UI.el('exportTxt')?.addEventListener('click',   () => { this.exportChat('txt');  closeExport(); });
     UI.el('exportCopy')?.addEventListener('click',  () => { this.exportChat('copy'); closeExport(); });
+    // Phase 4: PDF export
+    UI.el('exportPdf')?.addEventListener('click',   () => { this.exportChat('pdf'); closeExport(); });
 
     document.addEventListener('keydown', (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 's') {
@@ -823,6 +839,10 @@ const App = {
         UI.hideUnsavedBanner();
         return;
 
+      } else if (format === 'pdf') {
+        this._exportPdf(base);
+        return;
+
       } else {
         const header = [
           `# ChatWithIt Export`,
@@ -847,6 +867,80 @@ const App = {
     } catch (err) {
       console.error('Export error:', err);
       UI.toast(`Export failed: ${err.message || 'unknown error'}`, 'error', 5000);
+    }
+  },
+
+  /**
+   * Phase 4: PDF export via html2canvas + jsPDF.
+   * Renders the chat messages area to canvas, then saves as a PDF with a header.
+   */
+  async _exportPdf(base) {
+    try {
+      const { default: html2canvas } = await import('html2canvas');
+      const { jsPDF } = await import('jspdf');
+
+      const chat = UI.el('chatBody');
+      if (!chat) { UI.toast('Nothing to export', 'info'); return; }
+
+      UI.toast('Rendering PDF…', 'info', 2000);
+
+      const canvas = await html2canvas(chat, {
+        backgroundColor: getComputedStyle(document.body).backgroundColor || '#ffffff',
+        scale: 2,
+        useCORS: true,
+        logging: false,
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+      const pageW = pdf.internal.pageSize.getWidth();
+      const pageH = pdf.internal.pageSize.getHeight();
+      const margin = 24;
+      const headerH = 56;
+
+      // ── Header ────────────────────────────────────────────────────────────
+      const title = AppState.chatHistory[0]?.content?.slice(0, 60) || 'ChatWithIt Conversation';
+      const modelName = (AppState.allModels.find(m => m.id === AppState.selectedModel)?.name) || AppState.selectedModel || 'unknown';
+      const dateStr = new Date().toLocaleString();
+
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(14);
+      pdf.text('ChatWithIt Export', margin, margin + 4);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(9);
+      pdf.setTextColor(90);
+      pdf.text(`Title: ${title}`, margin, margin + 20);
+      pdf.text(`Model: ${modelName}`, margin, margin + 32);
+      pdf.text(`Date: ${dateStr}`, margin, margin + 44);
+      pdf.setTextColor(0);
+
+      // divider line
+      pdf.setDrawColor(200);
+      pdf.line(margin, margin + headerH - 8, pageW - margin, margin + headerH - 8);
+
+      // ── Image (chat screenshot) ─────────────────────────────────────────────
+      const imgW = pageW - margin * 2;
+      const imgH = (canvas.height / canvas.width) * imgW;
+
+      let heightLeft = imgH;
+      let position = margin + headerH;
+      pdf.addImage(imgData, 'PNG', margin, position, imgW, imgH);
+      heightLeft -= (pageH - (margin + headerH));
+
+      while (heightLeft > 0) {
+        pdf.addPage();
+        position = margin - (imgH - heightLeft);
+        pdf.addImage(imgData, 'PNG', margin, position, imgW, imgH);
+        heightLeft -= (pageH - margin * 2);
+      }
+
+      pdf.save(`${base}.pdf`);
+      AppState.chatExported = true;
+      UI.hideUnsavedBanner();
+      UI.toast('✅ Exported as PDF', 'success');
+    } catch (err) {
+      console.error('PDF export error:', err);
+      UI.toast(`PDF export failed: ${err.message || 'unknown error'}`, 'error', 5000);
     }
   },
 
@@ -942,3 +1036,5 @@ const App = {
 };
 
 document.addEventListener('DOMContentLoaded', () => App.init());
+
+export default App;

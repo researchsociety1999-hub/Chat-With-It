@@ -14,7 +14,9 @@
  *    Review each provider's privacy policy for their data-retention terms.
  */
 
-const PROVIDERS = {
+import { AppState } from './state.js';
+
+export const PROVIDERS = {
   openrouter: {
     name: 'OpenRouter',
     baseUrl: 'https://openrouter.ai/api/v1',
@@ -42,7 +44,7 @@ const PROVIDERS = {
 /**
  * Parameter-size tier buckets.
  */
-const PARAM_TIERS = [
+export const PARAM_TIERS = [
   { value: 'all',   label: 'All sizes' },
   { value: 'tiny',  label: '≤ 3B params',    test: t => ['1B','2B','3B'].includes(t) },
   { value: 'small', label: '7–8B params',    test: t => ['7B','8B'].includes(t) },
@@ -55,7 +57,7 @@ const PARAM_TIERS = [
  * Comprehensive curated list of permanently-free models.
  * FIX Q: models with type:'embedding' are filtered out of the chat UI.
  */
-const CURATED_FREE = {
+export const CURATED_FREE = {
   openrouter: [
     // ── DeepSeek ────────────────────────────────────────────────────────────────
     { id:'deepseek/deepseek-r1:free',             name:'DeepSeek R1 (671B · Reasoning)',    ctx:65536,  paramTier:'671B' },
@@ -215,13 +217,13 @@ const CURATED_FREE = {
     // ── AllenAI ───────────────────────────────────────────────────────────────────
     { id:'allenai/OLMo-2-1124-13B-Instruct',          name:'OLMo 2 13B Instruct',          ctx:4096,   paramTier:'13B' },
     { id:'allenai/OLMo-2-1124-7B-Instruct',           name:'OLMo 2 7B Instruct',           ctx:4096,   paramTier:'7B' },
-    // ── SmolLM ────────────────────────────────────────────────────────────────────
+    // ── SmolLM ───────────────────────────────────────────────────────────────────
     { id:'HuggingFaceTB/SmolLM2-1.7B-Instruct',       name:'SmolLM2 1.7B Instruct',        ctx:8192,   paramTier:'1B', uncensored:true },
     { id:'HuggingFaceTB/SmolLM2-360M-Instruct',       name:'SmolLM2 360M Instruct',        ctx:8192,   paramTier:'1B', uncensored:true },
   ]
 };
 
-const API = {
+export const API = {
   getProvider(providerName = AppState.currentProvider) {
     return PROVIDERS[providerName] || PROVIDERS.openrouter;
   },
@@ -523,3 +525,5 @@ const API = {
 
   getParamTiers() { return PARAM_TIERS; },
 };
+
+export default API;

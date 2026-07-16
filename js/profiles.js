@@ -15,7 +15,10 @@
  * deleted at any time and the page is the only origin that can read them.
  */
 
-const Profiles = (() => {
+import { AppState } from './state.js';
+import { UI } from './ui.js';
+
+export const Profiles = (() => {
   const LS_KEY = 'cwiProfiles';
 
   // ── Storage helpers ───────────────────────────────────────────────────────
@@ -213,3 +216,5 @@ const Profiles = (() => {
 
   return { getAll, add, remove, rename, activate, saveCurrentAsProfile, renderProfilesPanel, init };
 })();
+
+export default Profiles;

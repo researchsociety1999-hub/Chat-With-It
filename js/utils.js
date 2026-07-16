@@ -3,7 +3,10 @@
  * Formatting, validation, storage, and helper functions
  */
 
-const Utils = {
+import DOMPurify from 'dompurify';
+import { marked } from 'marked';
+
+export const Utils = {
   formatTokens(count) {
     return Math.floor(count).toLocaleString();
   },
@@ -116,50 +119,31 @@ const Utils = {
 
   /**
    * Parse markdown and sanitize output to prevent XSS.
-   * Uses marked + DOMPurify when available.
-   * Falls back gracefully to plain-text rendering if either CDN script failed
-   * to load (SRI mismatch, network error, etc.) — keeps the app functional.
+   * Uses marked + DOMPurify (bundled via npm).
    */
   async parseMarkdown(text) {
-    if (typeof marked !== 'undefined') {
-      try {
-        const raw = marked.parse(text);
-        if (typeof DOMPurify !== 'undefined') {
-          return DOMPurify.sanitize(raw, { USE_PROFILES: { html: true } });
-        }
-        // DOMPurify unavailable — strip dangerous tags manually
-        console.warn('DOMPurify unavailable — using manual HTML sanitisation.');
-        return raw
-          .replace(/<(script|iframe|object|embed|link|meta|form)\b[^>]*>[\s\S]*?<\/\1>/gi, '')
-          .replace(/<(script|iframe|object|embed|link|meta|form)\b[^>]*\/?>/gi, '')
-          .replace(/\s+on\w+\s*=/gi, ' data-removed=');
-      } catch (e) {
-        console.error('Markdown parse error:', e);
-        return Utils.sanitizeHtml(text);
-      }
+    try {
+      const raw = marked.parse(text);
+      return DOMPurify.sanitize(raw, { USE_PROFILES: { html: true } });
+    } catch (e) {
+      console.error('Markdown parse error:', e);
+      return Utils.sanitizeHtml(text);
     }
-    // marked unavailable — render as safe plain text
-    console.warn('marked unavailable — falling back to plain-text rendering.');
-    return Utils.sanitizeHtml(text);
   },
 
   /**
    * Highlight search matches in text.
-   * Wraps result in DOMPurify.sanitize when available to prevent XSS via
-   * crafted search queries.
+   * Wraps result in DOMPurify.sanitize to prevent XSS via crafted search queries.
    */
   highlightMatches(text, query) {
     if (!query || !text) return text;
     try {
       const regex = new RegExp(`(${Utils.escapeRegex(query)})`, 'gi');
       const highlighted = text.replace(regex, '<span class="search-highlight">$1</span>');
-      if (typeof DOMPurify !== 'undefined') {
-        return DOMPurify.sanitize(highlighted, {
-          ALLOWED_TAGS: ['span'],
-          ALLOWED_ATTR: ['class'],
-        });
-      }
-      return highlighted;
+      return DOMPurify.sanitize(highlighted, {
+        ALLOWED_TAGS: ['span'],
+        ALLOWED_ATTR: ['class'],
+      });
     } catch (e) {
       console.error('Highlight error:', e);
       return text;
@@ -194,3 +178,5 @@ const Utils = {
     return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
   },
 };
+
+export default Utils;

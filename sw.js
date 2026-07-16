@@ -7,19 +7,14 @@
  * returning users always get fresh code once the new SW takes control.
  */
 
-// FIX: bumped to v2 so returning users pick up updated JS/CSS files.
+// FIX: bumped to v4 so returning users pick up the bundled dist/app.js.
 // Increment this string on every deployment that changes cached assets.
-const CACHE_NAME = 'chatwithit-v3';
+const CACHE_NAME = 'chatwithit-v4';
 
 const PRECACHE_URLS = [
   './',
   './index.html',
-  './js/utils.js',
-  './js/state.js',
-  './js/api.js',
-  './js/ui.js',
-  './js/app.js',
-  './js/profiles.js',
+  './dist/app.js',
   './css/profiles.css',
   './manifest.json',
 ];

@@ -4,18 +4,24 @@
   "private": true,
   "description": "OpenRouter AI Chat Platform with free model discovery, file upload, token monitoring, and Markdown export",
   "scripts": {
-    "dev": "npx serve -p 3000 -l localhost",
+    "dev": "esbuild js/app.js --bundle --outfile=dist/app.js --servedir=.",
     "start": "npx serve -p 3000 -l localhost",
-    "build": "echo 'Static site - no build step required'",
+    "build": "esbuild js/app.js --bundle --minify --outfile=dist/app.js",
     "lint": "echo 'No linter configured'"
   },
   "devDependencies": {
+    "dompurify": "^3.4.12",
+    "esbuild": "^0.28.1",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^4.2.1",
+    "pdfjs-dist": "^6.1.200",
     "serve": "^14.2.0"
   },
   "engines": {
     "node": ">=16.0.0"
   },
   "dependencies": {
-    "@vercel/speed-insights": "^2.0.0"
+    "@vercel/speed-insights": "^2.0.0",
+    "marked": "^18.0.6"
   }
 }

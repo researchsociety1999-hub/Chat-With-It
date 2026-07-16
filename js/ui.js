@@ -3,7 +3,11 @@
  * Glassmorphism dark/light, animated messages, message actions, scroll-to-bottom,
  * Ctrl+K model search focus, smooth scroll, header model badge.
  */
-const UI = {
+
+import { AppState } from './state.js';
+import { Utils } from './utils.js';
+
+export const UI = {
   el(id) { return document.getElementById(id); },
 
   initEnhancements() {
@@ -73,11 +77,7 @@ const UI = {
     const banner = document.createElement('div');
     banner.id = 'unsaved-banner';
     banner.setAttribute('role', 'status');
-    let html = '💾 Unsaved — <button id="unsaved-export-btn" style="background:none;border:none;cursor:pointer;font-size:inherit;font-weight:800;color:inherit;text-decoration:underline;padding:0;margin-left:.2rem;">Export now</button>';
-    if (typeof DOMPurify !== 'undefined') {
-      html = DOMPurify.sanitize(html, { USE_PROFILES: { html: true } });
-    }
-    banner.innerHTML = html;
+    banner.innerHTML = '💾 Unsaved — <button id="unsaved-export-btn" style="background:none;border:none;cursor:pointer;font-size:inherit;font-weight:800;color:inherit;text-decoration:underline;padding:0;margin-left:.2rem;">Export now</button>';
     const anchor = this.el('composerWrap');
     if (anchor) anchor.parentNode.insertBefore(banner, anchor);
     this.el('unsaved-export-btn')?.addEventListener('click', () => { if (typeof onExport === 'function') onExport(); });
@@ -381,11 +381,7 @@ const UI = {
     const el = this.el('stat-diag');
     if (!el) return;
     const name = provider === 'huggingface' ? 'Hugging Face' : 'OpenRouter';
-    let html = `Provider: ${name}<br>Model: ${modelId === 'none' ? 'none' : modelId}`;
-    if (typeof DOMPurify !== 'undefined') {
-      html = DOMPurify.sanitize(html, { USE_PROFILES: { html: true } });
-    }
-    el.innerHTML = html;
+    el.innerHTML = `Provider: ${name}<br>Model: ${modelId === 'none' ? 'none' : modelId}`;
   },
 
   toggleStats() {
@@ -517,3 +513,5 @@ const UI = {
     }, duration);
   },
 };
+
+export default UI;

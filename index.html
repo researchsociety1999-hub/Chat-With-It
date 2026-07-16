@@ -1229,6 +1229,7 @@ input[type="range"]::-moz-range-thumb {
             <div id="export-menu" class="dropdown-menu">
               <button id="exportMd"   class="menu-item" type="button">📝 Markdown</button>
               <button id="exportJson" class="menu-item" type="button">📦 JSON</button>
+              <button id="exportPdf"  class="menu-item" type="button">📄 PDF</button>
               <button id="exportTxt"  class="menu-item" type="button">📄 Text</button>
               <div class="menu-sep"></div>
               <button id="exportCopy" class="menu-item" type="button">📋 Copy all</button>
@@ -1340,27 +1341,6 @@ input[type="range"]::-moz-range-thumb {
     </div>
   </div>
 
-  <!-- SRI-protected CDN scripts -->
-  <script
-    src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"
-    integrity="sha384-948ahk4ZmxYVYOc+rxN1H2gM1EJ2Duhp7uHtZ4WSLkV4Vtx5MUqnV+l7u9B+jFv+"
-    crossorigin="anonymous"></script>
-  <script
-    src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"
-    integrity="sha384-+VfUPEb0PdtChMwmBcBmykRMDd+v6D/oFmB3rZM/puCMDYcIvF968OimRh4KQY9a"
-    crossorigin="anonymous"></script>
-  <script src="js/utils.js"></script>
-  <script src="js/state.js"></script>
-  <script src="js/api.js"></script>
-  <script src="js/ui.js"></script>
-  <script src="js/app.js"></script>
-  <script src="js/profiles.js"></script>
-  <script>
-    // Ctrl+K is handled in app.js setupUIListeners() — no duplicate needed here.
-    document.addEventListener('DOMContentLoaded', function() {
-      if (typeof Profiles !== 'undefined') Profiles.init();
-    });
-  </script>
   <!-- Service Worker registration — activates PWA install + offline caching -->
   <script>
     if ('serviceWorker' in navigator) {
@@ -1371,5 +1351,7 @@ input[type="range"]::-moz-range-thumb {
       });
     }
   </script>
+  <!-- Phase 4: bundled ES module (marked + DOMPurify + app code) -->
+  <script type="module" src="dist/app.js"></script>
 </body>
 </html>

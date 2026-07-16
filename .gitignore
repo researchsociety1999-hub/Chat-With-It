@@ -18,7 +18,10 @@ Thumbs.db
 *~
 
 # Build outputs
-dist/
+# NOTE: dist/app.js IS committed — it is the bundled entry point referenced by
+# index.html. Only ignore source maps / intermediate build artifacts.
+dist/*.map
+dist/.cache/
 build/
 
 # Environment variables
