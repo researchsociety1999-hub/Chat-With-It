@@ -29,8 +29,6 @@ jobs:
           node-version: '20'
       - run: npm ci
       - run: npm run build
-      - uses: amondnet/vercel-action@v25
-        with:
       - name: Deploy to Vercel
         run: npx vercel --token ${{ secrets.VERCEL_TOKEN }} --prod --yes
         env:
