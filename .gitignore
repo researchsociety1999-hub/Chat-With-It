@@ -28,3 +28,5 @@ build/
 .env
 .env.local
 .env.production
+
+CLAUDE.md
