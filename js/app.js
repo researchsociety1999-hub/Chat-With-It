@@ -187,20 +187,25 @@ export const App = {
   },
 
   async authenticate() {
+  try {
     const input = UI.el('apiKeyInput');
-    const key   = input?.value.trim();
+    const key = input?.value.trim();
     if (!Utils.isValidApiKey(key)) {
       UI.toast('Invalid API key format', 'error');
       if (input) input.focus();
       return;
     }
-    if (AppState.currentProvider === 'openrouter') AppState.apiKey  = key;
-    else                                            AppState.hfToken = key;
+    if (AppState.currentProvider === 'openrouter') AppState.apiKey = key;
+    else AppState.hfToken = key;
     input.value = '';
+    await this.refreshModels();
     UI.setAuthState(true, `${PROVIDERS[AppState.currentProvider].name} authenticated`);
     UI.toast('✅ Authenticated', 'success');
-    await this.refreshModels();
-  },
+  } catch (err) {
+    UI.toast('Authentication failed', 'error');
+    UI.setAuthState(false, 'Authentication failed');
+  }
+},
 
   setupModelListeners() {
     UI.el('modelSelect').addEventListener('change', (e) => {
@@ -464,7 +469,10 @@ export const App = {
 
   async sendMessage(options = {}) {
     // FIX Zara/Dev: guard against DOMPurify not loaded
-    if (!window.DOMPurify) return;
+    if (!window.DOMPurify) {
+      UI.toast('Security library missing. Chat disabled.', 'error');
+      return;
+    }
 
     if (this._sending) return;
     const { isRetry = false } = options;
