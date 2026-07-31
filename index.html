@@ -16,6 +16,7 @@
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='88'%3E%F0%9F%92%AC%3C/text%3E%3C/svg%3E">
   <!-- FIX U: PWA manifest link -->
   <link rel="manifest" href="manifest.json">
+  <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,600,700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/profiles.css">
   <style>
 /* ─── Design Tokens ─────────────────────────────────────────────────────── */
@@ -30,11 +31,11 @@
   --fg:          #e8eeff;
   --fg-muted:    #7b8db8;
   --fg-subtle:   #4a5578;
-  --accent:      #7c3aed;
-  --accent-glow: rgba(124,58,237,0.35);
+  --accent:      #0ea5e9;
+  --accent-glow: rgba(14,165,233,0.30);
   --accent-2:    #06b6d4;
   --accent-3:    #f59e0b;
-  --user-bubble: linear-gradient(135deg,#4f46e5,#7c3aed);
+  --user-bubble: linear-gradient(135deg,#0284c7,#0ea5e9);
   --ai-bubble:   rgba(255,255,255,0.04);
   --danger:      #ef4444;
   --success:     #22c55e;
@@ -97,10 +98,10 @@ html {
   --fg:          #0f172a;
   --fg-muted:    #5264a0;
   --fg-subtle:   #94a3c8;
-  --accent:      #6d28d9;
-  --accent-glow: rgba(109,40,217,0.2);
+  --accent:      #0ea5e9;
+  --accent-glow: rgba(14,165,233,0.2);
   --accent-2:    #0891b2;
-  --user-bubble: linear-gradient(135deg,#4338ca,#6d28d9);
+  --user-bubble: linear-gradient(135deg,#0284c7,#0ea5e9);
   --ai-bubble:   rgba(0,0,0,0.04);
   --shadow:      0 8px 32px rgba(100,116,200,.18);
   --shadow-sm:   0 2px 8px rgba(100,116,200,.12);
@@ -150,6 +151,33 @@ html {
   body {
     overflow-x: hidden;
   }
+}
+body {
+  margin: 0;
+  overflow: hidden;
+  height: 100dvh;
+  font-family: 'Satoshi', system-ui, sans-serif;
+  background-color: var(--bg);
+  color: var(--fg);
+}
+.app {
+  display: grid;
+  grid-template-columns: var(--sidebar-w) 1fr var(--rp-w);
+  height: 100dvh;
+  overflow: hidden;
+}
+.sidebar {
+  height: 100dvh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: .75rem;
+  padding: 1rem .85rem;
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  flex-shrink: 0;
+  scrollbar-width: thin;
 }
 .brand {
   display: flex;
@@ -399,6 +427,7 @@ input[type="range"]::-moz-range-thumb {
   min-width: 0;
   overflow: hidden;
   background: transparent;
+  min-height: 0;
 }
 
 /* ─── Chat Header ─────────────────────────────────────────────────────────── */
@@ -470,6 +499,7 @@ input[type="range"]::-moz-range-thumb {
   flex-direction: column;
   gap: 1.25rem;
   scroll-behavior: smooth;
+  scrollbar-width: thin;
 }
 
 /* ─── Welcome Screen ─────────────────────────────────────────────────────── */
@@ -732,7 +762,8 @@ input[type="range"]::-moz-range-thumb {
   font-size: .88rem;
   animation: stopPulse 2s infinite;
   /* FIX: visibility:hidden keeps layout stable; display:none caused reflow */
-  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
 }
 @keyframes stopPulse { 0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,0)} 50%{box-shadow:0 0 0 5px rgba(239,68,68,.15)} }
 
@@ -1113,7 +1144,12 @@ input[type="range"]::-moz-range-thumb {
     <!-- ── Sidebar ─────────────────────────────────────── -->
     <aside id="sidebar" class="sidebar">
       <div class="brand">
-        <span class="brand-icon">💬</span>
+        <span class="brand-icon">
+          <svg aria-label="ChatWithIt logo" width="32" height="32" viewBox="0 0 48 48" fill="none" style="vertical-align: middle">
+            <rect width="48" height="48" rx="12" fill="var(--accent)"/>
+            <path d="M12 16h24M12 24h18M12 32h12" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+          </svg>
+        </span>
         ChatWithIt
         <span class="brand-badge">Free</span>
         <button id="lockBtn" class="btn btn-ghost btn-sm" type="button" title="Lock app" aria-label="Lock app" style="margin-left:auto">🔒</button>
@@ -1139,7 +1175,7 @@ input[type="range"]::-moz-range-thumb {
         <div id="authHint" class="muted" style="font-size:.73rem">OpenRouter key (sk-or-…) — <a id="authHintLink" href="https://openrouter.ai/keys" target="_blank" rel="noreferrer" style="color:var(--accent-2)">Get key →</a></div>
         <!-- FIX: Profiles panel (feature 3) -->
         <div class="profiles-wrapper" style="margin-top:.25rem">
-          <button id="profilesToggleBtn" aria-expanded="false" aria-haspopup="true">🔑 Profiles</button>
+          <button id="profilesToggleBtn" class="btn btn-sm btn-ghost" aria-expanded="false" aria-haspopup="true">🔑 Profiles</button>
           <div id="profilesPanel" role="menu" aria-label="API key profiles"></div>
         </div>
       </div>
@@ -1253,7 +1289,12 @@ input[type="range"]::-moz-range-thumb {
         <div id="chatBody" class="chat-body" role="log" aria-live="polite" aria-relevant="additions">
           <!-- Welcome -->
           <div id="welcome" class="welcome">
-            <div class="welcome-logo">💬</div>
+            <div class="welcome-logo">
+              <svg aria-label="ChatWithIt logo" width="48" height="48" viewBox="0 0 48 48" fill="none">
+                <rect width="48" height="48" rx="12" fill="var(--accent)"/>
+                <path d="M12 16h24M12 24h18M12 32h12" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+              </svg>
+            </div>
             <h2>Start a conversation</h2>
             <p>Choose a model, pick a persona, and send a message. Your API key stays in memory only — never logged or stored.</p>
             <div class="chips">
