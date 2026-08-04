@@ -16,4 +16,9 @@ jobs:
           node-version: '20'
       - run: npm ci
       - run: npm run build
+      - name: Check bundle size
+        run: |
+          SIZE=$(gzip -c dist/app.js | wc -c)
+          echo "Gzipped size: ${SIZE} bytes"
+          if [ "$SIZE" -gt 512000 ]; then exit 1; fi
       - run: test -f dist/app.js
