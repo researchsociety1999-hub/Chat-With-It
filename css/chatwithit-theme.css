@@ -1,0 +1,110 @@
+/* chatwithit-theme.css
+   Opt-in brand theme layer for ChatWithIt (dark + violet/neon).
+   Does NOT auto-apply — activate by adding data-theme="chatwithit"
+   to <html> or <body>, and linking this file in index.html:
+     <link rel="stylesheet" href="css/chatwithit-theme.css">
+   This file intentionally avoids any global resets or selectors
+   that could affect existing styles when merely present but unlinked. */
+
+[data-theme="chatwithit"] {
+  --cwi-bg: #0a0a0f;
+  --cwi-surface: #13121a;
+  --cwi-surface-alt: #1b1a24;
+  --cwi-border: #2a2836;
+  --cwi-accent: #7c5cff;
+  --cwi-accent-2: #a78bfa;
+  --cwi-accent-glow: rgba(124, 92, 255, 0.35);
+  --cwi-success: #22c55e;
+  --cwi-text-primary: #f5f4f7;
+  --cwi-text-muted: #9a97a8;
+  --cwi-radius-sm: 6px;
+  --cwi-radius-md: 10px;
+  --cwi-radius-lg: 16px;
+  --cwi-font-heading: 'Satoshi', system-ui, -apple-system, sans-serif;
+  --cwi-font-body: 'Inter', system-ui, -apple-system, sans-serif;
+
+  background: var(--cwi-bg);
+  color: var(--cwi-text-primary);
+  font-family: var(--cwi-font-body);
+}
+
+[data-theme="chatwithit"] .cwi-heading {
+  font-family: var(--cwi-font-heading);
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--cwi-text-primary) 0%, var(--cwi-accent-2) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+[data-theme="chatwithit"] .cwi-surface {
+  background: var(--cwi-surface);
+  border: 1px solid var(--cwi-border);
+  border-radius: var(--cwi-radius-md);
+}
+
+[data-theme="chatwithit"] .cwi-glow-border {
+  border: 1px solid var(--cwi-accent);
+  box-shadow: 0 0 24px var(--cwi-accent-glow);
+}
+
+[data-theme="chatwithit"] .cwi-btn-primary {
+  background: var(--cwi-accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--cwi-radius-sm);
+  padding: 10px 18px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+[data-theme="chatwithit"] .cwi-btn-primary:hover {
+  background: var(--cwi-accent-2);
+  box-shadow: 0 0 16px var(--cwi-accent-glow);
+}
+
+[data-theme="chatwithit"] .cwi-btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+[data-theme="chatwithit"] input,
+[data-theme="chatwithit"] textarea {
+  background: var(--cwi-surface-alt);
+  border: 1px solid var(--cwi-border);
+  border-radius: var(--cwi-radius-sm);
+  color: var(--cwi-text-primary);
+  padding: 10px 12px;
+}
+
+[data-theme="chatwithit"] input:focus,
+[data-theme="chatwithit"] textarea:focus {
+  outline: none;
+  border-color: var(--cwi-accent);
+  box-shadow: 0 0 0 3px var(--cwi-accent-glow);
+}
+
+[data-theme="chatwithit"] .cwi-sidebar {
+  background: var(--cwi-surface);
+  border-right: 1px solid var(--cwi-border);
+}
+
+[data-theme="chatwithit"] .cwi-badge-privacy {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: var(--cwi-accent-2);
+  border: 1px solid var(--cwi-border);
+  border-radius: 999px;
+  padding: 4px 12px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-theme="chatwithit"] * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
