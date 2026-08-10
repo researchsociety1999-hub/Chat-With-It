@@ -289,8 +289,7 @@ export const App = {
   },
 
   _renderModelOptions(models, sel) {
-    const providerCfg = API.getProvider();
-    const badge = providerCfg?.badgeLabel ? `[${providerCfg.badgeLabel}] ` : '';
+    // Badge kept for header/meta only — do not prepend OR/HF to dropdown labels
     sel.innerHTML = '';
     const hint = UI.el('modelFilterHint');
     const searchVal = UI.el('searchInput')?.value?.trim();
@@ -306,7 +305,7 @@ export const App = {
       opt.value = m.id;
       const cooldownSecs = AppState.modelCooldownSecondsLeft(m.id);
       const cooldownTag  = cooldownSecs > 0 ? ` ⏳ ${cooldownSecs}s` : '';
-      opt.textContent = badge + m.name + (m.uncensored ? ' 🔓' : '') + cooldownTag;
+      opt.textContent = m.name + (m.uncensored ? ' 🔓' : '') + cooldownTag;
       if (m.id === AppState.selectedModel) opt.selected = true;
       sel.appendChild(opt);
     });
@@ -330,14 +329,12 @@ export const App = {
         this._cooldownInterval = null;
         return;
       }
-      const providerCfg = API.getProvider();
-      const badge = providerCfg?.badgeLabel ? `[${providerCfg.badgeLabel}] ` : '';
       Array.from(sel.options).forEach(opt => {
         const model = models.find(m => m.id === opt.value);
         if (!model) return;
         const secs = AppState.modelCooldownSecondsLeft(model.id);
         const tag  = secs > 0 ? ` ⏳ ${secs}s` : '';
-        opt.textContent = badge + model.name + (model.uncensored ? ' 🔓' : '') + tag;
+        opt.textContent = model.name + (model.uncensored ? ' 🔓' : '') + tag;
       });
     }, 1000);
   },
