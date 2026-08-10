@@ -54,6 +54,20 @@ export const PARAM_TIERS = [
 ];
 
 /**
+ * Detect free OpenRouter models by :free suffix or zero pricing.
+ */
+function isOpenRouterFreeModel(model) {
+  if (!model?.id) return false;
+  if (model.id.endsWith(':free')) return true;
+  const prompt = Number(model.pricing?.prompt);
+  const completion = Number(model.pricing?.completion);
+  return Number.isFinite(prompt) &&
+         Number.isFinite(completion) &&
+         prompt === 0 &&
+         completion === 0;
+}
+
+/**
  * Comprehensive curated list of permanently-free models.
  * FIX Q: models with type:'embedding' are filtered out of the chat UI.
  */
@@ -343,7 +357,7 @@ export const API = {
 
     if (providerName === 'openrouter') {
       models = (data.data || [])
-        .filter(m => m.id && m.id.endsWith(':free'))
+        .filter(isOpenRouterFreeModel)
         .map(m => {
           const curated = curatedMap[m.id];
           return {
