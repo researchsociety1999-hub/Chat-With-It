@@ -85,6 +85,7 @@ body { margin: 0; overflow: hidden; height: 100dvh; font-family: 'Satoshi', syst
     overflow-x: hidden;
   }
   .sidebar.open { display: flex; animation: slideIn .22s ease; }
+  body.sidebar-open #composerWrap { display: none; }
   @keyframes slideIn { from{transform:translateX(-100%)} to{transform:translateX(0)} }
   .msg-col { max-width: min(88%, 620px); }
   .chat-body { padding: 1rem .85rem; }
