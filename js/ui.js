@@ -472,6 +472,7 @@ export const UI = {
     AppState.sidebarOpen = isOpen;
     if (overlay) overlay.classList.toggle('show', isOpen);
     if (toggle)  toggle.setAttribute('aria-expanded', String(isOpen));
+    document.body.classList.toggle('sidebar-open', isOpen);
   },
 
   // Retry button
