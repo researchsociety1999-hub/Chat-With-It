@@ -16,59 +16,11 @@
   <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,600,700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/profiles.css">
   <style>
-:root {
-  --bg: #0d0f1a; --bg2: #111425; --panel: rgba(18,22,42,0.85); --panel-solid: #12162a;
-  --panel-2: rgba(255,255,255,0.04); --border: rgba(255,255,255,0.08); --border-2: rgba(255,255,255,0.13);
-  --fg: #e8eeff; --fg-muted: #7b8db8; --fg-subtle: #4a5578; --accent: #0ea5e9; --accent-glow: rgba(14,165,233,0.30);
-  --accent-2: #06b6d4; --accent-3: #f59e0b; --user-bubble: linear-gradient(135deg,#0284c7,#0ea5e9);
-  --ai-bubble: rgba(255,255,255,0.04); --danger: #ef4444; --success: #22c55e; --warn: #f59e0b;
-  --radius: 1rem; --radius-sm: .6rem; --radius-xs: .4rem; --shadow: 0 8px 32px rgba(0,0,0,.45);
-  --shadow-sm: 0 2px 8px rgba(0,0,0,.3); --blur: blur(18px); --transition: .2s cubic-bezier(.4,0,.2,1);
-  --sidebar-w: 280px; --rp-w: 300px;
-}
-html.high-contrast {
-  --bg: #000000; --bg2: #000000; --panel: rgba(0,0,0,0.9); --panel-solid: #000000; --panel-2: rgba(255,255,255,0.05);
-  --border: #ffffff; --border-2: #ffffff; --fg: #ffffff; --fg-muted: #cccccc; --fg-subtle: #999999;
-  --accent: #ffff00; --accent-glow: rgba(255,255,0,0.3); --accent-2: #00ffff; --accent-3: #ff00ff;
-  --user-bubble: #0066cc; --ai-bubble: #003366; --danger: #ff0000; --success: #00ff00; --warn: #ffff00;
-  --shadow: 0 8px 32px rgba(255,255,255,0.5); --shadow-sm: 0 2px 8px rgba(255,255,255,0.3);
-}
-html.high-contrast body { background-image: none !important; background-color: var(--bg) !important; }
-html { transition: background-color .2s ease, color .2s ease; }
-[data-theme="light"] {
-  --bg: #f0f4ff; --bg2: #e6ecfb; --panel: rgba(255,255,255,0.82); --panel-solid: #ffffff;
-  --panel-2: rgba(0,0,0,0.04); --border: rgba(0,0,0,0.09); --border-2: rgba(0,0,0,0.15);
-  --fg: #0f172a; --fg-muted: #5264a0; --fg-subtle: #94a3c8; --accent: #0ea5e9; --accent-glow: rgba(14,165,233,0.2);
-  --accent-2: #0891b2; --user-bubble: linear-gradient(135deg,#0284c7,#0ea5e9); --ai-bubble: rgba(0,0,0,0.04);
-  --shadow: 0 8px 32px rgba(100,116,200,.18); --shadow-sm: 0 2px 8px rgba(100,116,200,.12);
-}
-[data-theme="light"] body {
-  background-image: radial-gradient(ellipse 80% 60% at 20% -10%, rgba(109,40,217,.08) 0%, transparent 60%), radial-gradient(ellipse 60% 40% at 80% 110%, rgba(8,145,178,.07) 0%, transparent 60%);
-}
-[data-theme="violet"] {
-  --bg: #0a0a0f; --bg2: #120f1e; --panel: rgba(20,16,32,0.85); --panel-solid: #14101f;
-  --panel-2: rgba(255,255,255,0.045); --border: rgba(124,92,255,0.16); --border-2: rgba(124,92,255,0.28);
-  --fg: #f1eefc; --fg-muted: #a99fc9; --fg-subtle: #5f5480; --accent: #7c5cff; --accent-glow: rgba(124,92,255,0.32);
-  --accent-2: #a78bfa; --accent-3: #f59e0b; --user-bubble: linear-gradient(135deg,#6d28d9,#7c5cff);
-  --ai-bubble: rgba(255,255,255,0.045); --danger: #ef4444; --success: #22c55e; --warn: #f59e0b;
-  --shadow: 0 8px 32px rgba(0,0,0,.55); --shadow-sm: 0 2px 8px rgba(0,0,0,.4);
-}
-[data-theme="violet"] body {
-  background-image: radial-gradient(ellipse 80% 60% at 20% -10%, rgba(124,92,255,.16) 0%, transparent 60%), radial-gradient(ellipse 60% 40% at 80% 110%, rgba(167,139,250,.10) 0%, transparent 60%);
-}
-@media (max-width: 768px) {
-  #composerWrap { position: fixed; bottom: 0; left: 0; right: 0; z-index: 1000; background: var(--panel); padding: .75rem 1rem; padding-bottom: calc(.75rem + env(safe-area-inset-bottom,0px)); border-top: 1px solid var(--border); }
-  .main { padding-bottom: 80px; }
-  .btn, .menu-item, .persona-card, .chip, .confirm-btn { min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; }
-  .chat-body { padding-bottom: 80px; }
-}
-@media (width: 375px), (width: 768px), (width: 1440px) { body { overflow-x: hidden; } }
-body { margin: 0; overflow: hidden; height: 100dvh; font-family: 'Satoshi', system-ui, sans-serif; background-color: var(--bg); color: var(--fg); }
-.app { display: grid; grid-template-columns: var(--sidebar-w) 1fr var(--rp-w); height: 100dvh; overflow: hidden; }
-.sidebar { height: 100dvh; overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; gap: .75rem; padding: 1rem .85rem; background: var(--panel); border-right: 1px solid var(--border); flex-shrink: 0; scrollbar-width: thin; }
-/* PLACEHOLDER_CONTINUE */
-</style>
+/* FULL_CONTENT_FROM_FILE - see next approach */
+  </style>
 </head>
 <body>
+  <p>TEMP - will be replaced with full content</p>
+  <script type="module" src="dist/app.js"></script>
 </body>
 </html>
