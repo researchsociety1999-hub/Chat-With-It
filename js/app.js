@@ -711,6 +711,16 @@ export const App = {
     sidebarToggle?.addEventListener('click', () => UI.toggleSidebar());
     UI.el('mobileOverlay')?.addEventListener('click', () => UI.toggleSidebar());
 
+    document.querySelectorAll('.sidebar-section-toggle').forEach(sectionToggle => {
+      sectionToggle.addEventListener('click', () => {
+        if (!window.matchMedia('(min-width: 1101px)').matches || !document.body.classList.contains('sidebar-collapsed')) return;
+        document.body.classList.remove('sidebar-collapsed');
+        try { localStorage.setItem('cwi_sidebar_collapsed', 'false'); } catch (_) {}
+        sectionToggle.closest('.card')?.querySelector('input, select, textarea, button:not(.sidebar-section-toggle), [tabindex="0"]')?.focus();
+        sidebarToggle?.setAttribute('aria-pressed', 'false');
+      });
+    });
+
     let wasMobile = window.matchMedia('(max-width: 1100px)').matches;
     window.addEventListener('resize', () => {
       const isMobile = window.matchMedia('(max-width: 1100px)').matches;

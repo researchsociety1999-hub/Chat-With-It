@@ -115,6 +115,8 @@ body { margin: 0; overflow: hidden; height: 100dvh; font-family: 'Satoshi', syst
 .card { background: var(--panel-2); border: 1px solid var(--border); border-radius: var(--radius); padding: .9rem; display: flex; flex-direction: column; gap: .6rem; transition: border-color var(--transition); }
 .card:hover { border-color: var(--border-2); }
 .card-title { font-size: .7rem; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--fg-subtle); margin-bottom: .1rem; }
+.sidebar-section-toggle { border: 0; padding: 0; background: transparent; color: var(--fg-subtle); font: inherit; text-align: left; cursor: pointer; }
+.sidebar-section-toggle:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: .35rem; }
 .ptabs { display: grid; grid-template-columns: 1fr 1fr; gap: .35rem; background: var(--panel-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: .25rem; }
 .ptab { padding: .45rem .5rem; border-radius: calc(var(--radius-sm) - 2px); border: none; background: transparent; color: var(--fg-muted); font-size: .82rem; font-weight: 600; cursor: pointer; transition: all var(--transition); text-align: center; }
 .ptab:hover { color: var(--fg); background: var(--panel-2); }
@@ -496,7 +498,7 @@ input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; border-radius
         <button id="lockBtn" class="btn btn-ghost btn-sm" type="button" title="Lock app" aria-label="Lock app" style="margin-left:auto">🔒</button>
       </div>
       <div class="card">
-        <div class="card-title" data-icon="🔌" title="Provider">Provider</div>
+        <button class="card-title sidebar-section-toggle" data-icon="🔌" title="Provider" aria-label="Open Provider settings" type="button">Provider</button>
         <div class="ptabs" role="tablist" aria-label="Providers">
           <button class="ptab active" data-provider="openrouter" aria-selected="true">OpenRouter</button>
           <button class="ptab" data-provider="huggingface" aria-selected="false">HF</button>
@@ -515,7 +517,7 @@ input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; border-radius
         </div>
       </div>
       <div class="card">
-        <div class="card-title" data-icon="🤖" title="Model">Model</div>
+        <button class="card-title sidebar-section-toggle" data-icon="🤖" title="Model" aria-label="Open Model settings" type="button">Model</button>
         <label for="paramFilter" class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)">Parameter filter</label>
         <select id="paramFilter" aria-label="Parameter filter"></select>
         <label for="searchInput" class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)">Search models</label>
@@ -527,14 +529,14 @@ input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; border-radius
         <div id="modelCount" class="muted" style="font-size:.72rem">0 models</div>
       </div>
       <div class="card">
-        <div class="card-title" data-icon="⚙️" title="Generation">Generation</div>
+        <button class="card-title sidebar-section-toggle" data-icon="⚙️" title="Generation" aria-label="Open Generation settings" type="button">Generation</button>
         <div class="row" style="justify-content:space-between;font-size:.8rem"><label for="tempSlider">Temperature</label><span id="tempVal" style="font-weight:700">0.7</span></div>
         <input id="tempSlider" type="range" min="0" max="2" step="0.1" value="0.7" aria-label="Temperature">
         <div class="row" style="justify-content:space-between;font-size:.8rem"><label for="maxTokensSlider">Max tokens</label><span id="maxTokensVal" style="font-weight:700">1,024</span></div>
         <input id="maxTokensSlider" type="range" min="128" max="8192" step="128" value="1024" aria-label="Max tokens">
       </div>
       <div class="card">
-        <div class="sidebar-card-heading" style="display:flex;align-items:center;justify-content:space-between"><div class="card-title" data-icon="👤" title="Persona" style="margin:0">Persona</div><button id="shortcutsBtn" class="btn btn-sm btn-ghost" type="button">⌨ Shortcuts</button></div>
+        <div class="sidebar-card-heading" style="display:flex;align-items:center;justify-content:space-between"><button class="card-title sidebar-section-toggle" data-icon="👤" title="Persona" aria-label="Open Persona settings" type="button" style="margin:0">Persona</button><button id="shortcutsBtn" class="btn btn-sm btn-ghost" type="button">⌨ Shortcuts</button></div>
         <div id="personaLabel" class="muted" style="font-size:.76rem;font-weight:600">Active: Assistant</div>
         <div class="persona-grid">
           <div class="persona-card active" tabindex="0" data-prompt="You are a helpful AI assistant. Be concise, accurate, and developer-friendly. Use Markdown formatting in your responses."><span class="persona-icon">🤖</span><div class="persona-info"><strong>Assistant</strong><div class="muted">Balanced default helper</div></div></div>
