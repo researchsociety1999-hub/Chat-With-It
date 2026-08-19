@@ -28,6 +28,7 @@ describe('sidebar behavior', () => {
   beforeEach(() => {
     renderSidebarFixture();
     document.body.className = '';
+    localStorage.clear();
     AppState.sidebarOpen = false;
     setViewport(viewportWidth);
   });
@@ -64,6 +65,15 @@ describe('sidebar behavior', () => {
     expect(document.querySelector('#mobileOverlay').classList.contains('show')).toBe(false);
     expect(document.querySelector('#sidebarToggle').getAttribute('aria-pressed')).toBe('true');
     expect(AppState.sidebarOpen).toBe(false);
+  });
+
+  it('restores the persisted desktop collapse state', () => {
+    setViewport(1440);
+    localStorage.setItem('cwi_sidebar_collapsed', 'true');
+
+    UI.loadSidebarState();
+
+    expect(document.body.classList.contains('sidebar-collapsed')).toBe(true);
   });
 
   it('cleans stale mobile state when invoked on desktop', () => {

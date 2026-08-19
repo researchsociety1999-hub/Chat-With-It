@@ -21,6 +21,7 @@ export const App = {
       AppState.applyTheme();
       AppState.applyHighContrast();
       UI.loadTheme();
+      UI.loadSidebarState();
 
       // DOMPurify is bundled via npm — if the import failed the app cannot
       // safely render markdown, so disable chat and surface a banner.
@@ -68,11 +69,6 @@ export const App = {
       await this.refreshModels();
       this._restorePersonaCard();
       UI.initScrollBtn();
-
-      const privacy = document.querySelector('.privacy-panel');
-      if (privacy && !privacy.hasAttribute('open')) {
-        privacy.setAttribute('open', '');
-      }
 
       const hint = UI.el('authHint');
       const hintLink = UI.el('authHintLink');
@@ -252,6 +248,8 @@ export const App = {
       return false;
     }
 
+    sel.classList.add('loading');
+    sel.classList.remove('error');
     sel.innerHTML = '<option value="none" disabled selected>Loading…</option>';
 
     try {
@@ -264,6 +262,8 @@ export const App = {
 
       sel.innerHTML = '';
       if (!models.length) {
+        sel.classList.remove('loading');
+        sel.classList.add('error');
         sel.innerHTML = '<option value="none" disabled selected>No models for this filter</option>';
         UI.updateModelCount(0, 0);
         return false;
@@ -295,9 +295,12 @@ export const App = {
         const ctxK = found.ctx ? `${(found.ctx / 1000).toFixed(0)}k ctx` : '';
         UI.el('modelMeta').textContent = [found.paramTier, ctxK, found.uncensored ? '🔓 uncensored' : ''].filter(Boolean).join(' · ');
       }
+      sel.classList.remove('loading', 'error');
       return true;
     } catch (error) {
       console.error('refreshModels error:', error);
+      sel.classList.remove('loading');
+      sel.classList.add('error');
       sel.innerHTML = '<option value="none" disabled selected>Failed to load</option>';
       UI.updateModelCount(0, 0);
       UI.toast(`Model load failed: ${error.message}`, 'error');
@@ -710,9 +713,13 @@ export const App = {
         document.body.classList.remove('sidebar-open');
         AppState.sidebarOpen = false;
         sidebarToggle?.setAttribute('aria-expanded', 'false');
+        UI.loadSidebarState();
       } else if (!wasMobile && isMobile) {
         document.body.classList.remove('sidebar-collapsed');
+        document.body.classList.remove('stats-open');
+        UI.el('rightPanel')?.classList.remove('open');
         sidebarToggle?.setAttribute('aria-pressed', 'false');
+        UI.el('statsBtn')?.setAttribute('aria-expanded', 'false');
       }
       wasMobile = isMobile;
     });
@@ -723,12 +730,14 @@ export const App = {
         AppState.setTheme(theme);
         UI.setTheme(theme);
         themeMenu.classList.remove('open');
+        UI.el('themeBtn')?.setAttribute('aria-expanded', 'false');
         UI.toast(`Theme: ${opt.textContent.trim()}`, 'info');
       });
     });
     UI.el('themeBtn')?.addEventListener('click', (e) => {
       e.stopPropagation();
-      themeMenu?.classList.toggle('open');
+      const isOpen = themeMenu?.classList.toggle('open') || false;
+      UI.el('themeBtn')?.setAttribute('aria-expanded', String(isOpen));
     });
 
     const tempSlider = UI.el('tempSlider');
@@ -777,8 +786,11 @@ export const App = {
     });
 
     document.addEventListener('click', (e) => {
-      if (!e.target.closest('.theme-wrap'))  themeMenu?.classList.remove('open');
-      if (!e.target.closest('.export-wrap')) UI.el('export-menu')?.classList.remove('open');
+      if (!e.target.closest('#themeBtn, #theme-menu')) {
+        themeMenu?.classList.remove('open');
+        UI.el('themeBtn')?.setAttribute('aria-expanded', 'false');
+      }
+      if (!e.target.closest('#exportBtn, #export-menu')) UI.el('export-menu')?.classList.remove('open');
     });
   },
 

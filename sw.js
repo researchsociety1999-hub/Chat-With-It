@@ -9,7 +9,7 @@
 
 // FIX: bumped to v4 so returning users pick up the bundled dist/app.js.
 // Increment this string on every deployment that changes cached assets.
-const CACHE_NAME = 'chatwithit-v5';
+const CACHE_NAME = 'chatwithit-v9';
 
 const PRECACHE_URLS = [
   './',

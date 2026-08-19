@@ -38,11 +38,33 @@ export const UI = {
   loadTheme() {
     let stored = 'dark';
     try { stored = localStorage.getItem('cwi_theme') || 'dark'; } catch (_) {}
-    document.documentElement.setAttribute('data-theme', stored);
+    this.setThemeAttribute(stored);
+  },
+
+  setThemeAttribute(theme) {
+    const resolved = theme === 'system'
+      ? (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark')
+      : theme;
+    document.documentElement.setAttribute('data-theme', resolved);
+    this.updateThemeMenu(theme);
+  },
+
+  updateThemeMenu(theme) {
+    document.querySelectorAll('.theme-opt').forEach(option => {
+      const selected = option.dataset.theme === theme;
+      option.setAttribute('aria-pressed', String(selected));
+    });
+  },
+
+  loadSidebarState() {
+    if (!window.matchMedia('(min-width: 1101px)').matches) return;
+    try {
+      document.body.classList.toggle('sidebar-collapsed', localStorage.getItem('cwi_sidebar_collapsed') === 'true');
+    } catch (_) {}
   },
 
   setTheme(theme) {
-    document.documentElement.setAttribute('data-theme', theme);
+    this.setThemeAttribute(theme);
     try { localStorage.setItem('cwi_theme', theme); } catch (_) {}
   },
 
@@ -388,6 +410,8 @@ export const UI = {
     const panel = this.el('rightPanel');
     if (!panel) return;
     const isOpen = panel.classList.toggle('open');
+    document.body.classList.toggle('stats-open', isOpen);
+    this.el('statsBtn')?.setAttribute('aria-expanded', String(isOpen));
     if (isOpen) {
       this.updateStats(AppState.totalPromptTokens || 0, AppState.totalCompletionTokens || 0);
       this.updateRateLimitInfo(AppState.getRemainingRequests());
@@ -507,6 +531,7 @@ export const UI = {
   collapseSidebarDesktop() {
     if (!window.matchMedia('(min-width: 1101px)').matches) return;
     const collapsed = document.body.classList.toggle('sidebar-collapsed');
+    try { localStorage.setItem('cwi_sidebar_collapsed', String(collapsed)); } catch (_) {}
     const toggle = this.el('sidebarToggle');
     if (toggle) {
       toggle.setAttribute('aria-pressed', String(collapsed));
