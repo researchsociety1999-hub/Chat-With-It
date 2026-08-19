@@ -7,15 +7,19 @@
     "dev": "esbuild js/app.js --bundle --outfile=dist/app.js --servedir=.",
     "start": "npx serve -p 3000 -l localhost",
     "build": "esbuild js/app.js --bundle --minify --outfile=dist/app.js",
-    "lint": "echo 'No linter configured'"
+    "lint": "echo 'No linter configured'",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "devDependencies": {
     "dompurify": "^3.4.12",
     "esbuild": "^0.28.1",
     "html2canvas": "^1.4.1",
+    "jsdom": "^29.1.1",
     "jspdf": "^4.2.1",
     "pdfjs-dist": "^6.1.200",
-    "serve": "^14.2.0"
+    "serve": "^14.2.0",
+    "vitest": "^4.1.11"
   },
   "engines": {
     "node": ">=16.0.0"
