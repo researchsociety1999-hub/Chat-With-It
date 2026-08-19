@@ -16,7 +16,7 @@
 }
 #profilesToggleBtn:hover {
   color: var(--text-primary, #e5e7eb);
-  border-color: var(--accent, #6366f1);
+  border-color: var(--accent, #0ea5e9);
 }
 
 /* Wrapper: position:relative so the panel anchors to it */

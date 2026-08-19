@@ -30,3 +30,4 @@ build/
 .env.production
 
 CLAUDE.md
+.aider*
