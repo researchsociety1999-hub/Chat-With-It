@@ -400,7 +400,11 @@ export const UI = {
     const send = this.el('sendBtn');
     const stop = this.el('stopBtn');
     if (send) { send.disabled = !enabled; send.setAttribute('aria-disabled', String(!enabled)); }
-    if (stop) stop.style.visibility = enabled ? 'hidden' : 'visible';
+    // FIX B1: toggle a class instead of inline visibility. index.html CSS owns
+    // the stop button's visible/hidden state via opacity+pointer-events, and an
+    // inline `style.visibility` never overrides CSS opacity, so the stop button
+    // used to stay invisible+unclickable while streaming.
+    if (stop) stop.classList.toggle('streaming-visible', !enabled);
   },
 
   // Char count

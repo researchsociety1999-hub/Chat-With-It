@@ -109,8 +109,8 @@
   transition: border-color 0.15s;
 }
 .profile-row.profile-active {
-  border-color: var(--accent, #6366f1);
-  background: rgba(99,102,241,0.08);
+  border-color: var(--accent, #0ea5e9);
+  background: rgba(14,165,233,0.08);
 }
 
 .profile-badge {
@@ -121,8 +121,8 @@
   border-radius: 4px;
   letter-spacing: 0.04em;
 }
-.badge-or  { background: #7c3aed22; color: #a78bfa; border: 1px solid #7c3aed55; }
-.badge-hf  { background: #0ea5e922; color: #38bdf8; border: 1px solid #0ea5e955; }
+.badge-or  { background: #0ea5e922; color: #38bdf8; border: 1px solid #0ea5e955; }
+.badge-hf  { background: #06b6d422; color: #22d3ee; border: 1px solid #06b6d455; }
 
 .profile-name {
   flex: 1;
@@ -152,10 +152,10 @@
   min-width: 36px;
 }
 .profile-use {
-  color: var(--accent, #6366f1);
+  color: var(--accent, #0ea5e9);
 }
 .profile-use:hover {
-  background: rgba(99,102,241,0.15);
+  background: rgba(14,165,233,0.15);
 }
 .profile-del {
   color: var(--text-muted, #6b7280);
@@ -188,7 +188,7 @@
   box-sizing: border-box;
 }
 .profiles-add input:focus {
-  border-color: var(--accent, #6366f1);
+  border-color: var(--accent, #0ea5e9);
 }
 
 .profiles-add .btn-secondary {
@@ -197,14 +197,14 @@
   border-radius: 6px;
   cursor: pointer;
   white-space: nowrap;
-  background: rgba(99,102,241,0.12);
-  color: var(--accent, #6366f1);
-  border: 1px solid rgba(99,102,241,0.3);
+  background: rgba(14,165,233,0.12);
+  color: var(--accent, #0ea5e9);
+  border: 1px solid rgba(14,165,233,0.3);
   transition: background 0.12s;
   flex-shrink: 0;
 }
 .profiles-add .btn-secondary:hover {
-  background: rgba(99,102,241,0.22);
+  background: rgba(14,165,233,0.22);
 }
 
 /* ── High Contrast Mode additions ────────────────────────────────────────── */

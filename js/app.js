@@ -32,6 +32,12 @@ export const App = {
         return;
       }
 
+      // FIX B2: keep window.DOMPurify in sync so sendMessage()'s guard works.
+      // The bundle imports DOMPurify as an ES module; window.DOMPurify was never
+      // assigned, so the guard in sendMessage() (checking window.DOMPurify) always
+      // fired and disabled chat even though the library loaded fine.
+      window.DOMPurify = DOMPurify;
+
       this.setupProviderListeners();
       this.setupAuthListeners();
       this.buildParamFilter();
@@ -198,11 +204,17 @@ export const App = {
     if (AppState.currentProvider === 'openrouter') AppState.apiKey = key;
     else AppState.hfToken = key;
     input.value = '';
-    await this.refreshModels();
+    // FIX B3: only flip to "Authenticated" after the provider actually accepts the
+    // key. refreshModels() returns false when the /models fetch failed (bad key),
+    // so a green "Authenticated" + silent curated fallback no longer happens.
+    const ok = await this.refreshModels();
+    if (!ok) throw new Error('Model list could not be loaded — check your API key.');
     UI.setAuthState(true, `${PROVIDERS[AppState.currentProvider].name} authenticated`);
     UI.toast('✅ Authenticated', 'success');
   } catch (err) {
-    UI.toast('Authentication failed', 'error');
+    UI.toast(err.message === 'Model list could not be loaded — check your API key.'
+      ? err.message
+      : 'Authentication failed', 'error');
     UI.setAuthState(false, 'Authentication failed');
   }
 },
@@ -228,13 +240,16 @@ export const App = {
     });
   },
 
+  // FIX B3: returns true when models actually loaded, false otherwise (not
+  // authenticated, empty, or fetch error). authenticate() gates its success
+  // toast on this so a bad key can never look green.
   async refreshModels(restoreModelId) {
     const sel = UI.el('modelSelect');
-    if (!sel) return;
+    if (!sel) return false;
     if (!AppState.isAuthenticatedFor(AppState.currentProvider)) {
       sel.innerHTML = '<option value="none" disabled selected>— authenticate first —</option>';
       UI.updateModelCount(0, 0);
-      return;
+      return false;
     }
 
     sel.innerHTML = '<option value="none" disabled selected>Loading…</option>';
@@ -242,7 +257,7 @@ export const App = {
     try {
       const models = await API.fetchModels(AppState.currentProvider, AppState.paramFilter || 'all');
       AppState.lastModelFetch = Date.now();
-      // FIX Dev: single source of truth — no separate App-level _allModelsCache
+      // FIX Dev: single source of truth — no separate AppState-level _allModelsCache
       AppState.allModels = models;
       AppState.modelContextMap = {};
       models.forEach(m => { AppState.modelContextMap[m.id] = m.ctx || 8192; });
@@ -251,7 +266,7 @@ export const App = {
       if (!models.length) {
         sel.innerHTML = '<option value="none" disabled selected>No models for this filter</option>';
         UI.updateModelCount(0, 0);
-        return;
+        return false;
       }
 
       UI.updateModelCount(models.length, models.length);
@@ -280,11 +295,13 @@ export const App = {
         const ctxK = found.ctx ? `${(found.ctx / 1000).toFixed(0)}k ctx` : '';
         UI.el('modelMeta').textContent = [found.paramTier, ctxK, found.uncensored ? '🔓 uncensored' : ''].filter(Boolean).join(' · ');
       }
+      return true;
     } catch (error) {
       console.error('refreshModels error:', error);
       sel.innerHTML = '<option value="none" disabled selected>Failed to load</option>';
       UI.updateModelCount(0, 0);
       UI.toast(`Model load failed: ${error.message}`, 'error');
+      return false;
     }
   },
 
@@ -991,24 +1008,17 @@ export const App = {
   },
 
   _setupHighContrastToggle() {
-    // Add high contrast toggle button to header after theme button
-    const themeBtn = UI.el('themeBtn');
-    if (!themeBtn) return;
+    // FIX R2: bind to the static #highContrastBtn already present in index.html
+    // instead of creating a duplicate at runtime. Creating a second would leave
+    // two buttons with the same id and neither click would work as expected.
+    const hcBtn = UI.el('highContrastBtn');
+    if (!hcBtn) return;
 
-    const hcBtn = document.createElement('button');
-    hcBtn.id = 'highContrastBtn';
-    hcBtn.className = 'btn btn-ghost btn-icon';
-    hcBtn.type = 'button';
-    hcBtn.title = 'Toggle high contrast mode';
-    hcBtn.setAttribute('aria-label', 'Toggle high contrast mode');
-    hcBtn.textContent = '◐';
     hcBtn.addEventListener('click', () => {
       const enabled = !AppState.highContrast;
       AppState.setHighContrast(enabled);
       UI.toast(`High contrast ${enabled ? 'enabled' : 'disabled'}`, 'info');
     });
-
-    themeBtn.parentNode.insertBefore(hcBtn, themeBtn.nextSibling);
   },
 
   _restorePersonaCard() {
