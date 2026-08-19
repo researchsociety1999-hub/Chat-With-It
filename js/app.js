@@ -696,8 +696,26 @@ export const App = {
       if (e.target === modal) modal.classList.remove('open');
     });
 
-    UI.el('sidebarToggle')?.addEventListener('click', () => UI.toggleSidebar());
+    const sidebarToggle = UI.el('sidebarToggle');
+    sidebarToggle?.setAttribute('aria-pressed', 'false');
+    sidebarToggle?.addEventListener('click', () => UI.toggleSidebar());
     UI.el('mobileOverlay')?.addEventListener('click', () => UI.toggleSidebar());
+
+    let wasMobile = window.matchMedia('(max-width: 1100px)').matches;
+    window.addEventListener('resize', () => {
+      const isMobile = window.matchMedia('(max-width: 1100px)').matches;
+      if (wasMobile && !isMobile) {
+        UI.el('sidebar')?.classList.remove('open');
+        UI.el('mobileOverlay')?.classList.remove('show');
+        document.body.classList.remove('sidebar-open');
+        AppState.sidebarOpen = false;
+        sidebarToggle?.setAttribute('aria-expanded', 'false');
+      } else if (!wasMobile && isMobile) {
+        document.body.classList.remove('sidebar-collapsed');
+        sidebarToggle?.setAttribute('aria-pressed', 'false');
+      }
+      wasMobile = isMobile;
+    });
 
     themeMenu?.querySelectorAll('.theme-opt').forEach(opt => {
       opt.addEventListener('click', () => {
@@ -743,7 +761,9 @@ export const App = {
       themeMenu?.classList.remove('open');
       UI.el('export-menu')?.classList.remove('open');
       modal?.classList.remove('open');
-      if (AppState.sidebarOpen) UI.toggleSidebar();
+      if (window.matchMedia('(max-width: 1100px)').matches && UI.el('sidebar')?.classList.contains('open')) {
+        UI.toggleSidebar();
+      }
     });
 
     // FIX: Ctrl+K model search — moved here from inline <script> in index.html

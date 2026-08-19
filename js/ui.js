@@ -467,16 +467,51 @@ export const UI = {
   },
 
   // Sidebar
+  _focusableSelectors: 'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])',
+
+  _focusFirstSidebarControl(toggleBtn) {
+    const sidebar = this.el('sidebar');
+    const firstControl = sidebar?.querySelector(this._focusableSelectors);
+    (firstControl || toggleBtn)?.focus();
+  },
+
   toggleSidebar() {
     const sidebar = this.el('sidebar');
     const overlay = this.el('mobileOverlay');
     const toggle  = this.el('sidebarToggle');
     if (!sidebar) return;
+
+    const isMobile = window.matchMedia('(max-width: 1100px)').matches;
+    if (!isMobile) {
+      this.collapseSidebarDesktop();
+      if (overlay) overlay.classList.remove('show');
+      document.body.classList.remove('sidebar-open');
+      if (toggle) {
+        toggle.setAttribute('aria-expanded', 'false');
+        toggle.setAttribute('aria-pressed', String(document.body.classList.contains('sidebar-collapsed')));
+      }
+      AppState.sidebarOpen = false;
+      return;
+    }
+
+    document.body.classList.remove('sidebar-collapsed');
     const isOpen = sidebar.classList.toggle('open');
     AppState.sidebarOpen = isOpen;
     if (overlay) overlay.classList.toggle('show', isOpen);
     if (toggle)  toggle.setAttribute('aria-expanded', String(isOpen));
     document.body.classList.toggle('sidebar-open', isOpen);
+    if (isOpen) this._focusFirstSidebarControl(toggle);
+    else toggle?.focus();
+  },
+
+  collapseSidebarDesktop() {
+    if (!window.matchMedia('(min-width: 1101px)').matches) return;
+    const collapsed = document.body.classList.toggle('sidebar-collapsed');
+    const toggle = this.el('sidebarToggle');
+    if (toggle) {
+      toggle.setAttribute('aria-pressed', String(collapsed));
+      toggle.setAttribute('aria-expanded', 'false');
+    }
   },
 
   // Retry button

@@ -67,7 +67,7 @@ html { transition: background-color .2s ease, color .2s ease; }
 @media (width: 375px), (width: 768px), (width: 1440px) { body { overflow-x: hidden; } }
 body { margin: 0; overflow: hidden; height: 100dvh; font-family: 'Satoshi', system-ui, sans-serif; background-color: var(--bg); color: var(--fg); }
 .app { display: grid; grid-template-columns: var(--sidebar-w) 1fr var(--rp-w); height: 100dvh; overflow: hidden; }
-.sidebar { height: 100dvh; overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; gap: .75rem; padding: 1rem .85rem; background: var(--panel); border-right: 1px solid var(--border); flex-shrink: 0; scrollbar-width: thin; }
+.sidebar { height: 100dvh; overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; gap: .75rem; padding: 1rem .85rem; background: var(--panel); border-right: 1px solid var(--border); flex-shrink: 0; scrollbar-width: thin; z-index: 100; }
 .brand { display: flex; align-items: center; gap: .6rem; font-size: 1.15rem; font-weight: 800; letter-spacing: -.02em; color: var(--fg); padding: .1rem 0 .5rem; }
 .brand-icon { font-size: 1.4rem; line-height: 1; }
 .brand-badge { font-size: .58rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: .18rem .45rem; background: var(--accent-glow); border: 1px solid var(--accent); border-radius: 99px; color: var(--accent); margin-left: auto; }
@@ -374,7 +374,16 @@ input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; border-radius
 .row { display: flex; gap: .5rem; align-items: center; }
 .stack { display: flex; flex-direction: column; gap: .5rem; }
 .mobile-overlay { display: none; }
-.mobile-overlay.show { display: block; position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 99; animation: fadeIn .2s ease; }
+.mobile-overlay.show { display: block; position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 90; animation: fadeIn .2s ease; }
+@media (min-width: 1101px) {
+  body.sidebar-collapsed .app { grid-template-columns: 64px 1fr var(--rp-w); }
+  body.sidebar-collapsed .sidebar { padding-inline: .5rem; overflow-y: hidden; }
+  body.sidebar-collapsed .sidebar .card,
+  body.sidebar-collapsed .brand-label,
+  body.sidebar-collapsed .brand-badge,
+  body.sidebar-collapsed #lockBtn { display: none; }
+  body.sidebar-collapsed .brand { justify-content: center; }
+}
 @media (max-width: 1100px) {
   .app { grid-template-columns: 1fr; }
   .right-panel { display: none; }
@@ -414,7 +423,7 @@ input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; border-radius
     <aside id="sidebar" class="sidebar">
       <div class="brand">
         <span class="brand-icon"><svg aria-label="ChatWithIt logo" width="32" height="32" viewBox="0 0 48 48" fill="none" style="vertical-align: middle"><rect width="48" height="48" rx="12" fill="var(--accent)"/><path d="M12 16h24M12 24h18M12 32h12" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/></svg></span>
-        ChatWithIt
+        <span class="brand-label">ChatWithIt</span>
         <span class="brand-badge">Free</span>
         <button id="lockBtn" class="btn btn-ghost btn-sm" type="button" title="Lock app" aria-label="Lock app" style="margin-left:auto">🔒</button>
       </div>
