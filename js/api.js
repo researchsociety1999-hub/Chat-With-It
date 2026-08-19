@@ -50,7 +50,7 @@ export const PARAM_TIERS = [
   { value: 'small', label: '7–8B params',    test: t => ['7B','8B'].includes(t) },
   { value: 'mid',   label: '13–30B params',  test: t => ['13B','14B','20B','22B','24B','30B','32B'].includes(t) },
   { value: 'large', label: '70B params',     test: t => ['70B','72B'].includes(t) },
-  { value: 'giant', label: '≥ 105B params',  test: t => ['105B','123B','180B','236B','671B','?'].includes(t) },
+  { value: 'giant', label: '≥ 105B params',  test: t => ['105B','123B','180B','236B','671B'].includes(t) },
 ];
 
 /**
@@ -65,6 +65,11 @@ function isOpenRouterFreeModel(model) {
          Number.isFinite(completion) &&
          prompt === 0 &&
          completion === 0;
+}
+
+function isEmbeddingModel(model) {
+  const modality = String(model?.architecture?.modality || '').toLowerCase();
+  return model?.type === 'embedding' || modality.includes('embedding') || String(model?.id || '').toLowerCase().includes('embed');
 }
 
 /**
@@ -331,14 +336,14 @@ export const API = {
         if (!response.ok) {
           const raw = await response.text();
           const err = this.parseProviderError(response.status, raw);
-          throw new Error(err.userMessage);
+          throw Object.assign(new Error(err.userMessage), err);
         }
 
         const data = await response.json();
         models = this.processModels(data, providerName);
       } catch (err) {
-        console.warn('Model fetch failed, using curated list:', err.message);
-        models = (CURATED_FREE[providerName] || []).filter(m => m.type !== 'embedding');
+        console.warn('Model fetch failed:', err.message);
+        throw err;
       }
     }
 
@@ -357,7 +362,7 @@ export const API = {
 
     if (providerName === 'openrouter') {
       models = (data.data || [])
-        .filter(isOpenRouterFreeModel)
+        .filter(model => isOpenRouterFreeModel(model) && !isEmbeddingModel(model))
         .map(m => {
           const curated = curatedMap[m.id];
           return {
@@ -375,22 +380,14 @@ export const API = {
       const liveIds = new Set((data.data || []).map(m => m.id));
       models = CURATED_FREE.huggingface
         .filter(m => m.type !== 'embedding')
-        .map(m => ({ ...m, live: liveIds.has(m.id) }));
-      (data.data || []).forEach(lm => {
-        if (!curatedMap[lm.id]) {
-          models.push({
-            id: lm.id,
-            name: lm.id.split('/').pop().replace(/-/g, ' '),
-            ctx: 8192, paramTier: '?', uncensored: false, live: true, type: 'chat',
-          });
-        }
-      });
+        .filter(m => liveIds.has(m.id))
+        .map(m => ({ ...m, live: true }));
     }
 
     const seen = new Set();
     models = models.filter(m => { if (seen.has(m.id)) return false; seen.add(m.id); return true; });
     models.sort((a, b) => a.name.localeCompare(b.name));
-    return models.length > 0 ? models : (CURATED_FREE[providerName] || []).filter(m => m.type !== 'embedding');
+    return models;
   },
 
   /** @deprecated — kept for backward compat; calls sendMessageStream */
@@ -422,6 +419,7 @@ export const API = {
       max_tokens:  options.maxTokens ?? AppState.maxTokens,
       top_p:       options.topP ?? 0.95,
       stream:      true,
+      stream_options: { include_usage: true },
     };
 
     const headers = {
@@ -489,7 +487,8 @@ export const API = {
 
       return {
         choices: [{ message: { content } }],
-        usage:   { prompt_tokens: promptTokens, completion_tokens: completionTokens }
+        usage:   { prompt_tokens: promptTokens, completion_tokens: completionTokens },
+        usageEstimated: !usage?.completion_tokens,
       };
     } catch (error) {
       if (error.name === 'AbortError') {
@@ -527,13 +526,18 @@ export const API = {
 
   extractTokenUsage(response) {
     const usage = response?.usage;
-    if (usage) return { promptTokens: usage.prompt_tokens || 0, completionTokens: usage.completion_tokens || 0 };
+    if (usage) return {
+      promptTokens: usage.prompt_tokens || 0,
+      completionTokens: usage.completion_tokens || 0,
+      estimated: Boolean(response?.usageEstimated),
+    };
     // FIX N: when server usage metadata is absent only estimate completion;
     // prompt token count is unknown so default to 0 to avoid double-counting.
     const content = response?.choices?.[0]?.message?.content || '';
     return {
       promptTokens:     0,
       completionTokens: Math.max(1, Math.ceil(content.length / 4)),
+      estimated:        true,
     };
   },
 

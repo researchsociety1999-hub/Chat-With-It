@@ -59,6 +59,46 @@ html { transition: background-color .2s ease, color .2s ease; }
 [data-theme="violet"] body {
   background-image: radial-gradient(ellipse 80% 60% at 20% -10%, rgba(124,92,255,.16) 0%, transparent 60%), radial-gradient(ellipse 60% 40% at 80% 110%, rgba(167,139,250,.10) 0%, transparent 60%);
 }
+[data-theme="ember"] {
+  --bg: #17100e; --bg2: #211411; --panel: rgba(35,21,18,.86); --panel-solid: #231512;
+  --panel-2: rgba(255,255,255,.045); --border: rgba(255,210,190,.12); --border-2: rgba(255,210,190,.22);
+  --fg: #fff1eb; --fg-muted: #c49b8e; --fg-subtle: #806158; --accent: #fb7185; --accent-glow: rgba(251,113,133,.28);
+  --accent-2: #fdba74; --accent-3: #fbbf24; --user-bubble: linear-gradient(135deg,#e11d48,#fb7185);
+  --ai-bubble: rgba(255,255,255,.045); --danger: #fb7185; --success: #86efac; --warn: #fbbf24;
+  --shadow: 0 8px 32px rgba(18,6,3,.52); --shadow-sm: 0 2px 8px rgba(18,6,3,.35);
+}
+[data-theme="ember"] body {
+  background-image: radial-gradient(ellipse 70% 55% at 8% 0%, rgba(251,113,133,.20) 0%, transparent 62%), radial-gradient(ellipse 60% 48% at 92% 100%, rgba(251,191,36,.12) 0%, transparent 64%);
+  background-size: 140% 140%; animation: immersiveDrift 20s ease-in-out infinite alternate;
+}
+[data-theme="forest"] {
+  --bg: #091511; --bg2: #0e2119; --panel: rgba(15,34,26,.88); --panel-solid: #0f221a;
+  --panel-2: rgba(220,252,231,.045); --border: rgba(167,243,208,.12); --border-2: rgba(167,243,208,.22);
+  --fg: #ecfdf5; --fg-muted: #93b9a7; --fg-subtle: #5d806e; --accent: #34d399; --accent-glow: rgba(52,211,153,.25);
+  --accent-2: #fbbf24; --accent-3: #f59e0b; --user-bubble: linear-gradient(135deg,#047857,#34d399);
+  --ai-bubble: rgba(220,252,231,.045); --danger: #fb7185; --success: #86efac; --warn: #fbbf24;
+  --shadow: 0 8px 32px rgba(2,12,7,.52); --shadow-sm: 0 2px 8px rgba(2,12,7,.35);
+}
+[data-theme="forest"] body {
+  background-image: radial-gradient(ellipse 70% 55% at 90% -8%, rgba(52,211,153,.16) 0%, transparent 62%), radial-gradient(ellipse 58% 50% at 0% 105%, rgba(251,191,36,.09) 0%, transparent 64%);
+  background-size: 140% 140%; animation: immersiveDrift 24s ease-in-out infinite alternate-reverse;
+}
+[data-theme="aurora"] {
+  --bg: #07131b; --bg2: #0a2029; --panel: rgba(9,29,37,.87); --panel-solid: #0b2029;
+  --panel-2: rgba(207,250,254,.045); --border: rgba(165,243,252,.13); --border-2: rgba(165,243,252,.24);
+  --fg: #ecfeff; --fg-muted: #8fb9c1; --fg-subtle: #5b858e; --accent: #22d3ee; --accent-glow: rgba(34,211,238,.26);
+  --accent-2: #fb923c; --accent-3: #facc15; --user-bubble: linear-gradient(135deg,#0e7490,#22d3ee);
+  --ai-bubble: rgba(207,250,254,.045); --danger: #fb7185; --success: #86efac; --warn: #facc15;
+  --shadow: 0 8px 32px rgba(2,13,20,.55); --shadow-sm: 0 2px 8px rgba(2,13,20,.38);
+}
+[data-theme="aurora"] body {
+  background-image: radial-gradient(ellipse 75% 58% at 12% -8%, rgba(34,211,238,.18) 0%, transparent 62%), radial-gradient(ellipse 60% 44% at 90% 108%, rgba(249,115,22,.12) 0%, transparent 64%);
+  background-size: 140% 140%; animation: immersiveDrift 22s ease-in-out infinite alternate;
+}
+@keyframes immersiveDrift { from { background-position: 0% 0%; } to { background-position: 100% 100%; } }
+@media (prefers-reduced-motion: reduce) {
+  [data-theme="ember"] body, [data-theme="forest"] body, [data-theme="aurora"] body { animation: none; }
+}
 @media (max-width: 768px) {
   #composerWrap { position: fixed; bottom: 0; left: 0; right: 0; z-index: 1000; background: var(--panel); padding: .75rem 1rem; padding-bottom: calc(.75rem + env(safe-area-inset-bottom,0px)); border-top: 1px solid var(--border); }
   .main { padding-bottom: 80px; }
@@ -276,6 +316,7 @@ input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; border-radius
 @keyframes stopPulse { 0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,0)} 50%{box-shadow:0 0 0 5px rgba(239,68,68,.15)} }
 .right-panel { background: var(--panel); -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur); border-left: 1px solid var(--border); display: none; flex-direction: column; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 1.25rem 1rem; gap: .75rem; }
 .right-panel.open { display: flex; }
+.live-usage { font-size: .7rem; color: var(--accent-2); min-height: 1rem; }
 .rp-title { font-size: .7rem; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--fg-subtle); }
 .stat-row { display: flex; justify-content: space-between; align-items: center; gap: .5rem; font-size: .83rem; }
 .stat-row span:last-child { font-weight: 700; color: var(--fg); }
@@ -455,7 +496,7 @@ input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; border-radius
         <button id="lockBtn" class="btn btn-ghost btn-sm" type="button" title="Lock app" aria-label="Lock app" style="margin-left:auto">🔒</button>
       </div>
       <div class="card">
-        <div class="card-title" data-icon="◈" title="Provider">Provider</div>
+        <div class="card-title" data-icon="🔌" title="Provider">Provider</div>
         <div class="ptabs" role="tablist" aria-label="Providers">
           <button class="ptab active" data-provider="openrouter" aria-selected="true">OpenRouter</button>
           <button class="ptab" data-provider="huggingface" aria-selected="false">HF</button>
@@ -474,7 +515,7 @@ input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; border-radius
         </div>
       </div>
       <div class="card">
-        <div class="card-title" data-icon="◇" title="Model">Model</div>
+        <div class="card-title" data-icon="🤖" title="Model">Model</div>
         <label for="paramFilter" class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)">Parameter filter</label>
         <select id="paramFilter" aria-label="Parameter filter"></select>
         <label for="searchInput" class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)">Search models</label>
@@ -486,14 +527,14 @@ input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; border-radius
         <div id="modelCount" class="muted" style="font-size:.72rem">0 models</div>
       </div>
       <div class="card">
-        <div class="card-title" data-icon="◌" title="Generation">Generation</div>
+        <div class="card-title" data-icon="⚙️" title="Generation">Generation</div>
         <div class="row" style="justify-content:space-between;font-size:.8rem"><label for="tempSlider">Temperature</label><span id="tempVal" style="font-weight:700">0.7</span></div>
         <input id="tempSlider" type="range" min="0" max="2" step="0.1" value="0.7" aria-label="Temperature">
         <div class="row" style="justify-content:space-between;font-size:.8rem"><label for="maxTokensSlider">Max tokens</label><span id="maxTokensVal" style="font-weight:700">1,024</span></div>
         <input id="maxTokensSlider" type="range" min="128" max="8192" step="128" value="1024" aria-label="Max tokens">
       </div>
       <div class="card">
-        <div class="sidebar-card-heading" style="display:flex;align-items:center;justify-content:space-between"><div class="card-title" data-icon="✦" title="Persona" style="margin:0">Persona</div><button id="shortcutsBtn" class="btn btn-sm btn-ghost" type="button">⌨ Shortcuts</button></div>
+        <div class="sidebar-card-heading" style="display:flex;align-items:center;justify-content:space-between"><div class="card-title" data-icon="👤" title="Persona" style="margin:0">Persona</div><button id="shortcutsBtn" class="btn btn-sm btn-ghost" type="button">⌨ Shortcuts</button></div>
         <div id="personaLabel" class="muted" style="font-size:.76rem;font-weight:600">Active: Assistant</div>
         <div class="persona-grid">
           <div class="persona-card active" tabindex="0" data-prompt="You are a helpful AI assistant. Be concise, accurate, and developer-friendly. Use Markdown formatting in your responses."><span class="persona-icon">🤖</span><div class="persona-info"><strong>Assistant</strong><div class="muted">Balanced default helper</div></div></div>
@@ -531,6 +572,9 @@ input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; border-radius
               <button class="menu-item theme-opt" data-theme="dark" type="button">🌙 Dark</button>
               <button class="menu-item theme-opt" data-theme="light" type="button">☀️ Light</button>
               <button class="menu-item theme-opt" data-theme="violet" type="button">💜 Violet</button>
+              <button class="menu-item theme-opt" data-theme="ember" type="button">🔥 Ember</button>
+              <button class="menu-item theme-opt" data-theme="forest" type="button">🌿 Forest</button>
+              <button class="menu-item theme-opt" data-theme="aurora" type="button">🌊 Aurora</button>
               <button class="menu-item theme-opt" data-theme="system" type="button">💻 System</button>
             </div>
           </div>
@@ -569,7 +613,7 @@ input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; border-radius
       </div>
     </main>
     <aside id="rightPanel" class="right-panel">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.25rem"><span class="rp-title">Session Stats</span><button id="rp-close" class="btn btn-ghost btn-icon btn-sm" type="button" title="Close stats" aria-label="Close stats panel">✕</button></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.25rem"><div><span class="rp-title">Session Stats</span><div id="stat-live" class="live-usage" aria-live="polite">Idle</div></div><button id="rp-close" class="btn btn-ghost btn-icon btn-sm" type="button" title="Close stats" aria-label="Close stats panel">✕</button></div>
       <div class="card">
         <div class="stat-row"><span>Prompt tokens</span><span id="stat-prompt">0</span></div>
         <div class="stat-bar-wrap"><div id="stat-prompt-bar" class="stat-bar" style="width:0"></div></div>

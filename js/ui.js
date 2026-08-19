@@ -394,6 +394,17 @@ export const UI = {
     }
   },
 
+  updateLiveUsage({ promptTokens = null, completionTokens = 0, estimated = true, streaming = false } = {}) {
+    const el = this.el('stat-live');
+    if (!el) return;
+    const completion = Utils.formatTokens(completionTokens);
+    const prompt = promptTokens == null ? 'prompt pending' : `${Utils.formatTokens(promptTokens)} prompt`;
+    const estimateLabel = estimated ? ' approx.' : '';
+    el.textContent = streaming
+      ? `Streaming · ${prompt} · ~${completion} output tokens`
+      : `Last turn · ${prompt} · ${completion} completion${estimateLabel}`;
+  },
+
   updateRateLimitInfo(remaining) {
     const el = this.el('stat-rl');
     if (el) el.textContent = String(remaining);

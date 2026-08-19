@@ -14,6 +14,7 @@ export const App = {
   _sending: false,
   _cooldownInterval: null,
   _scrollScheduled: false, // FIX Marcus: rAF scroll throttle flag
+  _modelRefreshId: 0,
 
   async init() {
     try {
@@ -242,6 +243,7 @@ export const App = {
   async refreshModels(restoreModelId) {
     const sel = UI.el('modelSelect');
     if (!sel) return false;
+    const refreshId = ++this._modelRefreshId;
     if (!AppState.isAuthenticatedFor(AppState.currentProvider)) {
       sel.innerHTML = '<option value="none" disabled selected>— authenticate first —</option>';
       UI.updateModelCount(0, 0);
@@ -254,6 +256,7 @@ export const App = {
 
     try {
       const models = await API.fetchModels(AppState.currentProvider, AppState.paramFilter || 'all');
+      if (refreshId !== this._modelRefreshId) return false;
       AppState.lastModelFetch = Date.now();
       // FIX Dev: single source of truth — no separate AppState-level _allModelsCache
       AppState.allModels = models;
@@ -298,6 +301,7 @@ export const App = {
       sel.classList.remove('loading', 'error');
       return true;
     } catch (error) {
+      if (refreshId !== this._modelRefreshId) return false;
       console.error('refreshModels error:', error);
       sel.classList.remove('loading');
       sel.classList.add('error');
@@ -537,6 +541,7 @@ export const App = {
     UI.appendMessage('user', text);
     UI.setSendButtonState(false);
     UI.showTyping();
+    UI.updateLiveUsage({ completionTokens: 0, streaming: true });
     UI.hideUnsavedBanner();
     this._sending = true;
 
@@ -561,6 +566,7 @@ export const App = {
           }
           fullContent += delta;
           UI.appendStreamToken(streamBubble, delta);
+          UI.updateLiveUsage({ completionTokens: Math.max(1, Math.ceil(fullContent.length / 4)), streaming: true });
           // FIX Marcus: throttled rAF scroll instead of direct scrollTop
           this._scheduleScroll();
         },
@@ -587,9 +593,10 @@ export const App = {
       const finalContent = fullContent || response?.choices?.[0]?.message?.content || '';
       if (finalContent) {
         AppState.addMessage('assistant', finalContent);
-        const { promptTokens, completionTokens } = API.extractTokenUsage(response);
+        const { promptTokens, completionTokens, estimated } = API.extractTokenUsage(response);
         AppState.updateTokens(promptTokens, completionTokens);
         UI.updateStats(AppState.totalPromptTokens, AppState.totalCompletionTokens);
+        UI.updateLiveUsage({ promptTokens, completionTokens, estimated });
         UI.updateContextBar();
         if (sentContextUsage > 0.9) {
           UI.toast('⚠️ Context nearly full (>90%). Consider exporting and starting a new chat.', 'warning', 7000);

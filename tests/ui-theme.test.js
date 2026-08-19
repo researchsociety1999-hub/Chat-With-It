@@ -11,6 +11,9 @@ describe('theme behavior', () => {
         <button class="theme-opt" data-theme="dark"></button>
         <button class="theme-opt" data-theme="light"></button>
         <button class="theme-opt" data-theme="violet"></button>
+        <button class="theme-opt" data-theme="ember"></button>
+        <button class="theme-opt" data-theme="forest"></button>
+        <button class="theme-opt" data-theme="aurora"></button>
         <button class="theme-opt" data-theme="system"></button>
       </div>
     `;
@@ -46,5 +49,17 @@ describe('theme behavior', () => {
 
     expect(document.documentElement.getAttribute('data-theme')).toBe('light');
     expect(document.querySelector('.theme-opt[data-theme="light"]').getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it.each([
+    'ember',
+    'forest',
+    'aurora',
+  ])('applies the %s immersive palette', (theme) => {
+    UI.setTheme(theme);
+
+    expect(document.documentElement.getAttribute('data-theme')).toBe(theme);
+    expect(localStorage.getItem('cwi_theme')).toBe(theme);
+    expect(document.querySelector(`.theme-opt[data-theme="${theme}"]`).getAttribute('aria-pressed')).toBe('true');
   });
 });
