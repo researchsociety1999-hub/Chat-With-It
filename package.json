@@ -5,7 +5,7 @@
   "description": "OpenRouter AI Chat Platform with free model discovery, file upload, token monitoring, and Markdown export",
   "scripts": {
     "dev": "esbuild js/app.js --bundle --outfile=dist/app.js --servedir=.",
-    "start": "npx serve -p 3000 -l localhost",
+    "start": "npx serve -p 3000",
     "build": "esbuild js/app.js --bundle --minify --outfile=dist/app.js",
     "lint": "echo 'No linter configured'",
     "test": "vitest run",

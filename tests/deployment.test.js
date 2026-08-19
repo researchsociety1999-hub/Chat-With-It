@@ -7,7 +7,7 @@ const serviceWorker = readFileSync(resolve(process.cwd(), 'sw.js'), 'utf8');
 
 describe('deployment configuration', () => {
   it('keeps the repository root as the static output', () => {
-    expect(vercel).not.toHaveProperty('outputDirectory');
+    expect(vercel.outputDirectory).toBe('.');
     expect(vercel.buildCommand).toBe('npm run build');
   });
 
