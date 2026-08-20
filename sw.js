@@ -7,8 +7,7 @@
  * returning users always get fresh code once the new SW takes control.
  */
 
-// Bumped to v15 for PWA safe-area / home-screen layout fix.
-const CACHE_NAME = 'chatwithit-v15';
+const CACHE_NAME = 'chatwithit-v16';
 
 const PRECACHE_URLS = [
   './',
@@ -23,8 +22,6 @@ const PRECACHE_URLS = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(async (cache) => {
-      // FIX: cache each URL individually so a single missing file (e.g. a new
-      // asset not yet deployed) does not abort the entire SW install.
       const results = await Promise.allSettled(
         PRECACHE_URLS.map(url => cache.add(url))
       );
@@ -53,7 +50,6 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(req.url);
 
-  // Never intercept provider API calls — always go straight to network
   if (
     url.hostname.includes('openrouter.ai') ||
     url.hostname.includes('huggingface.co') ||
