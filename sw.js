@@ -7,7 +7,7 @@
  * returning users always get fresh code once the new SW takes control.
  */
 
-const CACHE_NAME = 'chatwithit-v16';
+const CACHE_NAME = 'chatwithit-v17';
 
 const PRECACHE_URLS = [
   './',
