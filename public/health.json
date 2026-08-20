@@ -1,1 +1,5 @@
-{"status":"ok","version":"1.0.0","app":"Chat-With-It"}
+{
+  "status": "ok",
+  "service": "chatwithit",
+  "redeploy": "2026-08-20"
+}
