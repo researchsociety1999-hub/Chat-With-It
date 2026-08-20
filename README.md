@@ -103,11 +103,11 @@ Workflow: [Deploy status](https://github.com/researchsociety1999-hub/Chat-With-I
 ```
 ChatWithIt/
 ├── index.html
+├── health.json          # Production probe (/health.json)
 ├── css/app.css          # Main layout + themes
 ├── css/profiles.css
 ├── js/{app,api,ui,state,profiles,utils}.js
 ├── dist/app.js
-├── public/health.json   # Production probe
 ├── sw.js / manifest.json
 └── vercel.json
 ```
