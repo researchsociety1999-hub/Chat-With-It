@@ -8,11 +8,13 @@
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/researchsociety1999-hub/Chat-With-It)
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![CI](https://github.com/researchsociety1999-hub/Chat-With-It/actions/workflows/ci.yml/badge.svg)](https://github.com/researchsociety1999-hub/Chat-With-It/actions/workflows/ci.yml)
+[![Deploy status](https://github.com/researchsociety1999-hub/Chat-With-It/actions/workflows/deploy-status.yml/badge.svg)](https://github.com/researchsociety1999-hub/Chat-With-It/actions/workflows/deploy-status.yml)
 [![No Backend](https://img.shields.io/badge/backend-none-brightgreen.svg)]()
 [![Privacy First](https://img.shields.io/badge/tracking-none-red.svg)]()
 [![PWA Ready](https://img.shields.io/badge/PWA-ready-purple.svg)]()
 
-[**Live Demo →**](https://your-vercel-url.vercel.app) · [**View Source**](https://github.com/researchsociety1999-hub/Chat-With-It)
+[**Live Demo →**](https://chat-with-it.vercel.app) · [**View Source**](https://github.com/researchsociety1999-hub/Chat-With-It)
 
 </div>
 
@@ -41,13 +43,29 @@ npm start
 # open http://localhost:3000
 ```
 
-Or deploy the static site on Vercel (`npm run build` runs automatically via `vercel.json`).
+Or use the live site: **https://chat-with-it.vercel.app**  
+(`npm run build` runs on Vercel via `vercel.json`.)
 
 **Setup**
 1. Open the app
 2. Choose OpenRouter or Hugging Face
 3. Paste your API key (session memory only)
 4. Pick a free model and chat
+
+---
+
+## Deployment status
+
+Production is checked automatically after every push to `main` (and once daily):
+
+| Check | Endpoint |
+|-------|----------|
+| Health JSON | https://chat-with-it.vercel.app/health.json |
+| App shell | https://chat-with-it.vercel.app/ |
+| Bundle | https://chat-with-it.vercel.app/dist/app.js |
+| Styles | https://chat-with-it.vercel.app/css/app.css |
+
+Workflow: [Deploy status](https://github.com/researchsociety1999-hub/Chat-With-It/actions/workflows/deploy-status.yml)
 
 ---
 
@@ -76,6 +94,7 @@ Or deploy the static site on Vercel (`npm run build` runs automatically via `ver
 - Static PWA (`manifest.json` + `sw.js`)
 - esbuild bundle (`npm run build` → `dist/app.js`)
 - Security headers via `vercel.json`
+- Production health checks via GitHub Actions
 
 ---
 
@@ -88,6 +107,7 @@ ChatWithIt/
 ├── css/profiles.css
 ├── js/{app,api,ui,state,profiles,utils}.js
 ├── dist/app.js
+├── public/health.json   # Production probe
 ├── sw.js / manifest.json
 └── vercel.json
 ```
