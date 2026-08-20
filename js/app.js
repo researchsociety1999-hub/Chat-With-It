@@ -574,7 +574,9 @@ export const App = {
           // FIX Marcus: throttled rAF scroll instead of direct scrollTop
           this._scheduleScroll();
         },
-        { temperature: AppState.temperature, maxTokens: AppState.maxTokens }
+        AppState.generationControlsEnabled
+          ? { temperature: AppState.temperature, maxTokens: AppState.maxTokens }
+          : {}
       );
 
       // Only retry on transient network failures — propagate API error codes immediately.
@@ -763,6 +765,23 @@ export const App = {
 
     const tempSlider = UI.el('tempSlider');
     const tempVal    = UI.el('tempVal');
+    const maxSlider  = UI.el('maxTokensSlider');
+    const maxVal     = UI.el('maxTokensVal');
+    const genToggle  = UI.el('genControlsToggle');
+    const genPanel   = UI.el('genControlsPanel');
+    const genHint    = UI.el('genControlsOffHint');
+    const genLabel   = genToggle?.closest('.gen-toggle')?.querySelector('.gen-toggle-label');
+
+    const syncGenControlsUI = () => {
+      const on = !!AppState.generationControlsEnabled;
+      if (genToggle) genToggle.checked = on;
+      if (genPanel) genPanel.classList.toggle('hidden', !on);
+      if (genHint) genHint.classList.toggle('hidden', on);
+      if (genLabel) genLabel.textContent = on ? 'On' : 'Off';
+      if (tempSlider) tempSlider.disabled = !on;
+      if (maxSlider) maxSlider.disabled = !on;
+    };
+
     if (tempSlider) {
       tempSlider.value = AppState.temperature;
       if (tempVal) tempVal.textContent = AppState.temperature.toFixed(1);
@@ -773,8 +792,6 @@ export const App = {
       });
     }
 
-    const maxSlider = UI.el('maxTokensSlider');
-    const maxVal    = UI.el('maxTokensVal');
     if (maxSlider) {
       maxSlider.value = AppState.maxTokens;
       if (maxVal) maxVal.textContent = AppState.maxTokens.toLocaleString();
@@ -784,6 +801,15 @@ export const App = {
         AppState.persistState();
       });
     }
+
+    if (genToggle) {
+      genToggle.addEventListener('change', () => {
+        AppState.generationControlsEnabled = genToggle.checked;
+        AppState.persistState();
+        syncGenControlsUI();
+      });
+    }
+    syncGenControlsUI();
 
     // FIX R: single consolidated Escape handler — no duplicate listeners
     document.addEventListener('keydown', (e) => {

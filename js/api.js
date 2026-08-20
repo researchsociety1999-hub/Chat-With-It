@@ -415,12 +415,16 @@ export const API = {
     const payload = {
       model:       modelId,
       messages:    messages,
-      temperature: options.temperature ?? AppState.temperature,
-      max_tokens:  options.maxTokens ?? AppState.maxTokens,
       top_p:       options.topP ?? 0.95,
       stream:      true,
       stream_options: { include_usage: true },
     };
+    if (options.temperature !== undefined || AppState.generationControlsEnabled) {
+      payload.temperature = options.temperature ?? AppState.temperature;
+    }
+    if (options.maxTokens !== undefined || AppState.generationControlsEnabled) {
+      payload.max_tokens = options.maxTokens ?? AppState.maxTokens;
+    }
 
     const headers = {
       'Content-Type':        'application/json',

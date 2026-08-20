@@ -43,6 +43,7 @@ export const AppState = {
   defaultPersonaPrompt: 'You are a helpful AI assistant. Be concise, accurate, and developer-friendly. Use Markdown formatting in your responses.',
   temperature: 0.7,
   maxTokens: 1024,
+  generationControlsEnabled: true,
 
   // Model size filter
   paramFilter: 'all',
@@ -196,6 +197,7 @@ export const AppState = {
         if (parsed.currentProvider)           this.currentProvider      = parsed.currentProvider;
         if (parsed.temperature !== undefined)  this.temperature          = parsed.temperature;
         if (parsed.maxTokens)                  this.maxTokens            = parsed.maxTokens;
+        if (parsed.generationControlsEnabled !== undefined) this.generationControlsEnabled = !!parsed.generationControlsEnabled;
         if (parsed.currentPersonaPrompt)       this.currentPersonaPrompt = parsed.currentPersonaPrompt;
         if (parsed.paramFilter)                this.paramFilter          = parsed.paramFilter;
         if (parsed.selectedModel && parsed.selectedModel !== 'none') {
@@ -214,6 +216,7 @@ export const AppState = {
         currentProvider:      this.currentProvider,
         temperature:          this.temperature,
         maxTokens:            this.maxTokens,
+        generationControlsEnabled: this.generationControlsEnabled,
         currentPersonaPrompt: this.currentPersonaPrompt,
         paramFilter:          this.paramFilter,
         selectedModel:        this.selectedModel,

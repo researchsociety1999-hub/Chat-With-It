@@ -512,3 +512,56 @@ input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; border-radius
 }
 .attach-chip button:hover { color: var(--danger); }
 #attachBtn { flex-shrink: 0; }
+
+
+/* Generation controls toggle */
+.gen-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  cursor: pointer;
+  user-select: none;
+  flex-shrink: 0;
+}
+.gen-toggle input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.gen-toggle-track {
+  width: 32px;
+  height: 18px;
+  border-radius: 99px;
+  background: var(--border-2);
+  position: relative;
+  transition: background .15s ease;
+  flex-shrink: 0;
+}
+.gen-toggle-track::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform .15s ease;
+}
+.gen-toggle input:checked + .gen-toggle-track {
+  background: var(--accent);
+}
+.gen-toggle input:checked + .gen-toggle-track::after {
+  transform: translateX(14px);
+}
+.gen-toggle input:focus-visible + .gen-toggle-track {
+  box-shadow: var(--focus-ring);
+}
+.gen-toggle-label {
+  font-size: .72rem;
+  font-weight: 700;
+  color: var(--fg-muted);
+  min-width: 1.5rem;
+}
+#genControlsPanel.hidden { display: none !important; }
