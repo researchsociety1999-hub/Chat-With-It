@@ -1,10 +1,10 @@
 name: Fix sidebar bottom gap
 
-"on":
+on:
   workflow_dispatch:
   push:
     paths:
-      - ".github/workflows/fix-sidebar-bottom-gap.yml"
+      - .github/workflows/fix-sidebar-bottom-gap.yml
 
 permissions:
   contents: write
@@ -18,10 +18,9 @@ jobs:
       - name: Patch app.css, pwa-safe-area.css, sw.js
         run: |
           set -euo pipefail
-          python3 - <<'PY'
+          python3 <<'PY'
           from pathlib import Path
 
-          # --- app.css: remove 140px composer reserve at source ---
           app = Path('css/app.css')
           text = app.read_text(encoding='utf-8')
           old = """  .sidebar {
@@ -61,7 +60,6 @@ jobs:
               app.write_text(text.replace(old, new, 1), encoding='utf-8')
               print('app.css: removed 140px bottom reserve')
 
-          # --- pwa-safe-area.css: stretch drawer with top/bottom, no conflicting max-height ---
           pwa = Path('css/pwa-safe-area.css')
           pwa.write_text('''/**
  * PWA home-screen / standalone layout containment
@@ -109,9 +107,8 @@ body {
 
 /*
  * Mobile drawer: stretch top-to-bottom.
- * Composer is hidden when sidebar is open (body.sidebar-open #composerWrap),
- * so do NOT reserve bottom space for it (old 140px gap).
- * Use top+bottom anchors with height:auto — more reliable than 100dvh alone on iOS.
+ * Composer is hidden when sidebar is open — do not reserve bottom space.
+ * top+bottom + height:auto is more reliable than 100dvh alone on iOS PWA.
  */
 @media (max-width: 1100px) {
   .sidebar,
@@ -211,18 +208,17 @@ body {
   }
 }
 ''', encoding='utf-8')
-          print('pwa-safe-area.css: rewritten full-height drawer rules')
+          print('pwa-safe-area.css rewritten')
 
-          # --- sw.js: bump cache so installed PWAs fetch new CSS ---
           sw = Path('sw.js')
           sw_text = sw.read_text(encoding='utf-8')
-          if "chatwithit-v16" in sw_text:
+          if 'chatwithit-v16' in sw_text:
               sw.write_text(sw_text.replace('chatwithit-v16', 'chatwithit-v17'), encoding='utf-8')
-              print('sw.js: cache v16 -> v17')
-          elif "chatwithit-v17" in sw_text:
-              print('sw.js: already v17')
+              print('sw.js v16 -> v17')
+          elif 'chatwithit-v17' in sw_text:
+              print('sw.js already v17')
           else:
-              print('sw.js: unexpected CACHE_NAME, left unchanged')
+              print('sw.js unexpected cache name')
           PY
 
       - name: Commit
