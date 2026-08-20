@@ -16,7 +16,11 @@ jobs:
           node-version: "20"
 
       - name: Run polish script
-        run: bash scripts/polish-three.sh
+        run: |
+          chmod +x scripts/polish-three.sh
+          bash scripts/polish-three.sh
+          python3 scripts/fix-attach-newlines.py
+          npm run build
 
       - name: Commit and push
         run: |
