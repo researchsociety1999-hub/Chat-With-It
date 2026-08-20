@@ -2,6 +2,9 @@ name: Restore app.css
 
 "on":
   workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/restore-app-css.yml"
 
 permissions:
   contents: write
@@ -12,12 +15,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 20
+          fetch-depth: 30
 
       - name: Restore app.css from last good commit and apply 88% fix
         run: |
           set -euo pipefail
-          # Last known-good blob before placeholder commit
           git show 96811e0ba4abe0b386e72669dff4be01382f1af2:css/app.css > css/app.css
           python3 - <<'PY'
           from pathlib import Path
@@ -35,6 +37,9 @@ jobs:
               p.write_text(text.replace(old, new), encoding="utf-8")
               print("applied 88vw -> 88%")
           print("bytes", p.stat().st_size)
+          # sanity
+          assert ":root" in text or ":root" in p.read_text()
+          assert len(p.read_text()) > 20000
           PY
 
       - name: Commit
@@ -42,5 +47,9 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add css/app.css
+          if git diff --staged --quiet; then
+            echo "No change"
+            exit 0
+          fi
           git commit -m "fix(css): restore app.css; replace latent 88vw sidebar width with 88%"
           git push
