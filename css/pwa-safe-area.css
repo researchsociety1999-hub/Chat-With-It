@@ -50,6 +50,10 @@ body {
  * composer. Composer is now in-flow and hidden when the sidebar is open
  * (body.sidebar-open #composerWrap { display:none }), so that gap only cut
  * the drawer short and left a black band over the chat.
+ *
+ * Width uses 100% (not 100vw): on mobile Safari 100vw can exceed the visible
+ * layout width (scrollbar gutter), which overflowed the drawer past the edge.
+ * For position:fixed, % resolves against the viewport containing block.
  */
 @media (max-width: 1100px) {
   .sidebar,
@@ -64,7 +68,7 @@ body {
     max-height: -webkit-fill-available !important;
     width: min(
       var(--sidebar-w),
-      calc(100vw - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px))
+      calc(100% - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px))
     ) !important;
     z-index: 110;
     padding-top: calc(1rem + env(safe-area-inset-top, 0px));
@@ -85,8 +89,8 @@ body {
   .sidebar.open {
     width: min(
       var(--sidebar-w),
-      88vw,
-      calc(100vw - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px))
+      88%,
+      calc(100% - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px))
     ) !important;
   }
 }
