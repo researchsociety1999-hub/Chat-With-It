@@ -5,12 +5,13 @@ python3 << 'PY'
 from pathlib import Path
 import re, json
 
+nl = '\\n'  # two-char backslash-n for JS string literals
+
 # ── 1. Extract inline <style> → css/app.css ──────────────────────────────────
 index = Path('index.html')
 html = index.read_text()
 m = re.search(r'<style>\n(.*?)\n  </style>', html, re.S)
 if not m:
-    # Already extracted?
     if 'css/app.css' in html and Path('css/app.css').exists():
         print('CSS already extracted')
         css = Path('css/app.css').read_text()
@@ -110,7 +111,7 @@ pkg_path.write_text(json.dumps(pkg, indent=2) + '\n')
 print('package.json updated')
 
 # ── 4. Honest README ─────────────────────────────────────────────────────────
-readme = '''<div align="center">
+Path('README.md').write_text('''<div align="center">
 
 # 💬 ChatWithIt
 
@@ -163,15 +164,6 @@ Or deploy the static site on Vercel (`npm run build` runs automatically via `ver
 
 ---
 
-## Get an API key
-
-| Provider | Link | Free tier |
-|----------|------|-----------|
-| OpenRouter | [openrouter.ai/keys](https://openrouter.ai/keys) | Free models + optional credits |
-| Hugging Face | [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens) | Free inference tier |
-
----
-
 ## Features (current)
 
 ### Chat
@@ -180,12 +172,11 @@ Or deploy the static site on Vercel (`npm run build` runs automatically via `ver
 - Streaming responses with stop control
 - Personas: Assistant, Tutor, Creative Writer, Code Reviewer, Debate Coach
 - Text file attachments (`.txt`, `.md`, `.json`, `.csv`, code files)
-- Keyboard shortcuts (Enter send, Shift+Enter newline, Ctrl/Cmd+K model search, Escape closes menus)
+- Keyboard shortcuts (Enter send, Shift+Enter newline, Ctrl/Cmd+K model search)
 
 ### Session tools
-- Live token / context usage
-- Session stats panel
-- Export Markdown / JSON / TXT / PDF / clipboard copy
+- Live token / context usage and session stats
+- Export Markdown / JSON / TXT / PDF / clipboard
 - Optional local chat history (7-day TTL); API keys never persisted
 
 ### Customize
@@ -197,19 +188,7 @@ Or deploy the static site on Vercel (`npm run build` runs automatically via `ver
 ### Deploy
 - Static PWA (`manifest.json` + `sw.js`)
 - esbuild bundle (`npm run build` → `dist/app.js`)
-- Security headers via `vercel.json` (CSP, HSTS, frame denial)
-
----
-
-## Trust signals
-
-| Signal | Detail |
-|---|---|
-| No backend | Browser → provider only |
-| Keys in memory | Cleared on idle timeout / lock / tab close; not stored |
-| No tracking | No analytics cookies |
-| CSP | Enforced in `vercel.json` |
-| MIT | Fully open source |
+- Security headers via `vercel.json`
 
 ---
 
@@ -217,18 +196,11 @@ Or deploy the static site on Vercel (`npm run build` runs automatically via `ver
 
 ```
 ChatWithIt/
-├── index.html          # Shell + DOM
-├── css/
-│   ├── app.css         # Main layout + themes
-│   └── profiles.css    # API key profiles panel
-├── js/
-│   ├── app.js          # Controller
-│   ├── api.js          # Providers + streaming
-│   ├── ui.js           # DOM / toasts / sidebar
-│   ├── state.js        # In-memory state + safe persistence
-│   ├── profiles.js     # Key profiles
-│   └── utils.js        # Helpers
-├── dist/app.js         # Production bundle
+├── index.html
+├── css/app.css          # Main layout + themes
+├── css/profiles.css
+├── js/{app,api,ui,state,profiles,utils}.js
+├── dist/app.js
 ├── sw.js / manifest.json
 └── vercel.json
 ```
@@ -245,24 +217,10 @@ ChatWithIt/
 
 ---
 
-## FAQ
-
-**Is my API key safe?**
-It stays in JavaScript memory for the session and is sent only to the chosen provider. It is not written to `localStorage`.
-
-**Do you store conversations?**
-Optionally in your browser only (7-day TTL). Export anytime. Nothing is sent to a ChatWithIt server — there is none.
-
-**Can I self-host?**
-Yes. Static files + `npm run build`.
-
----
-
 ## License
 
 MIT — built by [Rishi](https://github.com/researchsociety1999-hub)
-'''
-Path('README.md').write_text(readme)
+''')
 print('README.md updated')
 
 # ── 5. Wire app.js attachments ───────────────────────────────────────────────
@@ -277,26 +235,26 @@ if 'this.setupAttachListeners();' not in src:
     src = src.replace(needle, insert, 1)
 
 if '_buildMessageWithAttachments' not in src:
-    methods = '''
+    methods = f'''
   // ── File attachments (text only) ──────────────────────────────────────────
 
-  setupAttachListeners() {
+  setupAttachListeners() {{
     const input = UI.el('fileInput');
     const btn = UI.el('attachBtn');
     if (!input || !btn) return;
 
     btn.addEventListener('click', () => input.click());
-    input.addEventListener('change', async () => {
+    input.addEventListener('change', async () => {{
       const files = Array.from(input.files || []);
       input.value = '';
-      for (const file of files) {
+      for (const file of files) {{
         await this._addAttachment(file);
-      }
+      }}
       this._renderAttachments();
-    });
-  },
+    }});
+  }},
 
-  async _addAttachment(file) {
+  async _addAttachment(file) {{
     if (!file) return;
     const MAX_BYTES = 200 * 1024;
     const MAX_COUNT = 5;
@@ -306,33 +264,33 @@ if '_buildMessageWithAttachments' not in src:
     ]);
     const name = file.name || 'file';
     const ext = name.includes('.') ? '.' + name.split('.').pop().toLowerCase() : '';
-    if (!ALLOWED.has(ext)) {
+    if (!ALLOWED.has(ext)) {{
       UI.toast('Unsupported type: ' + name, 'warning');
       return;
-    }
-    if (file.size > MAX_BYTES) {
+    }}
+    if (file.size > MAX_BYTES) {{
       UI.toast(name + ' exceeds 200 KB limit', 'warning');
       return;
-    }
-    if (AppState.attachedFiles.length >= MAX_COUNT) {
+    }}
+    if (AppState.attachedFiles.length >= MAX_COUNT) {{
       UI.toast('Maximum 5 attachments', 'warning');
       return;
-    }
+    }}
     if (AppState.attachedFiles.some(f => f.name === name && f.size === file.size)) return;
-    try {
+    try {{
       const text = await file.text();
-      AppState.attachedFiles.push({ name, size: file.size, type: file.type || 'text/plain', content: text });
+      AppState.attachedFiles.push({{ name, size: file.size, type: file.type || 'text/plain', content: text }});
       UI.toast('Attached ' + name, 'success');
-    } catch (err) {
+    }} catch (err) {{
       UI.toast('Could not read ' + name, 'error');
-    }
-  },
+    }}
+  }},
 
-  _renderAttachments() {
+  _renderAttachments() {{
     const list = UI.el('attachList');
     if (!list) return;
     list.innerHTML = '';
-    AppState.attachedFiles.forEach((f, idx) => {
+    AppState.attachedFiles.forEach((f, idx) => {{
       const chip = document.createElement('div');
       chip.className = 'attach-chip';
       const label = document.createElement('span');
@@ -342,30 +300,28 @@ if '_buildMessageWithAttachments' not in src:
       remove.type = 'button';
       remove.setAttribute('aria-label', 'Remove ' + f.name);
       remove.textContent = '×';
-      remove.addEventListener('click', () => {
+      remove.addEventListener('click', () => {{
         AppState.attachedFiles.splice(idx, 1);
         this._renderAttachments();
-      });
+      }});
       chip.appendChild(label);
       chip.appendChild(remove);
       list.appendChild(chip);
-    });
-  },
+    }});
+  }},
 
-  _buildMessageWithAttachments(userText) {
+  _buildMessageWithAttachments(userText) {{
     if (!AppState.attachedFiles.length) return userText;
-    const blocks = AppState.attachedFiles.map(f => {
+    const blocks = AppState.attachedFiles.map(f => {{
       const ext = (f.name.split('.').pop() || 'text').toLowerCase();
       const fence = ext === 'md' ? 'markdown' : ext;
-      return '📎 **' + f.name + '**\\n\\n```' + fence + '\\n' + f.content + '\\n```';
-    });
-    const body = userText ? userText + '\\n\\n' : '';
-    return body + blocks.join('\\n\\n');
-  },
+      return '📎 **' + f.name + '**{nl}{nl}```' + fence + '{nl}' + f.content + '{nl}```';
+    }});
+    const body = userText ? userText + '{nl}{nl}' : '';
+    return body + blocks.join('{nl}{nl}');
+  }},
 
 '''
-    # Fix: the methods string above double-escaped for shell; write correct JS newlines
-    methods = methods.replace('\\n', '\n')
     marker = '  _restorePersonaCard() {'
     if marker not in src:
         raise SystemExit('marker _restorePersonaCard not found')
@@ -398,6 +354,17 @@ if '_buildMessageWithAttachments' not in src:
 
 path.write_text(src)
 print('app.js attach wiring complete', len(src))
+
+# sanity: no raw newlines inside the return string of _buildMessageWithAttachments
+chunk = path.read_text()
+idx = chunk.find('_buildMessageWithAttachments')
+snippet = chunk[idx:idx+500]
+if "return '📎 **' + f.name + '**\n" in snippet and "\\n" not in snippet:
+    # Detect broken form: actual newline after **
+    import re as _re
+    if _re.search(r"return '📎 \*\*'\s*\+\s*f\.name\s*\+\s*'\*\*\n", snippet):
+        raise SystemExit('BUG: unterminated string would remain in app.js')
+print('sanity ok')
 PY
 
 npm ci || npm install
