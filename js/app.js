@@ -45,6 +45,7 @@ export const App = {
       this.buildParamFilter();
       this.setupModelListeners();
       this.setupChatListeners();
+      this.setupAttachListeners();
       this.setupUIListeners();
       this.setupSearchListeners();
       this.setupExportListeners();
@@ -499,7 +500,8 @@ export const App = {
     const { isRetry = false } = options;
 
     const userInput = UI.el('userInput');
-    const text = userInput?.value.trim();
+    const typed = userInput?.value.trim() || '';
+    const text = this._buildMessageWithAttachments(typed);
     if (!text) return;
 
     if (AppState.selectedModel === 'none') {
@@ -534,6 +536,8 @@ export const App = {
     this._lastUserText = text;
     UI.removeRetryButton();
     AppState.addMessage('user', text);
+    AppState.attachedFiles = [];
+    this._renderAttachments();
     userInput.value = '';
     userInput.style.height = 'auto';
     UI.updateCharCount(0);
@@ -1068,6 +1072,92 @@ export const App = {
       AppState.setHighContrast(enabled);
       UI.toast(`High contrast ${enabled ? 'enabled' : 'disabled'}`, 'info');
     });
+  },
+
+
+  // ── File attachments (text only) ──────────────────────────────────────────
+
+  setupAttachListeners() {
+    const input = UI.el('fileInput');
+    const btn = UI.el('attachBtn');
+    if (!input || !btn) return;
+
+    btn.addEventListener('click', () => input.click());
+    input.addEventListener('change', async () => {
+      const files = Array.from(input.files || []);
+      input.value = '';
+      for (const file of files) {
+        await this._addAttachment(file);
+      }
+      this._renderAttachments();
+    });
+  },
+
+  async _addAttachment(file) {
+    if (!file) return;
+    const MAX_BYTES = 200 * 1024;
+    const MAX_COUNT = 5;
+    const ALLOWED = new Set([
+      '.txt', '.md', '.json', '.csv', '.py', '.js', '.ts', '.tsx', '.jsx',
+      '.html', '.css', '.xml', '.yml', '.yaml', '.toml', '.sh', '.sql', '.log',
+    ]);
+    const name = file.name || 'file';
+    const ext = name.includes('.') ? '.' + name.split('.').pop().toLowerCase() : '';
+    if (!ALLOWED.has(ext)) {
+      UI.toast('Unsupported type: ' + name, 'warning');
+      return;
+    }
+    if (file.size > MAX_BYTES) {
+      UI.toast(name + ' exceeds 200 KB limit', 'warning');
+      return;
+    }
+    if (AppState.attachedFiles.length >= MAX_COUNT) {
+      UI.toast('Maximum 5 attachments', 'warning');
+      return;
+    }
+    if (AppState.attachedFiles.some(f => f.name === name && f.size === file.size)) return;
+    try {
+      const text = await file.text();
+      AppState.attachedFiles.push({ name, size: file.size, type: file.type || 'text/plain', content: text });
+      UI.toast('Attached ' + name, 'success');
+    } catch (err) {
+      UI.toast('Could not read ' + name, 'error');
+    }
+  },
+
+  _renderAttachments() {
+    const list = UI.el('attachList');
+    if (!list) return;
+    list.innerHTML = '';
+    AppState.attachedFiles.forEach((f, idx) => {
+      const chip = document.createElement('div');
+      chip.className = 'attach-chip';
+      const label = document.createElement('span');
+      label.textContent = f.name;
+      label.title = f.name + ' (' + Math.round(f.size / 1024) + ' KB)';
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.setAttribute('aria-label', 'Remove ' + f.name);
+      remove.textContent = '×';
+      remove.addEventListener('click', () => {
+        AppState.attachedFiles.splice(idx, 1);
+        this._renderAttachments();
+      });
+      chip.appendChild(label);
+      chip.appendChild(remove);
+      list.appendChild(chip);
+    });
+  },
+
+  _buildMessageWithAttachments(userText) {
+    if (!AppState.attachedFiles.length) return userText;
+    const blocks = AppState.attachedFiles.map(f => {
+      const ext = (f.name.split('.').pop() || 'text').toLowerCase();
+      const fence = ext === 'md' ? 'markdown' : ext;
+      return '📎 **' + f.name + '**\n\n```' + fence + '\n' + f.content + '\n```';
+    });
+    const body = userText ? userText + '\n\n' : '';
+    return body + blocks.join('\n\n');
   },
 
   _restorePersonaCard() {
