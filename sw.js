@@ -7,15 +7,16 @@
  * returning users always get fresh code once the new SW takes control.
  */
 
-// FIX: bumped to v4 so returning users pick up the bundled dist/app.js.
-// Increment this string on every deployment that changes cached assets.
-const CACHE_NAME = 'chatwithit-v14';
+// Bumped to v15 for PWA safe-area / home-screen layout fix.
+const CACHE_NAME = 'chatwithit-v15';
 
 const PRECACHE_URLS = [
   './',
   './index.html',
   './dist/app.js',
+  './css/app.css',
   './css/profiles.css',
+  './css/pwa-safe-area.css',
   './manifest.json',
 ];
 
