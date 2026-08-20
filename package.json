@@ -1,8 +1,8 @@
 {
-  "name": "ani-chat",
+  "name": "chatwithit",
   "version": "1.0.1",
   "private": true,
-  "description": "OpenRouter AI Chat Platform with free model discovery, file upload, token monitoring, and Markdown export",
+  "description": "ChatWithIt — privacy-first browser-only multi-provider AI chat. No backend. Keys stay in memory.",
   "scripts": {
     "dev": "esbuild js/app.js --bundle --outfile=dist/app.js --servedir=.",
     "start": "npx serve -p 3000",
