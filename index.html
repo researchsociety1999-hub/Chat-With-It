@@ -100,10 +100,21 @@ html { transition: background-color .2s ease, color .2s ease; }
   [data-theme="ember"] body, [data-theme="forest"] body, [data-theme="aurora"] body { animation: none; }
 }
 @media (max-width: 768px) {
-  #composerWrap { position: fixed; bottom: 0; left: 0; right: 0; z-index: 1000; background: var(--panel); padding: .75rem 1rem; padding-bottom: calc(.75rem + env(safe-area-inset-bottom,0px)); border-top: 1px solid var(--border); }
-  .main { padding-bottom: 80px; }
+  /* Keep composer in flex-column flow on phones — fixed + 80px padding was covering chat */
+  #composerWrap {
+    position: static;
+    inset: auto;
+    z-index: auto;
+    width: auto;
+    flex-shrink: 0;
+    background: var(--panel);
+    padding: .75rem 1rem;
+    padding-bottom: calc(.75rem + env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid var(--border);
+  }
+  .main { padding-bottom: 0; }
   .btn, .menu-item, .persona-card, .chip, .confirm-btn { min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; }
-  .chat-body { padding-bottom: 80px; }
+  .chat-body { padding-bottom: 1rem; }
 }
 @media (width: 375px), (width: 768px), (width: 1440px) { body { overflow-x: hidden; } }
 body { margin: 0; overflow: hidden; height: 100dvh; font-family: 'Satoshi', system-ui, sans-serif; background-color: var(--bg); color: var(--fg); }
@@ -468,6 +479,7 @@ input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; border-radius
   #composerWrap { padding: .65rem .85rem; padding-bottom: calc(.65rem + env(safe-area-inset-bottom,0px)); }
 }
 @media (max-width: 640px) {
+  .sidebar { width: min(var(--sidebar-w), 88vw); }
   .model-badge { max-width: 140px; }
   .header-actions .btn-ghost span { display: none; }
   .chat-header { gap: .5rem; }
