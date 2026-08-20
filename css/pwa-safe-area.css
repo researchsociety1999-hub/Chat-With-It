@@ -1,7 +1,6 @@
 /**
  * PWA home-screen / standalone layout containment
- * Fixes edges pushed outside the screen ratio when "Add to Home Screen".
- * Requires viewport-fit=cover (already set in index.html).
+ * + mobile drawer full-height fix (composer is hidden while sidebar is open).
  */
 
 html {
@@ -18,7 +17,6 @@ body {
   overflow: hidden;
   overflow-x: hidden;
   overscroll-behavior: none;
-  /* iOS standalone: plain 100dvh can exceed the visible frame */
   min-height: 100vh;
   min-height: 100dvh;
   min-height: -webkit-fill-available;
@@ -35,46 +33,64 @@ body {
   max-height: 100%;
   min-height: 0;
   overflow: hidden;
-  /* Notch, status bar, rounded corners, home indicator */
   padding-top: env(safe-area-inset-top, 0px);
   padding-left: env(safe-area-inset-left, 0px);
   padding-right: env(safe-area-inset-right, 0px);
 }
 
-/* Desktop sidebar fills the padded app shell */
 .sidebar {
   height: 100%;
   max-height: 100%;
   box-sizing: border-box;
 }
 
-/* Mobile drawer: stay inside safe frame */
+/*
+ * Mobile drawer: full viewport height.
+ * The old bottom:140px / max-height:100dvh-140px reserved space for a fixed
+ * composer. Composer is now in-flow and hidden when the sidebar is open
+ * (body.sidebar-open #composerWrap { display:none }), so that gap only cut
+ * the drawer short and left a black band over the chat.
+ */
 @media (max-width: 1100px) {
-  .sidebar {
-    top: env(safe-area-inset-top, 0px);
-    left: env(safe-area-inset-left, 0px);
-    bottom: max(140px, calc(120px + env(safe-area-inset-bottom, 0px)));
-    max-height: calc(
-      100dvh - 140px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)
-    );
+  .sidebar,
+  .sidebar.open {
+    top: 0 !important;
+    left: 0 !important;
+    right: auto !important;
+    bottom: 0 !important;
+    height: 100% !important;
+    height: 100dvh !important;
+    max-height: none !important;
+    max-height: -webkit-fill-available !important;
     width: min(
       var(--sidebar-w),
       calc(100vw - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px))
-    );
+    ) !important;
+    z-index: 110;
+    padding-top: calc(1rem + env(safe-area-inset-top, 0px));
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+    padding-left: calc(0.85rem + env(safe-area-inset-left, 0px));
+    box-sizing: border-box;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .mobile-overlay.show {
+    z-index: 105;
   }
 }
 
 @media (max-width: 640px) {
-  .sidebar {
+  .sidebar,
+  .sidebar.open {
     width: min(
       var(--sidebar-w),
       88vw,
       calc(100vw - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px))
-    );
+    ) !important;
   }
 }
 
-/* Stronger rules only when launched from home screen */
 @media (display-mode: standalone), (display-mode: fullscreen) {
   html,
   body {
@@ -114,12 +130,23 @@ body {
     bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
   }
 
-  /* Prevent horizontal bleed from 100vw children */
   .chips,
   .welcome,
   .msg,
   .chat-header,
   .header-actions {
     max-width: 100%;
+  }
+
+  /* Full-height drawer also in standalone */
+  @media (max-width: 1100px) {
+    .sidebar,
+    .sidebar.open {
+      top: 0 !important;
+      bottom: 0 !important;
+      height: 100% !important;
+      height: -webkit-fill-available !important;
+      max-height: none !important;
+    }
   }
 }
