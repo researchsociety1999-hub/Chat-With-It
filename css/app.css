@@ -441,9 +441,9 @@ input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; border-radius
     position: fixed;
     top: 0;
     left: 0;
-    bottom: 140px;
+    bottom: 0;
     height: auto;
-    max-height: calc(100dvh - 140px);
+    max-height: none;
     width: var(--sidebar-w);
     z-index: 100;
     box-shadow: var(--shadow);
