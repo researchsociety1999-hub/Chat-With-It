@@ -426,6 +426,36 @@ export const UI = {
     return meta;
   },
 
+  _decorateCodeBlocks(container) {
+    if (!container) return;
+    const preBlocks = container.querySelectorAll('pre');
+    preBlocks.forEach(pre => {
+      if (pre.querySelector('.code-copy-btn')) return;
+      const copyBtn = document.createElement('button');
+      copyBtn.type = 'button';
+      copyBtn.className = 'code-copy-btn';
+      copyBtn.setAttribute('aria-label', 'Copy code snippet');
+      copyBtn.title = 'Copy code';
+      copyBtn.textContent = 'Copy';
+      copyBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const code = pre.querySelector('code');
+        const textToCopy = code ? code.innerText : pre.innerText;
+        Utils.copyToClipboard(textToCopy).then(ok => {
+          if (ok) {
+            copyBtn.textContent = 'Copied';
+            copyBtn.classList.add('copied');
+            setTimeout(() => {
+              copyBtn.textContent = 'Copy';
+              copyBtn.classList.remove('copied');
+            }, 1500);
+          }
+        });
+      });
+      pre.appendChild(copyBtn);
+    });
+  },
+
   appendMessage(role, text, modelId = null) {
     const chat = this.el('chatBody');
     if (!chat) return;
@@ -442,12 +472,13 @@ export const UI = {
     if (role === 'assistant') {
       Utils.parseMarkdown(text).then(html => {
         bubble.innerHTML = html;
-        this._scrollToBottom();
+        this._decorateCodeBlocks(bubble);
+        this._scrollToBottom(false);
         this.announce('Assistant replied');
       });
     } else {
       bubble.textContent = text;
-      this._scrollToBottom();
+      this._scrollToBottom(true);
     }
   },
 
@@ -465,7 +496,7 @@ export const UI = {
     col.appendChild(bubble);
     col.appendChild(this._buildMeta('assistant', bubble, modelId));
     chat.appendChild(wrap);
-    this._scrollToBottom();
+    this._scrollToBottom(false);
     return bubble;
   },
 
@@ -486,7 +517,8 @@ export const UI = {
     if (!content) return;
     Utils.parseMarkdown(fullContent).then(html => {
       content.innerHTML = html;
-      this._scrollToBottom();
+      this._decorateCodeBlocks(bubble);
+      this._scrollToBottom(false);
       this.announce('Assistant finished reply');
     });
   },
@@ -525,9 +557,19 @@ export const UI = {
   },
 
   // Scroll helpers
-  _scrollToBottom() {
+  isNearBottom(threshold = 100) {
+    const chat = this.el('chatBody');
+    if (!chat) return true;
+    return chat.scrollHeight - chat.clientHeight - chat.scrollTop <= threshold;
+  },
+
+  _scrollToBottom(force = false) {
     const chat = this.el('chatBody');
     if (!chat) return;
+    if (!force && !this.isNearBottom()) {
+      this._updateScrollBtn();
+      return;
+    }
     requestAnimationFrame(() => {
       chat.scrollTop = chat.scrollHeight;
       this._updateScrollBtn();
@@ -547,7 +589,10 @@ export const UI = {
     const btn  = this.el('scrollToBottom');
     if (!chat || !btn) return;
     chat.addEventListener('scroll', Utils.throttle(() => this._updateScrollBtn(), 120));
-    btn.addEventListener('click', () => this._scrollToBottom());
+    btn.addEventListener('click', () => {
+      if (chat) chat.scrollTop = chat.scrollHeight;
+      this._updateScrollBtn();
+    });
   },
 
   // Stats

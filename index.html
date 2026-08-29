@@ -754,12 +754,39 @@ input[type="range"]::-moz-range-thumb {
   background: rgba(0,0,0,.35);
   border: 1px solid var(--border);
   border-radius: .75rem;
-  padding: 1rem;
+  padding: 2.2rem 1rem 1rem;
   overflow-x: auto;
   margin: .65rem 0;
+  position: relative;
+  max-width: 100%;
+  box-sizing: border-box;
 }
-.msg-bubble pre code { background:none; border:none; padding:0; font-size:.82em; }
+.msg-bubble pre code { background:none; border:none; padding:0; font-size:.82em; white-space: pre; }
 [data-theme="light"] .msg-bubble pre { background:rgba(0,0,0,.06); }
+.code-copy-btn {
+  position: absolute;
+  top: .5rem;
+  right: .5rem;
+  font-size: .72rem;
+  padding: .2rem .55rem;
+  background: var(--panel-2);
+  border: 1px solid var(--border-2);
+  border-radius: var(--radius-xs);
+  color: var(--fg-muted);
+  cursor: pointer;
+  transition: all var(--transition);
+  line-height: 1.2;
+}
+.code-copy-btn:hover {
+  background: var(--panel);
+  color: var(--fg);
+  border-color: var(--accent);
+}
+.code-copy-btn.copied {
+  background: var(--accent-glow);
+  color: var(--accent);
+  border-color: var(--accent);
+}
 .msg-bubble blockquote {
   border-left: 3px solid var(--accent);
   padding-left: .9rem;
@@ -989,24 +1016,27 @@ input[type="range"]::-moz-range-thumb {
   position: absolute;
   bottom: 6rem;
   right: 1.25rem;
-  width: 38px; height: 38px;
-  border-radius: 50%;
+  padding: .45rem .85rem;
+  border-radius: 99px;
   background: var(--panel);
   border: 1px solid var(--border-2);
   color: var(--fg-muted);
-  font-size: 1rem;
+  font-size: .8rem;
+  font-weight: 600;
   cursor: pointer;
-  display: grid;
-  place-items: center;
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
   box-shadow: var(--shadow-sm);
   transition: all var(--transition);
   backdrop-filter: var(--blur);
   -webkit-backdrop-filter: var(--blur);
   opacity: 0;
   pointer-events: none;
+  z-index: 10;
 }
 #scrollToBottom.show { opacity: 1; pointer-events: auto; }
-#scrollToBottom:hover { transform: translateY(-2px); box-shadow: var(--shadow); color: var(--fg); }
+#scrollToBottom:hover { transform: translateY(-2px); box-shadow: var(--shadow); color: var(--fg); border-color: var(--accent); }
 .main-wrapper { position: relative; display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
 
 /* ─── Toast ──────────────────────────────────────────────────────────────── */
@@ -1481,8 +1511,8 @@ input[type="range"]::-moz-range-thumb {
           </div>
         </div>
 
-        <!-- Scroll to bottom button -->
-        <button id="scrollToBottom" type="button" title="Scroll to bottom" aria-label="Scroll to bottom">↓</button>
+        <!-- Scroll to bottom button / Jump to latest -->
+        <button id="scrollToBottom" type="button" title="Jump to latest" aria-label="Jump to latest messages">↓ Latest</button>
       </div>
 
       <!-- Composer -->
@@ -1551,11 +1581,13 @@ input[type="range"]::-moz-range-thumb {
         <button id="shortcutsClose" class="btn btn-ghost btn-icon" type="button" aria-label="Close shortcuts">✕</button>
       </div>
       <div class="shortcut-grid">
+        <kbd class="shortcut-key">Ctrl+N / Cmd+N</kbd><span class="shortcut-desc">New conversation</span>
+        <kbd class="shortcut-key">Ctrl+/ / Cmd+/</kbd><span class="shortcut-desc">Focus composer</span>
         <kbd class="shortcut-key">Enter</kbd><span class="shortcut-desc">Send message</span>
         <kbd class="shortcut-key">Shift+Enter</kbd><span class="shortcut-desc">New line</span>
         <kbd class="shortcut-key">Ctrl+S</kbd><span class="shortcut-desc">Export as Markdown</span>
         <kbd class="shortcut-key">Escape</kbd><span class="shortcut-desc">Close menus &amp; modals</span>
-        <kbd class="shortcut-key">Ctrl+K</kbd><span class="shortcut-desc">Focus model search</span>
+        <kbd class="shortcut-key">Ctrl+K</kbd><span class="shortcut-desc">Focus search</span>
       </div>
     </div>
   </div>

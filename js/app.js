@@ -107,14 +107,20 @@ export const App = {
     }
   },
 
-  // FIX Marcus: rAF-throttled scroll — called per streaming token
+  // FIX Marcus: rAF-throttled scroll — called per streaming token (only if user hasn't scrolled up)
   _scheduleScroll() {
     if (this._scrollScheduled) return;
     this._scrollScheduled = true;
     requestAnimationFrame(() => {
+      if (typeof UI.isNearBottom === 'function' && !UI.isNearBottom(120)) {
+        this._scrollScheduled = false;
+        UI._updateScrollBtn();
+        return;
+      }
       const chat = UI.el('chatBody');
       if (chat) chat.scrollTop = chat.scrollHeight;
       this._scrollScheduled = false;
+      UI._updateScrollBtn();
     });
   },
 
@@ -536,6 +542,19 @@ export const App = {
         }
       });
     }
+
+    // Prevent unhandled file drops anywhere on window from navigating the page away
+    window.addEventListener('dragover', (e) => {
+      if (e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files')) {
+        e.preventDefault();
+      }
+    });
+
+    window.addEventListener('drop', (e) => {
+      if (e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files')) {
+        e.preventDefault();
+      }
+    });
 
     if (composerBox) {
       ['dragenter', 'dragover'].forEach(evt => {
@@ -1327,6 +1346,26 @@ export const App = {
   // Phase 3: Keyboard shortcuts and high contrast toggle
   _setupKeyboardShortcuts() {
     document.addEventListener('keydown', (e) => {
+      // Cmd/Ctrl+N → start new conversation
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && (e.key === 'n' || e.key === 'N')) {
+        e.preventDefault();
+        const searchInput = UI.el('convSearchInput');
+        if (searchInput) searchInput.value = '';
+        if (typeof this.newConversation === 'function') this.newConversation();
+        return;
+      }
+
+      // Cmd/Ctrl+/ → focus chat composer input
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && (e.key === '/' || e.code === 'Slash')) {
+        e.preventDefault();
+        const userInput = UI.el('userInput');
+        if (userInput) {
+          userInput.focus();
+          userInput.setSelectionRange(userInput.value.length, userInput.value.length);
+        }
+        return;
+      }
+
       // Ctrl+Enter → send message
       if (e.ctrlKey && !e.shiftKey && e.key === 'Enter') {
         e.preventDefault();
