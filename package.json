@@ -2,11 +2,12 @@
   "name": "ani-chat",
   "version": "1.0.1",
   "private": true,
-  "description": "OpenRouter AI Chat Platform with free model discovery, file upload, token monitoring, and Markdown export",
+  "description": "Private browser-based AI chat for 100+ models via OpenRouter, Hugging Face, or local OpenAI-compatible endpoints — named conversations, search, attachments, and PWA install",
   "scripts": {
     "dev": "esbuild js/app.js --bundle --outfile=dist/app.js --servedir=.",
     "start": "npx serve -p 3000 -l localhost",
     "build": "esbuild js/app.js --bundle --minify --outfile=dist/app.js",
+    "test": "node --check js/app.js js/api.js js/ui.js js/state.js js/utils.js js/profiles.js && npm run build",
     "lint": "echo 'No linter configured'"
   },
   "devDependencies": {
@@ -21,7 +22,6 @@
     "node": ">=16.0.0"
   },
   "dependencies": {
-    "@vercel/speed-insights": "^2.0.0",
     "marked": "^18.0.6"
   }
 }

@@ -2,10 +2,10 @@
   "name": "ChatWithIt",
   "short_name": "ChatWithIt",
   "description": "Chat with free AI models from OpenRouter and Hugging Face",
-  "start_url": "/",
+  "start_url": "./",
   "display": "standalone",
-  "background_color": "#0b1020",
-  "theme_color": "#7c3aed",
+  "background_color": "#0d0f1a",
+  "theme_color": "#0d0f1a",
   "orientation": "any",
   "icons": [
     {

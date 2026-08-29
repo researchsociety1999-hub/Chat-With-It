@@ -37,12 +37,18 @@ export const App = {
       this.buildParamFilter();
       this.setupModelListeners();
       this.setupChatListeners();
+      this.setupAttachmentListeners();
+      this.setupConversationListeners();
       this.setupUIListeners();
       this.setupSearchListeners();
       this.setupExportListeners();
       this._setupBeforeUnload();
       this._setupKeyboardShortcuts();
       this._setupHighContrastToggle();
+
+      // Load active conversation messages and render conversation list
+      UI.renderChatHistory(AppState.chatHistory);
+      this.renderConversationList();
 
       // Phase 4: profiles panel is a module — init it directly
       if (typeof Profiles !== 'undefined' && typeof Profiles.init === 'function') {
@@ -70,14 +76,27 @@ export const App = {
 
       const hint = UI.el('authHint');
       const hintLink = UI.el('authHintLink');
+      const localRow = UI.el('localConfigRow');
+      const localUrlInput = UI.el('localBaseUrlInput');
+      if (localUrlInput) {
+        localUrlInput.value = AppState.localBaseUrl || 'http://localhost:11434/v1';
+      }
+
+      if (localRow) {
+        localRow.style.display = AppState.currentProvider === 'local' ? 'block' : 'none';
+      }
+
       if (hint) {
         const provider = AppState.currentProvider;
         if (provider === 'huggingface') {
           hint.childNodes[0].textContent = 'Use your Hugging Face token (hf_…) — ';
-          if (hintLink) { hintLink.textContent = 'Get token →'; hintLink.href = 'https://huggingface.co/settings/tokens'; }
+          if (hintLink) { hintLink.style.display = ''; hintLink.textContent = 'Get token →'; hintLink.href = 'https://huggingface.co/settings/tokens'; }
+        } else if (provider === 'local') {
+          hint.childNodes[0].textContent = 'Local endpoint (e.g. Ollama, LM Studio, vLLM) — API key optional.';
+          if (hintLink) { hintLink.style.display = 'none'; }
         } else {
           hint.childNodes[0].textContent = 'Use your OpenRouter key (sk-or-…) — ';
-          if (hintLink) { hintLink.textContent = 'Get key →'; hintLink.href = 'https://openrouter.ai/keys'; }
+          if (hintLink) { hintLink.style.display = ''; hintLink.textContent = 'Get key →'; hintLink.href = 'https://openrouter.ai/keys'; }
         }
       }
 
@@ -119,6 +138,19 @@ export const App = {
   },
 
   setupProviderListeners() {
+    const localUrlInput = UI.el('localBaseUrlInput');
+    if (localUrlInput) {
+      const updateLocalUrl = (e) => {
+        AppState.localBaseUrl = e.target.value.trim() || 'http://localhost:11434/v1';
+        AppState.persistState();
+        if (AppState.currentProvider === 'local') {
+          this.refreshModels();
+        }
+      };
+      localUrlInput.addEventListener('change', updateLocalUrl);
+      localUrlInput.addEventListener('blur', updateLocalUrl);
+    }
+
     document.querySelectorAll('.ptab').forEach(btn => {
       btn.addEventListener('click', () => {
         const provider = btn.dataset.provider;
@@ -131,21 +163,33 @@ export const App = {
           b.setAttribute('aria-selected', String(b.dataset.provider === provider));
         });
 
+        const localRow = UI.el('localConfigRow');
+        if (localRow) {
+          localRow.style.display = provider === 'local' ? 'block' : 'none';
+        }
+
         const input = UI.el('apiKeyInput');
-        if (input) input.placeholder = provider === 'huggingface' ? 'hf_…' : 'sk-or-…';
+        if (input) {
+          if (provider === 'huggingface') input.placeholder = 'hf_…';
+          else if (provider === 'local') input.placeholder = 'Optional API key (if configured)';
+          else input.placeholder = 'sk-or-…';
+        }
 
         const isAuth = AppState.isAuthenticatedFor(provider);
-        UI.setAuthState(isAuth, isAuth ? `${PROVIDERS[provider].name} authenticated` : 'Not authenticated');
+        UI.setAuthState(isAuth, isAuth ? `${PROVIDERS[provider].name} ready` : 'Not authenticated');
 
         const hint = UI.el('authHint');
         const hintLink = UI.el('authHintLink');
         if (hint) {
           if (provider === 'huggingface') {
             hint.childNodes[0].textContent = 'Use your Hugging Face token (hf_…) — ';
-            if (hintLink) { hintLink.textContent = 'Get token →'; hintLink.href = 'https://huggingface.co/settings/tokens'; }
+            if (hintLink) { hintLink.style.display = ''; hintLink.textContent = 'Get token →'; hintLink.href = 'https://huggingface.co/settings/tokens'; }
+          } else if (provider === 'local') {
+            hint.childNodes[0].textContent = 'Local endpoint (e.g. Ollama, LM Studio, vLLM) — API key optional.';
+            if (hintLink) { hintLink.style.display = 'none'; }
           } else {
             hint.childNodes[0].textContent = 'Use your OpenRouter key (sk-or-…) — ';
-            if (hintLink) { hintLink.textContent = 'Get key →'; hintLink.href = 'https://openrouter.ai/keys'; }
+            if (hintLink) { hintLink.style.display = ''; hintLink.textContent = 'Get key →'; hintLink.href = 'https://openrouter.ai/keys'; }
           }
         }
 
@@ -163,10 +207,15 @@ export const App = {
     UI.el('clearAuthBtn').addEventListener('click', () => {
       AppState.apiKey  = '';
       AppState.hfToken = '';
+      AppState.localApiKey = '';
       UI.el('apiKeyInput').value = '';
-      UI.setAuthState(false, 'Not authenticated');
-      UI.el('modelSelect').innerHTML = '<option value="none" disabled selected>— authenticate first —</option>';
-      UI.updateModelLabel('No model selected');
+      if (AppState.currentProvider === 'local') {
+        UI.setAuthState(true, 'Local endpoint ready');
+      } else {
+        UI.setAuthState(false, 'Not authenticated');
+        UI.el('modelSelect').innerHTML = '<option value="none" disabled selected>— authenticate first —</option>';
+        UI.updateModelLabel('No model selected');
+      }
       UI.toast('Authentication cleared', 'info');
     });
     UI.el('lockBtn')?.addEventListener('click', () => this.lockApp());
@@ -188,7 +237,17 @@ export const App = {
 
   async authenticate() {
     const input = UI.el('apiKeyInput');
-    const key   = input?.value.trim();
+    const key   = input?.value.trim() || '';
+
+    if (AppState.currentProvider === 'local') {
+      AppState.localApiKey = key;
+      input.value = '';
+      UI.setAuthState(true, `${PROVIDERS[AppState.currentProvider].name} ready`);
+      UI.toast('✅ Local endpoint updated', 'success');
+      await this.refreshModels();
+      return;
+    }
+
     if (!Utils.isValidApiKey(key)) {
       UI.toast('Invalid API key format', 'error');
       if (input) input.focus();
@@ -204,7 +263,33 @@ export const App = {
 
   setupModelListeners() {
     UI.el('modelSelect').addEventListener('change', (e) => {
-      AppState.selectedModel = e.target.value;
+      const newModelId = e.target.value;
+      const oldModelId = AppState.selectedModel;
+      if (newModelId === oldModelId) return;
+
+      const model = AppState.allModels.find(m => m.id === newModelId);
+      const modelName = model?.name || newModelId;
+
+      // Mid-response dynamic model switching:
+      // If a stream is active when the user switches model, abort the current in-flight
+      // request cleanly. The conversation context is preserved and the next message / retry
+      // will use the newly selected model.
+      if (this._sending) {
+        API.cancelRequest();
+        this._sending = false;
+        UI.setSendButtonState(true);
+        UI.removeTyping();
+        UI.toast(`Model switched to ${modelName} (stopped active stream)`, 'info');
+      } else {
+        UI.toast(`Model: ${modelName}`, 'info');
+      }
+
+      // Visual divider in chat if conversation already has messages
+      if (AppState.chatHistory.length > 0) {
+        UI.appendDivider(`Model changed to ${modelName}`);
+      }
+
+      AppState.selectedModel = newModelId;
       AppState.persistState();
 
       AppState.totalPromptTokens     = 0;
@@ -213,10 +298,11 @@ export const App = {
       UI.updateStats(0, 0);
       UI.updateContextBar();
 
-      const model = AppState.allModels.find(m => m.id === AppState.selectedModel);
       if (model) {
         const ctxK = model.ctx ? `${(model.ctx / 1000).toFixed(0)}k ctx` : '';
-        UI.el('modelMeta').textContent = [model.paramTier, ctxK, model.uncensored ? '🔓 uncensored' : ''].filter(Boolean).join(' · ');
+        const roleBadge = model.role && model.role !== 'general' ? `🏷️ ${model.role}` : '';
+        const costBadge = model.costTier ? (model.costTier === 'free' ? '🎁 Free' : `💰 ${model.costTier}`) : '';
+        UI.el('modelMeta').textContent = [costBadge, roleBadge, model.paramTier !== '?' ? model.paramTier : '', ctxK, model.uncensored ? '🔓 uncensored' : ''].filter(Boolean).join(' · ');
         UI.updateModelLabel(model.name);
         AppState.modelContextMap[model.id] = model.ctx || 8192;
       }
@@ -262,8 +348,12 @@ export const App = {
         AppState.persistState();
         UI.updateModelLabel(first.name);
         AppState.modelContextMap[first.id] = first.ctx || 8192;
+        const roleBadge = first.role && first.role !== 'general' ? `🏷️ ${first.role}` : '';
+        const costBadge = first.costTier ? (first.costTier === 'free' ? '🎁 Free' : `💰 ${first.costTier}`) : '';
         UI.el('modelMeta').textContent = [
-          first.paramTier,
+          costBadge,
+          roleBadge,
+          first.paramTier !== '?' ? first.paramTier : '',
           first.ctx ? `${(first.ctx / 1000).toFixed(0)}k ctx` : '',
           first.uncensored ? '🔓 uncensored' : ''
         ].filter(Boolean).join(' · ');
@@ -273,7 +363,9 @@ export const App = {
         AppState.persistState();
         UI.updateModelLabel(found.name);
         const ctxK = found.ctx ? `${(found.ctx / 1000).toFixed(0)}k ctx` : '';
-        UI.el('modelMeta').textContent = [found.paramTier, ctxK, found.uncensored ? '🔓 uncensored' : ''].filter(Boolean).join(' · ');
+        const roleBadge = found.role && found.role !== 'general' ? `🏷️ ${found.role}` : '';
+        const costBadge = found.costTier ? (found.costTier === 'free' ? '🎁 Free' : `💰 ${found.costTier}`) : '';
+        UI.el('modelMeta').textContent = [costBadge, roleBadge, found.paramTier !== '?' ? found.paramTier : '', ctxK, found.uncensored ? '🔓 uncensored' : ''].filter(Boolean).join(' · ');
       }
     } catch (error) {
       console.error('refreshModels error:', error);
@@ -296,12 +388,24 @@ export const App = {
         ? `${models.length} of ${total} models shown`
         : '';
     }
+
+    if (!models || models.length === 0) {
+      const opt = document.createElement('option');
+      opt.value = 'none';
+      opt.disabled = true;
+      opt.selected = true;
+      opt.textContent = 'No matching models';
+      sel.appendChild(opt);
+      return;
+    }
+
     models.forEach(m => {
       const opt = document.createElement('option');
       opt.value = m.id;
       const cooldownSecs = AppState.modelCooldownSecondsLeft(m.id);
       const cooldownTag  = cooldownSecs > 0 ? ` ⏳ ${cooldownSecs}s` : '';
-      opt.textContent = badge + m.name + (m.uncensored ? ' 🔓' : '') + cooldownTag;
+      const roleTag = m.role && m.role !== 'general' ? ` [${m.role}]` : '';
+      opt.textContent = badge + m.name + roleTag + (m.uncensored ? ' 🔓' : '') + cooldownTag;
       if (m.id === AppState.selectedModel) opt.selected = true;
       sel.appendChild(opt);
     });
@@ -417,6 +521,234 @@ export const App = {
     });
   },
 
+  setupAttachmentListeners() {
+    const attachBtn = UI.el('attachBtn');
+    const fileInput = UI.el('fileAttachmentInput');
+    const composerBox = UI.el('composerBox');
+    const userInput = UI.el('userInput');
+
+    if (attachBtn && fileInput) {
+      attachBtn.addEventListener('click', () => fileInput.click());
+      fileInput.addEventListener('change', (e) => {
+        if (e.target.files && e.target.files.length) {
+          this.processFiles(e.target.files);
+          fileInput.value = '';
+        }
+      });
+    }
+
+    if (composerBox) {
+      ['dragenter', 'dragover'].forEach(evt => {
+        composerBox.addEventListener(evt, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          composerBox.classList.add('drag-over');
+        });
+      });
+
+      ['dragleave', 'dragend', 'drop'].forEach(evt => {
+        composerBox.addEventListener(evt, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          composerBox.classList.remove('drag-over');
+        });
+      });
+
+      composerBox.addEventListener('drop', (e) => {
+        if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {
+          this.processFiles(e.dataTransfer.files);
+        }
+      });
+    }
+
+    if (userInput) {
+      userInput.addEventListener('paste', (e) => {
+        if (e.clipboardData && e.clipboardData.files && e.clipboardData.files.length) {
+          this.processFiles(e.clipboardData.files);
+        }
+      });
+    }
+  },
+
+  async processFiles(fileList) {
+    if (!fileList || !fileList.length) return;
+    const files = Array.from(fileList);
+
+    for (const file of files) {
+      if (AppState.attachedFiles.length >= AppState.MAX_ATTACHMENTS) {
+        UI.toast(`Maximum ${AppState.MAX_ATTACHMENTS} files allowed at once.`, 'warning');
+        break;
+      }
+
+      const cleanName = file.name.replace(/[^\w.\-\s]/g, '_').slice(0, 80);
+
+      if (file.size > AppState.MAX_FILE_SIZE) {
+        UI.toast(`"${cleanName}" exceeds 500 KB limit.`, 'warning');
+        continue;
+      }
+
+      if (AppState.getTotalAttachmentSize() + file.size > AppState.MAX_TOTAL_ATTACHMENT_SIZE) {
+        UI.toast(`Total attachment size limit (2 MB) exceeded.`, 'warning');
+        break;
+      }
+
+      try {
+        let content = '';
+        let isImage = false;
+        let previewUrl = null;
+
+        if (file.type.startsWith('image/')) {
+          isImage = true;
+          try { previewUrl = URL.createObjectURL(file); } catch (_) {}
+          content = `[Image attachment: ${cleanName}]`;
+        } else if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+          try {
+            const pdfjsLib = await import('pdfjs-dist');
+            if (pdfjsLib.GlobalWorkerOptions) pdfjsLib.GlobalWorkerOptions.workerSrc = '';
+            const arrayBuffer = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+            let extracted = '';
+            for (let i = 1; i <= Math.min(pdf.numPages, 10); i++) {
+              const page = await pdf.getPage(i);
+              const textObj = await page.getTextContent();
+              const pageStr = textObj.items.map(it => it.str).join(' ');
+              extracted += `[Page ${i}]\n${pageStr}\n\n`;
+            }
+            content = extracted.trim() || `[PDF: ${cleanName} - No text extracted]`;
+          } catch (pdfErr) {
+            console.warn('PDF extraction fallback:', pdfErr);
+            content = `[PDF: ${cleanName} - Client-side text extraction not supported]`;
+          }
+        } else {
+          content = await file.text();
+        }
+
+        const res = AppState.addAttachment({
+          name: cleanName,
+          type: file.type || 'text/plain',
+          size: file.size,
+          content,
+          isImage,
+          previewUrl,
+        });
+
+        if (!res.ok) {
+          UI.toast(res.error, 'warning');
+        }
+      } catch (err) {
+        console.error('Failed to read file:', err);
+        UI.toast(`Failed to read "${cleanName}"`, 'error');
+      }
+    }
+    this.renderAttachmentList();
+  },
+
+  renderAttachmentList() {
+    UI.renderAttachments(AppState.attachedFiles, (index) => {
+      AppState.removeAttachment(index);
+      this.renderAttachmentList();
+    });
+  },
+
+  setupConversationListeners() {
+    UI.el('newChatBtn')?.addEventListener('click', () => {
+      const searchInput = UI.el('convSearchInput');
+      if (searchInput) searchInput.value = '';
+      this.newConversation();
+    });
+
+    const searchInput = UI.el('convSearchInput');
+    if (searchInput) {
+      const doSearch = Utils.debounce((query) => {
+        this.renderConversationList();
+      }, 150);
+
+      searchInput.addEventListener('input', (e) => doSearch(e.target.value));
+      searchInput.addEventListener('search', (e) => doSearch(e.target.value));
+    }
+  },
+
+  renderConversationList() {
+    const searchInput = UI.el('convSearchInput');
+    const q = searchInput?.value?.trim();
+
+    if (q) {
+      const results = AppState.searchConversations(q);
+      UI.renderConversations(
+        results,
+        AppState.currentConversationId,
+        {
+          onSwitch: (id, msgIdx) => this.switchConversation(id, msgIdx),
+          onRename: (id, title) => this.renameConversation(id, title),
+          onDelete: (id, title) => this.deleteConversation(id, title),
+        },
+        'No matching chats'
+      );
+      return;
+    }
+
+    const convs = AppState.listConversations();
+    UI.renderConversations(convs, AppState.currentConversationId, {
+      onSwitch: (id) => this.switchConversation(id),
+      onRename: (id, title) => this.renameConversation(id, title),
+      onDelete: (id, title) => this.deleteConversation(id, title),
+    });
+  },
+
+  newConversation() {
+    if (this._sending) {
+      UI.toast('Please wait for current response to complete', 'warning');
+      return;
+    }
+    const searchInput = UI.el('convSearchInput');
+    if (searchInput) searchInput.value = '';
+    AppState.createConversation('New chat');
+    AppState.clearAttachments();
+    this.renderAttachmentList();
+    UI.renderChatHistory(AppState.chatHistory);
+    UI.hideUnsavedBanner();
+    this.renderConversationList();
+    UI.toast('Started new chat', 'info');
+  },
+
+  switchConversation(id, msgIndex) {
+    if (id !== AppState.currentConversationId) {
+      if (this._sending) {
+        UI.toast('Please wait for current response to complete', 'warning');
+        return;
+      }
+      const ok = AppState.switchConversation(id);
+      if (ok) {
+        AppState.clearAttachments();
+        this.renderAttachmentList();
+        UI.renderChatHistory(AppState.chatHistory);
+        UI.hideUnsavedBanner();
+        this.renderConversationList();
+      }
+    }
+    if (msgIndex !== undefined && msgIndex >= 0) {
+      setTimeout(() => UI.scrollToMessageIndex(msgIndex), 50);
+    }
+  },
+
+  renameConversation(id, currentTitle) {
+    UI.promptModal('Rename conversation:', currentTitle, (newTitle) => {
+      AppState.renameConversation(id, newTitle);
+      this.renderConversationList();
+      UI.toast('Conversation renamed', 'info');
+    });
+  },
+
+  deleteConversation(id, title) {
+    UI.confirmModal(`Delete "${title || 'this conversation'}"?`, () => {
+      AppState.deleteConversation(id);
+      UI.renderChatHistory(AppState.chatHistory);
+      UI.hideUnsavedBanner();
+      this.renderConversationList();
+      UI.toast('Conversation deleted', 'info');
+    });
+  },
+
   _updateWelcomeChips(personaName) {
     const chipSets = {
       'Assistant': [
@@ -470,8 +802,9 @@ export const App = {
     const { isRetry = false } = options;
 
     const userInput = UI.el('userInput');
-    const text = userInput?.value.trim();
-    if (!text) return;
+    const text = userInput?.value.trim() || '';
+    const hasAttachments = AppState.attachedFiles.length > 0;
+    if (!text && !hasAttachments) return;
 
     if (AppState.selectedModel === 'none') {
       UI.toast('Please select a model first', 'warning');
@@ -494,27 +827,45 @@ export const App = {
       AppState.recordRequest();
     }
 
+    // Build prompt including formatted attachments
+    let fullUserPrompt = text;
+    if (hasAttachments) {
+      const formattedAttachments = AppState.attachedFiles.map(f => {
+        if (f.isImage) {
+          return `[Attached Image: ${f.name} (${Utils.formatFileSize(f.size)}) — Note: vision is not enabled on this text endpoint]`;
+        }
+        return `--- Attached File: ${f.name} ---\n${f.content || ''}\n----------------------------------`;
+      }).join('\n\n');
+      fullUserPrompt = text ? `${text}\n\n${formattedAttachments}` : formattedAttachments;
+    }
+
     const rawMessages = [
       { role: 'system', content: AppState.currentPersonaPrompt },
       ...AppState.chatHistory.map(m => ({ role: m.role, content: m.content })),
-      { role: 'user', content: text },
+      { role: 'user', content: fullUserPrompt },
     ];
     const messages = AppState.trimHistoryToFitContext(rawMessages);
     const sentContextUsage = this._estimateMessagesTokens(messages) / AppState.getContextLimit();
 
-    this._lastUserText = text;
+    this._lastUserText = text || fullUserPrompt;
     UI.removeRetryButton();
-    AppState.addMessage('user', text);
+    AppState.addMessage('user', fullUserPrompt);
+    this.renderConversationList();
+
+    // Clear attachments & composer input
+    AppState.clearAttachments();
+    this.renderAttachmentList();
     userInput.value = '';
     userInput.style.height = 'auto';
     UI.updateCharCount(0);
     UI.showChat();
-    UI.appendMessage('user', text);
+    UI.appendMessage('user', fullUserPrompt);
     UI.setSendButtonState(false);
     UI.showTyping();
     UI.hideUnsavedBanner();
     this._sending = true;
 
+    const currentModelId = AppState.selectedModel;
     let streamBubble = null;
     let fullContent  = '';
     let firstToken   = true;
@@ -527,11 +878,11 @@ export const App = {
       // retry up to 2 times with exponential backoff before surfacing the error to the user.
       const doStream = () => API.sendMessageStream(
         messages,
-        AppState.selectedModel,
+        currentModelId,
         (delta) => {
           if (firstToken) {
             UI.removeTyping();
-            streamBubble = UI.createStreamBubble();
+            streamBubble = UI.createStreamBubble(currentModelId);
             firstToken = false;
           }
           fullContent += delta;
@@ -556,12 +907,13 @@ export const App = {
         UI.removeTyping();
         const content = response?.choices?.[0]?.message?.content || '';
         fullContent = content;
-        if (fullContent) UI.appendMessage('assistant', fullContent);
+        if (fullContent) UI.appendMessage('assistant', fullContent, currentModelId);
       }
 
       const finalContent = fullContent || response?.choices?.[0]?.message?.content || '';
       if (finalContent) {
-        AppState.addMessage('assistant', finalContent);
+        AppState.addMessage('assistant', finalContent, currentModelId);
+        this.renderConversationList();
         const { promptTokens, completionTokens } = API.extractTokenUsage(response);
         AppState.updateTokens(promptTokens, completionTokens);
         UI.updateStats(AppState.totalPromptTokens, AppState.totalCompletionTokens);
@@ -577,36 +929,48 @@ export const App = {
 
     } catch (error) {
       UI.removeTyping();
-      if (streamBubble) UI.removeStreamBubble(streamBubble);
 
       if (error.code === 'ABORTED') {
-      } else if (error.code === 'UPSTREAM_RATE_LIMIT') {
-        AppState.setModelCooldown(AppState.selectedModel, 60000);
-        this._renderModelOptions(AppState.allModels, UI.el('modelSelect'));
-        const curModel = AppState.allModels.find(m => m.id === AppState.selectedModel);
-        const alt = AppState.allModels.find(m =>
-          m.id !== AppState.selectedModel &&
-          !AppState.isModelOnCooldown(m.id) &&
-          (!curModel || m.paramTier === curModel.paramTier)
-        ) || AppState.allModels.find(m =>
-          m.id !== AppState.selectedModel && !AppState.isModelOnCooldown(m.id)
-        );
-        const altHint = alt ? ` Try: ${alt.name}` : '';
-        UI.toast((error.message || 'Model temporarily overloaded — try another') + altHint, 'warning', 8000);
-      } else if (error.code === 'RATE_LIMIT') {
-        UI.toast(error.message || 'Rate limited — please wait', 'warning', 6000);
-      } else if (error.code === 'AUTH') {
-        AppState.apiKey  = '';
-        AppState.hfToken = '';
-        UI.setAuthState(false, 'Authentication failed');
-        UI.toast(error.message || 'Authentication error — please re-enter your API key', 'error');
-        const input = UI.el('apiKeyInput');
-        if (input) { input.value = ''; input.focus(); }
-      } else if (error.code === 'MODEL_NOT_FREE' || error.code === 'MODEL_MISSING') {
-        UI.toast(error.message || 'Model unavailable', 'error');
-        await this.refreshModels();
+        if (fullContent && fullContent.trim()) {
+          if (streamBubble) {
+            UI.finaliseStreamBubble(streamBubble, fullContent);
+          }
+          AppState.addMessage('assistant', fullContent, currentModelId);
+          this.renderConversationList();
+        } else if (streamBubble) {
+          UI.removeStreamBubble(streamBubble);
+        }
       } else {
-        UI.toast(error.message || 'Request failed — please try again', 'error');
+        if (streamBubble) UI.removeStreamBubble(streamBubble);
+
+        if (error.code === 'UPSTREAM_RATE_LIMIT') {
+          AppState.setModelCooldown(AppState.selectedModel, 60000);
+          this._renderModelOptions(AppState.allModels, UI.el('modelSelect'));
+          const curModel = AppState.allModels.find(m => m.id === AppState.selectedModel);
+          const alt = AppState.allModels.find(m =>
+            m.id !== AppState.selectedModel &&
+            !AppState.isModelOnCooldown(m.id) &&
+            (!curModel || m.paramTier === curModel.paramTier)
+          ) || AppState.allModels.find(m =>
+            m.id !== AppState.selectedModel && !AppState.isModelOnCooldown(m.id)
+          );
+          const altHint = alt ? ` Try: ${alt.name}` : '';
+          UI.toast((error.message || 'Model temporarily overloaded — try another') + altHint, 'warning', 8000);
+        } else if (error.code === 'RATE_LIMIT') {
+          UI.toast(error.message || 'Rate limited — please wait', 'warning', 6000);
+        } else if (error.code === 'AUTH') {
+          AppState.apiKey  = '';
+          AppState.hfToken = '';
+          UI.setAuthState(false, 'Authentication failed');
+          UI.toast(error.message || 'Authentication error — please re-enter your API key', 'error');
+          const input = UI.el('apiKeyInput');
+          if (input) { input.value = ''; input.focus(); }
+        } else if (error.code === 'MODEL_NOT_FREE' || error.code === 'MODEL_MISSING') {
+          UI.toast(error.message || 'Model unavailable', 'error');
+          await this.refreshModels();
+        } else {
+          UI.toast(error.message || 'Request failed — please try again', 'error');
+        }
       }
     } finally {
       this._sending = false;
@@ -635,7 +999,10 @@ export const App = {
     // FIX Sofia/Zara: replaced native confirm() with accessible modal
     UI.el('clearBtn').addEventListener('click', () => {
       const doClear = () => {
+        AppState.clearAttachments();
+        this.renderAttachmentList();
         UI.clearChat();
+        this.renderConversationList();
         UI.hideUnsavedBanner();
         UI.toast('Chat cleared', 'info');
       };
@@ -651,7 +1018,10 @@ export const App = {
       resetBtn.addEventListener('click', () => {
         UI.confirmModal('Reset session (auth, model, chat)?', () => {
           AppState.reset();
+          AppState.clearAttachments();
+          this.renderAttachmentList();
           UI.clearChat();
+          this.renderConversationList();
           UI.hideUnsavedBanner();
           const input = UI.el('apiKeyInput');
           if (input) input.value = '';
@@ -975,6 +1345,44 @@ export const App = {
         e.preventDefault();
         const search = UI.el('searchInput');
         if (search) { search.focus(); search.select(); }
+      }
+
+      // Escape key → close open menus/overlays or clear active search
+      if (e.key === 'Escape') {
+        const openOverlay = document.querySelector('.confirm-overlay.open');
+        if (openOverlay) {
+          openOverlay.classList.remove('open');
+          setTimeout(() => openOverlay.remove(), 200);
+          return;
+        }
+
+        const exportMenu = UI.el('export-menu');
+        if (exportMenu && exportMenu.classList.contains('open')) {
+          exportMenu.classList.remove('open');
+          return;
+        }
+
+        const themeMenu = UI.el('theme-menu');
+        if (themeMenu && themeMenu.classList.contains('open')) {
+          themeMenu.classList.remove('open');
+          return;
+        }
+
+        const convSearch = UI.el('convSearchInput');
+        if (convSearch && (document.activeElement === convSearch || convSearch.value)) {
+          convSearch.value = '';
+          convSearch.blur();
+          this.renderConversationList();
+          return;
+        }
+
+        const personaSearch = UI.el('searchInput');
+        if (personaSearch && (document.activeElement === personaSearch || personaSearch.value)) {
+          personaSearch.value = '';
+          personaSearch.blur();
+          this.buildParamFilter();
+          return;
+        }
       }
     });
 

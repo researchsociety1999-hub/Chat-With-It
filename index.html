@@ -112,7 +112,7 @@ html {
     radial-gradient(ellipse 60% 40% at 80% 110%, rgba(8,145,178,.07) 0%, transparent 60%);
 }
 
-/* Mobile Composer Fixes */
+/* Mobile Composer & Safe Areas */
 @media (max-width: 768px) {
   #composerWrap {
     position: fixed;
@@ -122,27 +122,46 @@ html {
     z-index: 1000;
     background: var(--panel);
     padding: .75rem 1rem;
-    padding-bottom: calc(.75rem + env(safe-area-inset-bottom,0px));
+    padding-bottom: max(.75rem, calc(.75rem + env(safe-area-inset-bottom, 0px)));
+    padding-left: max(1rem, calc(1rem + env(safe-area-inset-left, 0px)));
+    padding-right: max(1rem, calc(1rem + env(safe-area-inset-right, 0px)));
     border-top: 1px solid var(--border);
   }
 
-  .main {
-    padding-bottom: 80px; /* Space for fixed composer */
+  /* Prevent automatic iOS zoom on focus */
+  .composer-textarea,
+  input[type="password"],
+  input[type="search"],
+  input[type="url"],
+  input[type="text"],
+  select {
+    font-size: 16px;
+    touch-action: manipulation;
   }
 
-  /* Ensure touch targets are at least 44x44px */
-  .btn, .menu-item, .persona-card, .chip, .confirm-btn {
+  .main {
+    padding-bottom: 84px; /* Space for fixed composer */
+  }
+
+  /* Ensure touch targets are at least 44x44px for primary actions */
+  .btn, .menu-item, .persona-card, .chip, .confirm-btn, .ptab, #sendBtn, #stopBtn, #sidebarToggle, #newChatBtn {
     min-height: 44px;
     min-width: 44px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    touch-action: manipulation;
   }
 
-  /* Adjust chat body padding for mobile keyboard */
+  /* Adjust chat body padding for mobile keyboard and fixed composer */
   .chat-body {
-    padding-bottom: 80px; /* Space for composer when keyboard is up */
+    padding-bottom: 84px; /* Space for composer when keyboard is up */
   }
+}
+
+/* Prevent double-tap zoom across buttons and inputs */
+button, input, textarea, select, a, .ptab, .chip, .conv-btn {
+  touch-action: manipulation;
 }
 
 /* Prevent horizontal scroll at key breakpoints */
@@ -276,6 +295,23 @@ input:focus, select:focus, textarea:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-glow);
 }
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.btn:focus-visible,
+.ptab:focus-visible,
+.chip:focus-visible,
+.conv-item:focus-visible,
+.persona-card:focus-visible,
+.msg-action-btn:focus-visible,
+.conv-btn:focus-visible,
+.file-remove:focus-visible,
+.menu-item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
 select { appearance: none; cursor: pointer; }
 select option { background: var(--panel-solid); }
 
@@ -391,6 +427,94 @@ input[type="range"]::-moz-range-thumb {
 .persona-info { min-width: 0; }
 .persona-info strong { font-size: .84rem; font-weight: 700; display: block; }
 .persona-info .muted { font-size: .73rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ─── Conversations List ─────────────────────────────────────────────────── */
+.conv-list {
+  display: flex;
+  flex-direction: column;
+  gap: .35rem;
+  max-height: 200px;
+  overflow-y: auto;
+  margin-top: .4rem;
+  padding-right: .15rem;
+}
+.conv-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .4rem;
+  padding: .45rem .6rem;
+  border-radius: var(--radius-sm);
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.conv-item:hover {
+  border-color: var(--border-2);
+  background: rgba(255,255,255,.07);
+}
+.conv-item.active {
+  border-color: var(--accent);
+  background: var(--accent-glow);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.conv-item-main {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: .1rem;
+}
+.conv-title {
+  font-size: .8rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--fg);
+}
+.conv-time {
+  font-size: .7rem;
+  color: var(--fg-muted);
+}
+.conv-actions {
+  display: flex;
+  align-items: center;
+  gap: .2rem;
+  opacity: 0;
+  transition: opacity var(--transition);
+}
+.conv-item:hover .conv-actions,
+.conv-item:focus-within .conv-actions,
+.conv-item.active .conv-actions {
+  opacity: 1;
+}
+.conv-btn {
+  background: transparent;
+  border: none;
+  color: var(--fg-muted);
+  cursor: pointer;
+  padding: .2rem .3rem;
+  font-size: .75rem;
+  border-radius: 4px;
+  line-height: 1;
+}
+.conv-btn:hover {
+  color: var(--fg);
+  background: var(--panel);
+}
+.conv-btn.delete:hover {
+  color: var(--danger);
+}
+.conv-snippet {
+  font-size: .72rem;
+  color: var(--fg-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: .1rem;
+}
 
 /* ─── Main Column ────────────────────────────────────────────────────────── */
 .main {
@@ -583,6 +707,15 @@ input[type="range"]::-moz-range-thumb {
   padding: 0 .25rem;
 }
 .msg-time { font-size: .68rem; color: var(--fg-subtle); }
+.msg-model {
+  font-size: .67rem;
+  color: var(--fg-muted);
+  background: var(--panel-2);
+  padding: .1rem .35rem;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--border);
+  letter-spacing: .02em;
+}
 .msg-actions { display: flex; gap: .2rem; opacity: 0; transition: opacity var(--transition); }
 .msg:hover .msg-actions { opacity: 1; }
 .msg-action-btn {
@@ -667,7 +800,9 @@ input[type="range"]::-moz-range-thumb {
 #composerWrap {
   flex-shrink: 0;
   padding: .75rem 1.25rem;
-  padding-bottom: calc(.75rem + env(safe-area-inset-bottom,0px));
+  padding-bottom: max(.75rem, calc(.75rem + env(safe-area-inset-bottom, 0px)));
+  padding-left: max(1.25rem, calc(1.25rem + env(safe-area-inset-left, 0px)));
+  padding-right: max(1.25rem, calc(1.25rem + env(safe-area-inset-right, 0px)));
   background: var(--panel);
   -webkit-backdrop-filter: var(--blur);
   backdrop-filter: var(--blur);
@@ -686,6 +821,66 @@ input[type="range"]::-moz-range-thumb {
 .composer-box:focus-within {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-glow);
+}
+.composer-box.drag-over {
+  border-color: var(--accent-2);
+  background: rgba(6,182,212,0.08);
+  box-shadow: 0 0 0 3px rgba(6,182,212,0.3);
+}
+
+/* ─── Attachments ────────────────────────────────────────────────────────── */
+.attachment-list {
+  display: none;
+  flex-wrap: wrap;
+  gap: .4rem;
+  margin-bottom: .25rem;
+}
+.attachment-list.has-files {
+  display: flex;
+}
+.attachment-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  background: var(--panel);
+  border: 1px solid var(--border-2);
+  border-radius: var(--radius-xs);
+  padding: .25rem .5rem;
+  font-size: .75rem;
+  color: var(--fg);
+  max-width: 220px;
+}
+.attachment-chip .file-icon {
+  font-size: .85rem;
+  flex-shrink: 0;
+}
+.attachment-chip .file-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+}
+.attachment-chip .file-size {
+  color: var(--fg-subtle);
+  font-size: .7rem;
+  flex-shrink: 0;
+}
+.attachment-chip .file-remove {
+  background: transparent;
+  border: none;
+  color: var(--fg-muted);
+  cursor: pointer;
+  padding: 0 .15rem;
+  font-size: .75rem;
+  line-height: 1;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.attachment-chip .file-remove:hover {
+  color: var(--danger);
+  background: rgba(239,68,68,0.15);
 }
 .composer-textarea {
   width: 100%;
@@ -1094,7 +1289,12 @@ input[type="range"]::-moz-range-thumb {
   .msg-col { max-width: min(88%, 620px); }
   .chat-body { padding: 1rem .85rem; }
   .chat-header { padding: .7rem .85rem; }
-  #composerWrap { padding: .65rem .85rem; padding-bottom: calc(.65rem + env(safe-area-inset-bottom,0px)); }
+  #composerWrap {
+    padding: .65rem .85rem;
+    padding-bottom: max(.65rem, calc(.65rem + env(safe-area-inset-bottom, 0px)));
+    padding-left: max(.85rem, calc(.85rem + env(safe-area-inset-left, 0px)));
+    padding-right: max(.85rem, calc(.85rem + env(safe-area-inset-right, 0px)));
+  }
 }
 @media (max-width: 640px) {
   .model-badge { max-width: 140px; }
@@ -1125,6 +1325,11 @@ input[type="range"]::-moz-range-thumb {
         <div class="ptabs" role="tablist" aria-label="Providers">
           <button class="ptab active" data-provider="openrouter" aria-selected="true">OpenRouter</button>
           <button class="ptab" data-provider="huggingface" aria-selected="false">HF</button>
+          <button class="ptab" data-provider="local" aria-selected="false">Local</button>
+        </div>
+        <div id="localConfigRow" style="display:none;margin-bottom:.5rem;">
+          <label for="localBaseUrlInput" style="font-size:.73rem;color:var(--fg-muted);display:block;margin-bottom:.25rem;">Base URL</label>
+          <input id="localBaseUrlInput" type="url" value="http://localhost:11434/v1" placeholder="http://localhost:11434/v1" autocomplete="off" spellcheck="false" aria-label="Local Base URL" style="width:100%;box-sizing:border-box;">
         </div>
         <label for="apiKeyInput" class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)">API Key</label>
         <div class="auth-row">
@@ -1142,6 +1347,17 @@ input[type="range"]::-moz-range-thumb {
           <button id="profilesToggleBtn" aria-expanded="false" aria-haspopup="true">🔑 Profiles</button>
           <div id="profilesPanel" role="menu" aria-label="API key profiles"></div>
         </div>
+      </div>
+
+      <!-- Conversations -->
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div class="card-title" style="margin:0">Chats</div>
+          <button id="newChatBtn" class="btn btn-sm btn-primary" type="button" title="New conversation" style="padding:.2rem .55rem;font-size:.75rem;">+ New</button>
+        </div>
+        <label for="convSearchInput" class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)">Search chats</label>
+        <input id="convSearchInput" type="search" placeholder="🔍 Search chats…" aria-label="Search chats" style="margin-top:.4rem;font-size:.78rem;padding:.35rem .6rem;">
+        <div id="convList" class="conv-list" role="list" aria-label="Saved conversations"></div>
       </div>
 
       <!-- Model -->
@@ -1222,25 +1438,25 @@ input[type="range"]::-moz-range-thumb {
         </div>
         <div class="header-actions">
           <button id="sidebarToggle" class="btn btn-ghost btn-icon" type="button" aria-label="Toggle sidebar" title="Menu">☰</button>
-          <button id="statsBtn" class="btn btn-ghost btn-sm" type="button" title="Session stats">📊 <span>Stats</span></button>
+          <button id="statsBtn" class="btn btn-ghost btn-sm" type="button" title="Session stats" aria-label="Session stats">📊 <span>Stats</span></button>
           <button id="clearBtn" class="btn btn-ghost btn-sm" type="button" title="Clear chat" aria-label="Clear chat">🗑 <span>Clear</span></button>
           <div class="menu-wrap">
-            <button id="exportBtn" class="btn btn-ghost btn-sm" type="button" title="Export chat">⬇ <span>Export</span></button>
-            <div id="export-menu" class="dropdown-menu">
-              <button id="exportMd"   class="menu-item" type="button">📝 Markdown</button>
-              <button id="exportJson" class="menu-item" type="button">📦 JSON</button>
-              <button id="exportPdf"  class="menu-item" type="button">📄 PDF</button>
-              <button id="exportTxt"  class="menu-item" type="button">📄 Text</button>
-              <div class="menu-sep"></div>
-              <button id="exportCopy" class="menu-item" type="button">📋 Copy all</button>
+            <button id="exportBtn" class="btn btn-ghost btn-sm" type="button" title="Export chat" aria-label="Export chat" aria-haspopup="true" aria-expanded="false">⬇ <span>Export</span></button>
+            <div id="export-menu" class="dropdown-menu" role="menu">
+              <button id="exportMd"   class="menu-item" type="button" role="menuitem">📝 Markdown</button>
+              <button id="exportJson" class="menu-item" type="button" role="menuitem">📦 JSON</button>
+              <button id="exportPdf"  class="menu-item" type="button" role="menuitem">📄 PDF</button>
+              <button id="exportTxt"  class="menu-item" type="button" role="menuitem">📄 Text</button>
+              <div class="menu-sep" role="separator"></div>
+              <button id="exportCopy" class="menu-item" type="button" role="menuitem">📋 Copy all</button>
             </div>
           </div>
           <div class="menu-wrap">
-            <button id="themeBtn" class="btn btn-ghost btn-icon" type="button" title="Toggle theme" aria-label="Toggle theme">🎨</button>
-            <div id="theme-menu" class="dropdown-menu">
-              <button class="menu-item theme-opt" data-theme="dark"  type="button">🌙 Dark</button>
-              <button class="menu-item theme-opt" data-theme="light" type="button">☀️ Light</button>
-              <button class="menu-item theme-opt" data-theme="system" type="button">💻 System</button>
+            <button id="themeBtn" class="btn btn-ghost btn-icon" type="button" title="Toggle theme" aria-label="Toggle theme" aria-haspopup="true" aria-expanded="false">🎨</button>
+            <div id="theme-menu" class="dropdown-menu" role="menu">
+              <button class="menu-item theme-opt" data-theme="dark"  type="button" role="menuitem">🌙 Dark</button>
+              <button class="menu-item theme-opt" data-theme="light" type="button" role="menuitem">☀️ Light</button>
+              <button class="menu-item theme-opt" data-theme="system" type="button" role="menuitem">💻 System</button>
             </div>
           </div>
           <button id="highContrastBtn" class="btn btn-ghost btn-icon" type="button" title="Toggle high contrast mode" aria-label="Toggle high contrast mode">◐</button>
@@ -1271,11 +1487,12 @@ input[type="range"]::-moz-range-thumb {
 
       <!-- Composer -->
       <div id="composerWrap">
-        <div class="composer-box">
+        <div class="composer-box" id="composerBox">
+          <div id="attachmentList" class="attachment-list" aria-label="Attached files"></div>
           <textarea
             id="userInput"
             class="composer-textarea"
-            placeholder="Send a message…"
+            placeholder="Send a message (drop files to attach)…"
             aria-label="Message input"
             rows="1"
           ></textarea>
@@ -1285,6 +1502,8 @@ input[type="range"]::-moz-range-thumb {
               <span id="modelLabelInline" class="model-inline"></span>
             </div>
             <div class="composer-btns">
+              <input type="file" id="fileAttachmentInput" multiple accept=".txt,.md,.markdown,.json,.csv,.js,.jsx,.ts,.tsx,.py,.html,.css,.yaml,.yml,.xml,.pdf,image/*" style="display:none">
+              <button id="attachBtn" class="btn btn-ghost btn-icon" type="button" title="Attach file" aria-label="Attach file">📎</button>
               <!-- FIX: visibility:hidden (not display:none) — keeps layout stable for ui.js setSendButtonState() -->
               <button id="stopBtn" class="btn" type="button" aria-label="Stop generation">⏹ Stop</button>
               <button id="sendBtn" class="btn btn-primary" type="button" aria-label="Send message">Send ↑</button>
