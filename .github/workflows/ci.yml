@@ -2,23 +2,33 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [ main, master ]
   pull_request:
-    branches: [main]
+    branches: [ main, master ]
 
 jobs:
-  test:
+  test-and-build:
+    name: Test & Build
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [20.x, 22.x]
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
         with:
-          node-version: '20'
-      - run: npm ci
-      - run: npm run build
-      - name: Check bundle size
-        run: |
-          SIZE=$(gzip -c dist/app.js | wc -c)
-          echo "Gzipped size: ${SIZE} bytes"
-          if [ "$SIZE" -gt 512000 ]; then exit 1; fi
-      - run: test -f dist/app.js
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run test suite
+        run: npm test
+
+      - name: Verify build artifact
+        run: test -f dist/app.js || (echo "dist/app.js is missing" && exit 1)

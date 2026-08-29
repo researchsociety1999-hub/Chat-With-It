@@ -173,6 +173,202 @@ export const UI = {
     overlay.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
   },
 
+  // Prompt modal for renaming
+  promptModal(message, defaultValue, onConfirm) {
+    const overlay = document.createElement('div');
+    overlay.className = 'confirm-overlay';
+    overlay.setAttribute('role', 'presentation');
+
+    const box = document.createElement('div');
+    box.className = 'confirm-box';
+    box.setAttribute('role', 'dialog');
+    box.setAttribute('aria-modal', 'true');
+    box.setAttribute('aria-label', message);
+    box.tabIndex = -1;
+
+    const msg = document.createElement('p');
+    msg.className = 'confirm-msg';
+    msg.textContent = message;
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = defaultValue || '';
+    input.maxLength = 60;
+    input.style.width = '100%';
+    input.style.marginBottom = '.75rem';
+    input.style.boxSizing = 'border-box';
+
+    const actions = document.createElement('div');
+    actions.className = 'confirm-actions';
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.className = 'btn-secondary confirm-cancel';
+    cancelBtn.textContent = 'Cancel';
+
+    const confirmBtn = document.createElement('button');
+    confirmBtn.className = 'btn-primary confirm-confirm';
+    confirmBtn.textContent = 'Save';
+
+    actions.appendChild(cancelBtn);
+    actions.appendChild(confirmBtn);
+    box.appendChild(msg);
+    box.appendChild(input);
+    box.appendChild(actions);
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+
+    requestAnimationFrame(() => {
+      overlay.classList.add('open');
+      input.focus();
+      input.select();
+    });
+
+    const close = () => { overlay.classList.remove('open'); setTimeout(() => overlay.remove(), 200); };
+    cancelBtn.addEventListener('click', close);
+    confirmBtn.addEventListener('click', () => {
+      const val = input.value.trim();
+      if (val) onConfirm(val);
+      close();
+    });
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        const val = input.value.trim();
+        if (val) onConfirm(val);
+        close();
+      } else if (e.key === 'Escape') {
+        close();
+      }
+    });
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+    overlay.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+  },
+
+  renderConversations(conversations, activeId, { onSwitch, onRename, onDelete }, emptyText = 'No saved chats') {
+    const listEl = this.el('convList');
+    if (!listEl) return;
+    listEl.innerHTML = '';
+
+    if (!conversations || !conversations.length) {
+      const empty = document.createElement('div');
+      empty.className = 'muted';
+      empty.style.fontSize = '.75rem';
+      empty.style.padding = '.4rem .2rem';
+      empty.textContent = emptyText;
+      listEl.appendChild(empty);
+      return;
+    }
+
+    conversations.forEach(conv => {
+      const item = document.createElement('div');
+      item.className = 'conv-item' + (conv.id === activeId ? ' active' : '');
+      item.dataset.id = conv.id;
+      item.setAttribute('role', 'button');
+      item.setAttribute('tabindex', '0');
+
+      const main = document.createElement('div');
+      main.className = 'conv-item-main';
+
+      const title = document.createElement('div');
+      title.className = 'conv-title';
+      title.textContent = conv.title || 'New chat';
+      title.title = conv.title || 'New chat';
+
+      const time = document.createElement('div');
+      time.className = 'conv-time';
+      const lastTs = conv.updatedAt || conv.createdAt || Date.now();
+      time.textContent = Utils.getTimeSince(lastTs);
+
+      main.appendChild(title);
+      main.appendChild(time);
+
+      if (conv.snippet) {
+        const snippetEl = document.createElement('div');
+        snippetEl.className = 'conv-snippet';
+        snippetEl.textContent = conv.snippet;
+        snippetEl.title = conv.snippet;
+        main.appendChild(snippetEl);
+      }
+
+      const actions = document.createElement('div');
+      actions.className = 'conv-actions';
+
+      const renameBtn = document.createElement('button');
+      renameBtn.className = 'conv-btn';
+      renameBtn.title = 'Rename chat';
+      renameBtn.setAttribute('aria-label', `Rename chat ${conv.title}`);
+      renameBtn.textContent = '✎';
+      renameBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (typeof onRename === 'function') onRename(conv.id, conv.title);
+      });
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = 'conv-btn delete';
+      deleteBtn.title = 'Delete chat';
+      deleteBtn.setAttribute('aria-label', `Delete chat ${conv.title}`);
+      deleteBtn.textContent = '🗑';
+      deleteBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (typeof onDelete === 'function') onDelete(conv.id, conv.title);
+      });
+
+      actions.appendChild(renameBtn);
+      actions.appendChild(deleteBtn);
+
+      item.appendChild(main);
+      item.appendChild(actions);
+
+      item.addEventListener('click', () => {
+        if (typeof onSwitch === 'function') onSwitch(conv.id, conv.messageIndex);
+      });
+
+      item.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          if (typeof onSwitch === 'function') onSwitch(conv.id, conv.messageIndex);
+        }
+      });
+
+      listEl.appendChild(item);
+    });
+  },
+
+  scrollToMessageIndex(index) {
+    const chat = this.el('chatBody');
+    if (!chat || index < 0) return;
+    const msgs = chat.querySelectorAll('.msg');
+    if (msgs && msgs[index]) {
+      msgs[index].scrollIntoView({ behavior: 'smooth', block: 'center' });
+      msgs[index].style.transition = 'box-shadow 0.3s ease';
+      msgs[index].style.boxShadow = '0 0 0 2px var(--accent)';
+      setTimeout(() => {
+        msgs[index].style.boxShadow = '';
+      }, 1500);
+    }
+  },
+
+  renderChatHistory(messages) {
+    const body = this.el('chatBody');
+    if (!body) return;
+    body.innerHTML = '';
+    const welcome = this.el('welcome');
+
+    if (!messages || !messages.length) {
+      if (welcome) welcome.classList.remove('hidden');
+      this.updateStats(0, 0);
+      this.updateContextBar();
+      this._updateScrollBtn();
+      return;
+    }
+
+    if (welcome) welcome.classList.add('hidden');
+
+    messages.forEach(m => {
+      this.appendMessage(m.role, m.content, m.model);
+    });
+    this.updateContextBar();
+  },
+
   // Chat divider (Sofia fix — persona change indicator)
   appendDivider(text) {
     const chat = this.el('chatBody');
@@ -213,7 +409,7 @@ export const UI = {
     return { wrap, col };
   },
 
-  _buildMeta(role, bubble) {
+  _buildMeta(role, bubble, modelId = null) {
     const meta = document.createElement('div');
     meta.className = 'msg-meta';
 
@@ -221,6 +417,15 @@ export const UI = {
     ts.className = 'msg-time';
     ts.textContent = new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
     ts.setAttribute('aria-hidden', 'true');
+
+    if (role === 'assistant' && modelId) {
+      const modelBadge = document.createElement('span');
+      modelBadge.className = 'msg-model';
+      const short = modelId.split('/').pop().replace(/:free$/, '').slice(0, 24);
+      modelBadge.textContent = short;
+      modelBadge.title = modelId;
+      meta.appendChild(modelBadge);
+    }
 
     const actions = document.createElement('div');
     actions.className = 'msg-actions';
@@ -243,7 +448,37 @@ export const UI = {
     return meta;
   },
 
-  appendMessage(role, text) {
+  _decorateCodeBlocks(container) {
+    if (!container) return;
+    const preBlocks = container.querySelectorAll('pre');
+    preBlocks.forEach(pre => {
+      if (pre.querySelector('.code-copy-btn')) return;
+      const copyBtn = document.createElement('button');
+      copyBtn.type = 'button';
+      copyBtn.className = 'code-copy-btn';
+      copyBtn.setAttribute('aria-label', 'Copy code snippet');
+      copyBtn.title = 'Copy code';
+      copyBtn.textContent = 'Copy';
+      copyBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const code = pre.querySelector('code');
+        const textToCopy = code ? code.innerText : pre.innerText;
+        Utils.copyToClipboard(textToCopy).then(ok => {
+          if (ok) {
+            copyBtn.textContent = 'Copied';
+            copyBtn.classList.add('copied');
+            setTimeout(() => {
+              copyBtn.textContent = 'Copy';
+              copyBtn.classList.remove('copied');
+            }, 1500);
+          }
+        });
+      });
+      pre.appendChild(copyBtn);
+    });
+  },
+
+  appendMessage(role, text, modelId = null) {
     const chat = this.el('chatBody');
     if (!chat) return;
 
@@ -253,22 +488,23 @@ export const UI = {
     bubble._rawText = text;
 
     col.appendChild(bubble);
-    col.appendChild(this._buildMeta(role, bubble));
+    col.appendChild(this._buildMeta(role, bubble, modelId));
     chat.appendChild(wrap);
 
     if (role === 'assistant') {
       Utils.parseMarkdown(text).then(html => {
         bubble.innerHTML = html;
-        this._scrollToBottom();
+        this._decorateCodeBlocks(bubble);
+        this._scrollToBottom(false);
         this.announce('Assistant replied');
       });
     } else {
       bubble.textContent = text;
-      this._scrollToBottom();
+      this._scrollToBottom(true);
     }
   },
 
-  createStreamBubble() {
+  createStreamBubble(modelId = null) {
     const chat = this.el('chatBody');
     if (!chat) return null;
 
@@ -280,9 +516,9 @@ export const UI = {
     content.className = 'bubble-stream-content';
     bubble.appendChild(content);
     col.appendChild(bubble);
-    col.appendChild(this._buildMeta('assistant', bubble));
+    col.appendChild(this._buildMeta('assistant', bubble, modelId));
     chat.appendChild(wrap);
-    this._scrollToBottom();
+    this._scrollToBottom(false);
     return bubble;
   },
 
@@ -303,7 +539,8 @@ export const UI = {
     if (!content) return;
     Utils.parseMarkdown(fullContent).then(html => {
       content.innerHTML = html;
-      this._scrollToBottom();
+      this._decorateCodeBlocks(bubble);
+      this._scrollToBottom(false);
       this.announce('Assistant finished reply');
     });
   },
@@ -342,9 +579,19 @@ export const UI = {
   },
 
   // Scroll helpers
-  _scrollToBottom() {
+  isNearBottom(threshold = 100) {
+    const chat = this.el('chatBody');
+    if (!chat) return true;
+    return chat.scrollHeight - chat.clientHeight - chat.scrollTop <= threshold;
+  },
+
+  _scrollToBottom(force = false) {
     const chat = this.el('chatBody');
     if (!chat) return;
+    if (!force && !this.isNearBottom()) {
+      this._updateScrollBtn();
+      return;
+    }
     requestAnimationFrame(() => {
       chat.scrollTop = chat.scrollHeight;
       this._updateScrollBtn();
@@ -364,7 +611,10 @@ export const UI = {
     const btn  = this.el('scrollToBottom');
     if (!chat || !btn) return;
     chat.addEventListener('scroll', Utils.throttle(() => this._updateScrollBtn(), 120));
-    btn.addEventListener('click', () => this._scrollToBottom());
+    btn.addEventListener('click', () => {
+      if (chat) chat.scrollTop = chat.scrollHeight;
+      this._updateScrollBtn();
+    });
   },
 
   // Stats
@@ -413,7 +663,9 @@ export const UI = {
   updateDiagnostics(provider, modelId) {
     const el = this.el('stat-diag');
     if (!el) return;
-    const name = provider === 'huggingface' ? 'Hugging Face' : 'OpenRouter';
+    let name = 'OpenRouter';
+    if (provider === 'huggingface') name = 'Hugging Face';
+    else if (provider === 'local') name = 'Local (Custom)';
     el.innerHTML = `Provider: ${name}<br>Model: ${modelId === 'none' ? 'none' : modelId}`;
   },
 
@@ -459,7 +711,10 @@ export const UI = {
     if (el)    el.textContent  = modelName || 'No model selected';
     if (badge) {
       badge.textContent = short;
-      badge.className   = 'model-badge' + (AppState.currentProvider === 'huggingface' ? ' hf' : '');
+      let badgeClass = 'model-badge';
+      if (AppState.currentProvider === 'huggingface') badgeClass += ' hf';
+      else if (AppState.currentProvider === 'local') badgeClass += ' loc';
+      badge.className = badgeClass;
     }
     if (inl)   inl.textContent = short !== 'No model' ? short : '';
   },
@@ -587,6 +842,52 @@ export const UI = {
       toast.classList.remove('show');
       setTimeout(() => toast.remove(), 300);
     }, duration);
+  },
+
+  // File Attachments
+  renderAttachments(files = [], onRemove) {
+    const list = this.el('attachmentList');
+    if (!list) return;
+    list.innerHTML = '';
+    if (!files.length) {
+      list.classList.remove('has-files');
+      return;
+    }
+    list.classList.add('has-files');
+
+    files.forEach((file, index) => {
+      const chip = document.createElement('div');
+      chip.className = 'attachment-chip';
+
+      const icon = document.createElement('span');
+      icon.className = 'file-icon';
+      icon.textContent = file.isImage ? '🖼️' : file.name.endsWith('.pdf') ? '📄' : '📝';
+
+      const name = document.createElement('span');
+      name.className = 'file-name';
+      name.title = file.name;
+      name.textContent = file.name;
+
+      const size = document.createElement('span');
+      size.className = 'file-size';
+      size.textContent = Utils.formatFileSize(file.size);
+
+      const removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.className = 'file-remove';
+      removeBtn.setAttribute('aria-label', `Remove attachment ${file.name}`);
+      removeBtn.textContent = '✕';
+      removeBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (typeof onRemove === 'function') onRemove(index);
+      });
+
+      chip.appendChild(icon);
+      chip.appendChild(name);
+      chip.appendChild(size);
+      chip.appendChild(removeBtn);
+      list.appendChild(chip);
+    });
   },
 };
 

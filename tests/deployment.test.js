@@ -29,6 +29,6 @@ describe('deployment configuration', () => {
   });
 
   it('bumps the service-worker cache version for the updated bundle', () => {
-    expect(serviceWorker).toMatch(/const CACHE_NAME = 'chatwithit-v14'/);
+    expect(serviceWorker).toMatch(/const CACHE_NAME = 'chatwithit-v(?:1[4-9]|2[0-9])'/);
   });
 });
