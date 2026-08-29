@@ -1,0 +1,103 @@
+name: Deploy status
+
+# Verifies the live Vercel production site after pushes to main.
+# Does not deploy — Vercel Git integration handles that.
+
+"on":
+  push:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    # Daily canary so a broken production is noticed even without new commits
+    - cron: "0 12 * * *"
+
+concurrency:
+  group: deploy-status
+  cancel-in-progress: true
+
+jobs:
+  production-health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Wait for Vercel production deploy
+        if: github.event_name == 'push'
+        run: sleep 45
+
+      - name: Check production health endpoint
+        id: health
+        run: |
+          set -euo pipefail
+          URL="https://chat-with-it.vercel.app/health.json"
+          echo "GET $URL"
+
+          # Retry a few times — deploy may still be propagating
+          for i in 1 2 3 4 5 6; do
+            CODE=$(curl -sS -o /tmp/health.json -w "%{http_code}" \
+              --max-time 20 \
+              -H "Cache-Control: no-cache" \
+              "$URL" || echo "000")
+            echo "Attempt $i → HTTP $CODE"
+            if [ "$CODE" = "200" ]; then
+              break
+            fi
+            sleep 15
+          done
+
+          if [ "$CODE" != "200" ]; then
+            echo "::error::health.json returned HTTP $CODE"
+            exit 1
+          fi
+
+          cat /tmp/health.json
+          echo
+
+          python3 - <<'PY'
+          import json, sys
+          data = json.load(open("/tmp/health.json"))
+          if data.get("status") != "ok":
+              print("::error::status field is not ok:", data)
+              sys.exit(1)
+          if data.get("service") != "chatwithit":
+              print("::error::unexpected service:", data.get("service"))
+              sys.exit(1)
+          print("health.json OK:", data)
+          PY
+
+      - name: Check production index + assets
+        run: |
+          set -euo pipefail
+          BASE="https://chat-with-it.vercel.app"
+
+          check() {
+            local path="$1"
+            local code
+            code=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 20 -H "Cache-Control: no-cache" "$BASE$path")
+            echo "$path → HTTP $code"
+            if [ "$code" != "200" ]; then
+              echo "::error::$path returned HTTP $code"
+              exit 1
+            fi
+          }
+
+          check "/"
+          check "/css/app.css"
+          check "/css/profiles.css"
+          check "/dist/app.js"
+          check "/manifest.json"
+
+          # Spot-check that index references the extracted stylesheet
+          curl -sS --max-time 20 -H "Cache-Control: no-cache" "$BASE/" | grep -q 'css/app.css' \
+            || { echo "::error::index.html missing css/app.css link"; exit 1; }
+
+          echo "Production asset checks passed."
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### Deploy status" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **URL:** https://chat-with-it.vercel.app" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Health:** https://chat-with-it.vercel.app/health.json" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Event:** ${{ github.event_name }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **SHA:** \`${{ github.sha }}\`" >> "$GITHUB_STEP_SUMMARY"

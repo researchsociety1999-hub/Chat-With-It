@@ -1,0 +1,55 @@
+name: Restore app.css
+
+"on":
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/restore-app-css.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 30
+
+      - name: Restore app.css from last good commit and apply 88% fix
+        run: |
+          set -euo pipefail
+          git show 96811e0ba4abe0b386e72669dff4be01382f1af2:css/app.css > css/app.css
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("css/app.css")
+          text = p.read_text(encoding="utf-8")
+          old = "  .sidebar { width: min(var(--sidebar-w), 88vw); }"
+          new = "  .sidebar { width: min(var(--sidebar-w), 88%); }"
+          if old not in text:
+              if new in text:
+                  print("already fixed")
+              else:
+                  raise SystemExit("expected 88vw rule not found")
+          else:
+              assert text.count(old) == 1
+              p.write_text(text.replace(old, new), encoding="utf-8")
+              print("applied 88vw -> 88%")
+          print("bytes", p.stat().st_size)
+          # sanity
+          assert ":root" in text or ":root" in p.read_text()
+          assert len(p.read_text()) > 20000
+          PY
+
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add css/app.css
+          if git diff --staged --quiet; then
+            echo "No change"
+            exit 0
+          fi
+          git commit -m "fix(css): restore app.css; replace latent 88vw sidebar width with 88%"
+          git push

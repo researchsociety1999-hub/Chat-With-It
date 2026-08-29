@@ -7,7 +7,7 @@
  * returning users always get fresh code once the new SW takes control.
  */
 
-// FIX: bumped to v4 so returning users pick up the bundled dist/app.js.
+// Bumped to v21 to ensure returning users pick up fresh PWA UI updates.
 // Increment this string on every deployment that changes cached assets.
 const CACHE_NAME = 'chatwithit-v21';
 
@@ -15,15 +15,15 @@ const PRECACHE_URLS = [
   './',
   './index.html',
   './dist/app.js',
+  './css/app.css',
   './css/profiles.css',
+  './css/pwa-safe-area.css',
   './manifest.json',
 ];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(async (cache) => {
-      // FIX: cache each URL individually so a single missing file (e.g. a new
-      // asset not yet deployed) does not abort the entire SW install.
       const results = await Promise.allSettled(
         PRECACHE_URLS.map(url => cache.add(url))
       );
@@ -52,7 +52,6 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(req.url);
 
-  // Never intercept provider API calls — always go straight to network
   if (
     url.hostname.includes('openrouter.ai') ||
     url.hostname.includes('huggingface.co') ||

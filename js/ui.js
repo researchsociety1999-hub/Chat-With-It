@@ -38,11 +38,33 @@ export const UI = {
   loadTheme() {
     let stored = 'dark';
     try { stored = localStorage.getItem('cwi_theme') || 'dark'; } catch (_) {}
-    document.documentElement.setAttribute('data-theme', stored);
+    this.setThemeAttribute(stored);
+  },
+
+  setThemeAttribute(theme) {
+    const resolved = theme === 'system'
+      ? (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark')
+      : theme;
+    document.documentElement.setAttribute('data-theme', resolved);
+    this.updateThemeMenu(theme);
+  },
+
+  updateThemeMenu(theme) {
+    document.querySelectorAll('.theme-opt').forEach(option => {
+      const selected = option.dataset.theme === theme;
+      option.setAttribute('aria-pressed', String(selected));
+    });
+  },
+
+  loadSidebarState() {
+    if (!window.matchMedia('(min-width: 1101px)').matches) return;
+    try {
+      document.body.classList.toggle('sidebar-collapsed', localStorage.getItem('cwi_sidebar_collapsed') === 'true');
+    } catch (_) {}
   },
 
   setTheme(theme) {
-    document.documentElement.setAttribute('data-theme', theme);
+    this.setThemeAttribute(theme);
     try { localStorage.setItem('cwi_theme', theme); } catch (_) {}
   },
 
@@ -622,6 +644,17 @@ export const UI = {
     }
   },
 
+  updateLiveUsage({ promptTokens = null, completionTokens = 0, estimated = true, streaming = false } = {}) {
+    const el = this.el('stat-live');
+    if (!el) return;
+    const completion = Utils.formatTokens(completionTokens);
+    const prompt = promptTokens == null ? 'prompt pending' : `${Utils.formatTokens(promptTokens)} prompt`;
+    const estimateLabel = estimated ? ' approx.' : '';
+    el.textContent = streaming
+      ? `Streaming · ${prompt} · ~${completion} output tokens`
+      : `Last turn · ${prompt} · ${completion} completion${estimateLabel}`;
+  },
+
   updateRateLimitInfo(remaining) {
     const el = this.el('stat-rl');
     if (el) el.textContent = String(remaining);
@@ -640,6 +673,8 @@ export const UI = {
     const panel = this.el('rightPanel');
     if (!panel) return;
     const isOpen = panel.classList.toggle('open');
+    document.body.classList.toggle('stats-open', isOpen);
+    this.el('statsBtn')?.setAttribute('aria-expanded', String(isOpen));
     if (isOpen) {
       this.updateStats(AppState.totalPromptTokens || 0, AppState.totalCompletionTokens || 0);
       this.updateRateLimitInfo(AppState.getRemainingRequests());
@@ -652,7 +687,11 @@ export const UI = {
     const send = this.el('sendBtn');
     const stop = this.el('stopBtn');
     if (send) { send.disabled = !enabled; send.setAttribute('aria-disabled', String(!enabled)); }
-    if (stop) stop.style.visibility = enabled ? 'hidden' : 'visible';
+    // FIX B1: toggle a class instead of inline visibility. index.html CSS owns
+    // the stop button's visible/hidden state via opacity+pointer-events, and an
+    // inline `style.visibility` never overrides CSS opacity, so the stop button
+    // used to stay invisible+unclickable while streaming.
+    if (stop) stop.classList.toggle('streaming-visible', !enabled);
   },
 
   // Char count
@@ -718,15 +757,52 @@ export const UI = {
   },
 
   // Sidebar
+  _focusableSelectors: 'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])',
+
+  _focusFirstSidebarControl(toggleBtn) {
+    const sidebar = this.el('sidebar');
+    const firstControl = sidebar?.querySelector(this._focusableSelectors);
+    (firstControl || toggleBtn)?.focus();
+  },
+
   toggleSidebar() {
     const sidebar = this.el('sidebar');
     const overlay = this.el('mobileOverlay');
     const toggle  = this.el('sidebarToggle');
     if (!sidebar) return;
+
+    const isMobile = window.matchMedia('(max-width: 1100px)').matches;
+    if (!isMobile) {
+      this.collapseSidebarDesktop();
+      if (overlay) overlay.classList.remove('show');
+      document.body.classList.remove('sidebar-open');
+      if (toggle) {
+        toggle.setAttribute('aria-expanded', 'false');
+        toggle.setAttribute('aria-pressed', String(document.body.classList.contains('sidebar-collapsed')));
+      }
+      AppState.sidebarOpen = false;
+      return;
+    }
+
+    document.body.classList.remove('sidebar-collapsed');
     const isOpen = sidebar.classList.toggle('open');
     AppState.sidebarOpen = isOpen;
     if (overlay) overlay.classList.toggle('show', isOpen);
     if (toggle)  toggle.setAttribute('aria-expanded', String(isOpen));
+    document.body.classList.toggle('sidebar-open', isOpen);
+    if (isOpen) this._focusFirstSidebarControl(toggle);
+    else toggle?.focus();
+  },
+
+  collapseSidebarDesktop() {
+    if (!window.matchMedia('(min-width: 1101px)').matches) return;
+    const collapsed = document.body.classList.toggle('sidebar-collapsed');
+    try { localStorage.setItem('cwi_sidebar_collapsed', String(collapsed)); } catch (_) {}
+    const toggle = this.el('sidebarToggle');
+    if (toggle) {
+      toggle.setAttribute('aria-pressed', String(collapsed));
+      toggle.setAttribute('aria-expanded', 'false');
+    }
   },
 
   // Retry button

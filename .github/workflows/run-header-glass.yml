@@ -1,0 +1,26 @@
+name: Header glass icons
+
+on:
+  push:
+    paths:
+      - scripts/polish-header-glass.py
+      - .github/workflows/run-header-glass.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 scripts/polish-header-glass.py
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add css/app.css sw.js
+          git diff --staged --quiet && echo noop && exit 0
+          git commit -m "style(ui): glassmorphic rounded header action icons"
+          git push

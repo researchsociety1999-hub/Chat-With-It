@@ -1,0 +1,1 @@
+[paste full superpowers content here]

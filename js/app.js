@@ -14,6 +14,7 @@ export const App = {
   _sending: false,
   _cooldownInterval: null,
   _scrollScheduled: false, // FIX Marcus: rAF scroll throttle flag
+  _modelRefreshId: 0,
 
   async init() {
     try {
@@ -21,6 +22,7 @@ export const App = {
       AppState.applyTheme();
       AppState.applyHighContrast();
       UI.loadTheme();
+      UI.loadSidebarState();
 
       // DOMPurify is bundled via npm — if the import failed the app cannot
       // safely render markdown, so disable chat and surface a banner.
@@ -31,6 +33,12 @@ export const App = {
         console.error('DOMPurify not loaded — chat disabled for security.');
         return;
       }
+
+      // FIX B2: keep window.DOMPurify in sync so sendMessage()'s guard works.
+      // The bundle imports DOMPurify as an ES module; window.DOMPurify was never
+      // assigned, so the guard in sendMessage() (checking window.DOMPurify) always
+      // fired and disabled chat even though the library loaded fine.
+      window.DOMPurify = DOMPurify;
 
       this.setupProviderListeners();
       this.setupAuthListeners();
@@ -68,11 +76,6 @@ export const App = {
       await this.refreshModels();
       this._restorePersonaCard();
       UI.initScrollBtn();
-
-      const privacy = document.querySelector('.privacy-panel');
-      if (privacy && !privacy.hasAttribute('open')) {
-        privacy.setAttribute('open', '');
-      }
 
       const hint = UI.el('authHint');
       const hintLink = UI.el('authHintLink');
@@ -242,6 +245,7 @@ export const App = {
   },
 
   async authenticate() {
+  try {
     const input = UI.el('apiKeyInput');
     const key   = input?.value.trim() || '';
 
@@ -253,19 +257,28 @@ export const App = {
       await this.refreshModels();
       return;
     }
-
     if (!Utils.isValidApiKey(key)) {
       UI.toast('Invalid API key format', 'error');
       if (input) input.focus();
       return;
     }
-    if (AppState.currentProvider === 'openrouter') AppState.apiKey  = key;
-    else                                            AppState.hfToken = key;
+    if (AppState.currentProvider === 'openrouter') AppState.apiKey = key;
+    else AppState.hfToken = key;
     input.value = '';
+    // FIX B3: only flip to "Authenticated" after the provider actually accepts the
+    // key. refreshModels() returns false when the /models fetch failed (bad key),
+    // so a green "Authenticated" + silent curated fallback no longer happens.
+    const ok = await this.refreshModels();
+    if (!ok) throw new Error('Model list could not be loaded — check your API key.');
     UI.setAuthState(true, `${PROVIDERS[AppState.currentProvider].name} authenticated`);
     UI.toast('✅ Authenticated', 'success');
-    await this.refreshModels();
-  },
+  } catch (err) {
+    UI.toast(err.message === 'Model list could not be loaded — check your API key.'
+      ? err.message
+      : 'Authentication failed', 'error');
+    UI.setAuthState(false, 'Authentication failed');
+  }
+},
 
   setupModelListeners() {
     UI.el('modelSelect').addEventListener('change', (e) => {
@@ -315,30 +328,39 @@ export const App = {
     });
   },
 
+  // FIX B3: returns true when models actually loaded, false otherwise (not
+  // authenticated, empty, or fetch error). authenticate() gates its success
+  // toast on this so a bad key can never look green.
   async refreshModels(restoreModelId) {
     const sel = UI.el('modelSelect');
-    if (!sel) return;
+    if (!sel) return false;
+    const refreshId = ++this._modelRefreshId;
     if (!AppState.isAuthenticatedFor(AppState.currentProvider)) {
       sel.innerHTML = '<option value="none" disabled selected>— authenticate first —</option>';
       UI.updateModelCount(0, 0);
-      return;
+      return false;
     }
 
+    sel.classList.add('loading');
+    sel.classList.remove('error');
     sel.innerHTML = '<option value="none" disabled selected>Loading…</option>';
 
     try {
       const models = await API.fetchModels(AppState.currentProvider, AppState.paramFilter || 'all');
+      if (refreshId !== this._modelRefreshId) return false;
       AppState.lastModelFetch = Date.now();
-      // FIX Dev: single source of truth — no separate App-level _allModelsCache
+      // FIX Dev: single source of truth — no separate AppState-level _allModelsCache
       AppState.allModels = models;
       AppState.modelContextMap = {};
       models.forEach(m => { AppState.modelContextMap[m.id] = m.ctx || 8192; });
 
       sel.innerHTML = '';
       if (!models.length) {
+        sel.classList.remove('loading');
+        sel.classList.add('error');
         sel.innerHTML = '<option value="none" disabled selected>No models for this filter</option>';
         UI.updateModelCount(0, 0);
-        return;
+        return false;
       }
 
       UI.updateModelCount(models.length, models.length);
@@ -373,17 +395,22 @@ export const App = {
         const costBadge = found.costTier ? (found.costTier === 'free' ? '🎁 Free' : `💰 ${found.costTier}`) : '';
         UI.el('modelMeta').textContent = [costBadge, roleBadge, found.paramTier !== '?' ? found.paramTier : '', ctxK, found.uncensored ? '🔓 uncensored' : ''].filter(Boolean).join(' · ');
       }
+      sel.classList.remove('loading', 'error');
+      return true;
     } catch (error) {
+      if (refreshId !== this._modelRefreshId) return false;
       console.error('refreshModels error:', error);
+      sel.classList.remove('loading');
+      sel.classList.add('error');
       sel.innerHTML = '<option value="none" disabled selected>Failed to load</option>';
       UI.updateModelCount(0, 0);
       UI.toast(`Model load failed: ${error.message}`, 'error');
+      return false;
     }
   },
 
   _renderModelOptions(models, sel) {
-    const providerCfg = API.getProvider();
-    const badge = providerCfg?.badgeLabel ? `[${providerCfg.badgeLabel}] ` : '';
+    // Badge kept for header/meta only — do not prepend OR/HF to dropdown labels
     sel.innerHTML = '';
     const hint = UI.el('modelFilterHint');
     const searchVal = UI.el('searchInput')?.value?.trim();
@@ -435,14 +462,12 @@ export const App = {
         this._cooldownInterval = null;
         return;
       }
-      const providerCfg = API.getProvider();
-      const badge = providerCfg?.badgeLabel ? `[${providerCfg.badgeLabel}] ` : '';
       Array.from(sel.options).forEach(opt => {
         const model = models.find(m => m.id === opt.value);
         if (!model) return;
         const secs = AppState.modelCooldownSecondsLeft(model.id);
         const tag  = secs > 0 ? ` ⏳ ${secs}s` : '';
-        opt.textContent = badge + model.name + (model.uncensored ? ' 🔓' : '') + tag;
+        opt.textContent = model.name + (model.uncensored ? ' 🔓' : '') + tag;
       });
     }, 1000);
   },
@@ -815,7 +840,10 @@ export const App = {
 
   async sendMessage(options = {}) {
     // FIX Zara/Dev: guard against DOMPurify not loaded
-    if (!window.DOMPurify) return;
+    if (!window.DOMPurify) {
+      UI.toast('Security library missing. Chat disabled.', 'error');
+      return;
+    }
 
     if (this._sending) return;
     const { isRetry = false } = options;
@@ -881,6 +909,7 @@ export const App = {
     UI.appendMessage('user', fullUserPrompt);
     UI.setSendButtonState(false);
     UI.showTyping();
+    UI.updateLiveUsage({ completionTokens: 0, streaming: true });
     UI.hideUnsavedBanner();
     this._sending = true;
 
@@ -906,10 +935,13 @@ export const App = {
           }
           fullContent += delta;
           UI.appendStreamToken(streamBubble, delta);
+          UI.updateLiveUsage({ completionTokens: Math.max(1, Math.ceil(fullContent.length / 4)), streaming: true });
           // FIX Marcus: throttled rAF scroll instead of direct scrollTop
           this._scheduleScroll();
         },
-        { temperature: AppState.temperature, maxTokens: AppState.maxTokens }
+        AppState.generationControlsEnabled
+          ? { temperature: AppState.temperature, maxTokens: AppState.maxTokens }
+          : {}
       );
 
       // Only retry on transient network failures — propagate API error codes immediately.
@@ -933,9 +965,10 @@ export const App = {
       if (finalContent) {
         AppState.addMessage('assistant', finalContent, currentModelId);
         this.renderConversationList();
-        const { promptTokens, completionTokens } = API.extractTokenUsage(response);
+        const { promptTokens, completionTokens, estimated } = API.extractTokenUsage(response);
         AppState.updateTokens(promptTokens, completionTokens);
         UI.updateStats(AppState.totalPromptTokens, AppState.totalCompletionTokens);
+        UI.updateLiveUsage({ promptTokens, completionTokens, estimated });
         UI.updateContextBar();
         if (sentContextUsage > 0.9) {
           UI.toast('⚠️ Context nearly full (>90%). Consider exporting and starting a new chat.', 'warning', 7000);
@@ -1063,8 +1096,40 @@ export const App = {
       if (e.target === modal) modal.classList.remove('open');
     });
 
-    UI.el('sidebarToggle')?.addEventListener('click', () => UI.toggleSidebar());
+    const sidebarToggle = UI.el('sidebarToggle');
+    sidebarToggle?.setAttribute('aria-pressed', 'false');
+    sidebarToggle?.addEventListener('click', () => UI.toggleSidebar());
     UI.el('mobileOverlay')?.addEventListener('click', () => UI.toggleSidebar());
+
+    document.querySelectorAll('.sidebar-section-toggle').forEach(sectionToggle => {
+      sectionToggle.addEventListener('click', () => {
+        if (!window.matchMedia('(min-width: 1101px)').matches || !document.body.classList.contains('sidebar-collapsed')) return;
+        document.body.classList.remove('sidebar-collapsed');
+        try { localStorage.setItem('cwi_sidebar_collapsed', 'false'); } catch (_) {}
+        sectionToggle.closest('.card')?.querySelector('input, select, textarea, button:not(.sidebar-section-toggle), [tabindex="0"]')?.focus();
+        sidebarToggle?.setAttribute('aria-pressed', 'false');
+      });
+    });
+
+    let wasMobile = window.matchMedia('(max-width: 1100px)').matches;
+    window.addEventListener('resize', () => {
+      const isMobile = window.matchMedia('(max-width: 1100px)').matches;
+      if (wasMobile && !isMobile) {
+        UI.el('sidebar')?.classList.remove('open');
+        UI.el('mobileOverlay')?.classList.remove('show');
+        document.body.classList.remove('sidebar-open');
+        AppState.sidebarOpen = false;
+        sidebarToggle?.setAttribute('aria-expanded', 'false');
+        UI.loadSidebarState();
+      } else if (!wasMobile && isMobile) {
+        document.body.classList.remove('sidebar-collapsed');
+        document.body.classList.remove('stats-open');
+        UI.el('rightPanel')?.classList.remove('open');
+        sidebarToggle?.setAttribute('aria-pressed', 'false');
+        UI.el('statsBtn')?.setAttribute('aria-expanded', 'false');
+      }
+      wasMobile = isMobile;
+    });
 
     themeMenu?.querySelectorAll('.theme-opt').forEach(opt => {
       opt.addEventListener('click', () => {
@@ -1072,16 +1137,35 @@ export const App = {
         AppState.setTheme(theme);
         UI.setTheme(theme);
         themeMenu.classList.remove('open');
+        UI.el('themeBtn')?.setAttribute('aria-expanded', 'false');
         UI.toast(`Theme: ${opt.textContent.trim()}`, 'info');
       });
     });
     UI.el('themeBtn')?.addEventListener('click', (e) => {
       e.stopPropagation();
-      themeMenu?.classList.toggle('open');
+      const isOpen = themeMenu?.classList.toggle('open') || false;
+      UI.el('themeBtn')?.setAttribute('aria-expanded', String(isOpen));
     });
 
     const tempSlider = UI.el('tempSlider');
     const tempVal    = UI.el('tempVal');
+    const maxSlider  = UI.el('maxTokensSlider');
+    const maxVal     = UI.el('maxTokensVal');
+    const genToggle  = UI.el('genControlsToggle');
+    const genPanel   = UI.el('genControlsPanel');
+    const genHint    = UI.el('genControlsOffHint');
+    const genLabel   = genToggle?.closest('.gen-toggle')?.querySelector('.gen-toggle-label');
+
+    const syncGenControlsUI = () => {
+      const on = !!AppState.generationControlsEnabled;
+      if (genToggle) genToggle.checked = on;
+      if (genPanel) genPanel.classList.toggle('hidden', !on);
+      if (genHint) genHint.classList.toggle('hidden', on);
+      if (genLabel) genLabel.textContent = on ? 'On' : 'Off';
+      if (tempSlider) tempSlider.disabled = !on;
+      if (maxSlider) maxSlider.disabled = !on;
+    };
+
     if (tempSlider) {
       tempSlider.value = AppState.temperature;
       if (tempVal) tempVal.textContent = AppState.temperature.toFixed(1);
@@ -1092,8 +1176,6 @@ export const App = {
       });
     }
 
-    const maxSlider = UI.el('maxTokensSlider');
-    const maxVal    = UI.el('maxTokensVal');
     if (maxSlider) {
       maxSlider.value = AppState.maxTokens;
       if (maxVal) maxVal.textContent = AppState.maxTokens.toLocaleString();
@@ -1104,13 +1186,24 @@ export const App = {
       });
     }
 
+    if (genToggle) {
+      genToggle.addEventListener('change', () => {
+        AppState.generationControlsEnabled = genToggle.checked;
+        AppState.persistState();
+        syncGenControlsUI();
+      });
+    }
+    syncGenControlsUI();
+
     // FIX R: single consolidated Escape handler — no duplicate listeners
     document.addEventListener('keydown', (e) => {
       if (e.key !== 'Escape') return;
       themeMenu?.classList.remove('open');
       UI.el('export-menu')?.classList.remove('open');
       modal?.classList.remove('open');
-      if (AppState.sidebarOpen) UI.toggleSidebar();
+      if (window.matchMedia('(max-width: 1100px)').matches && UI.el('sidebar')?.classList.contains('open')) {
+        UI.toggleSidebar();
+      }
     });
 
     // FIX: Ctrl+K model search — moved here from inline <script> in index.html
@@ -1124,8 +1217,11 @@ export const App = {
     });
 
     document.addEventListener('click', (e) => {
-      if (!e.target.closest('.theme-wrap'))  themeMenu?.classList.remove('open');
-      if (!e.target.closest('.export-wrap')) UI.el('export-menu')?.classList.remove('open');
+      if (!e.target.closest('#themeBtn, #theme-menu')) {
+        themeMenu?.classList.remove('open');
+        UI.el('themeBtn')?.setAttribute('aria-expanded', 'false');
+      }
+      if (!e.target.closest('#exportBtn, #export-menu')) UI.el('export-menu')?.classList.remove('open');
     });
   },
 
@@ -1433,24 +1529,17 @@ export const App = {
   },
 
   _setupHighContrastToggle() {
-    // Add high contrast toggle button to header after theme button
-    const themeBtn = UI.el('themeBtn');
-    if (!themeBtn) return;
+    // FIX R2: bind to the static #highContrastBtn already present in index.html
+    // instead of creating a duplicate at runtime. Creating a second would leave
+    // two buttons with the same id and neither click would work as expected.
+    const hcBtn = UI.el('highContrastBtn');
+    if (!hcBtn) return;
 
-    const hcBtn = document.createElement('button');
-    hcBtn.id = 'highContrastBtn';
-    hcBtn.className = 'btn btn-ghost btn-icon';
-    hcBtn.type = 'button';
-    hcBtn.title = 'Toggle high contrast mode';
-    hcBtn.setAttribute('aria-label', 'Toggle high contrast mode');
-    hcBtn.textContent = '◐';
     hcBtn.addEventListener('click', () => {
       const enabled = !AppState.highContrast;
       AppState.setHighContrast(enabled);
       UI.toast(`High contrast ${enabled ? 'enabled' : 'disabled'}`, 'info');
     });
-
-    themeBtn.parentNode.insertBefore(hcBtn, themeBtn.nextSibling);
   },
 
   _restorePersonaCard() {
