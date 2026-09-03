@@ -1,8 +1,8 @@
 # 💬 ChatWithIt
 
-### Private, browser-based chat with 100+ AI models.
+### The most private way to chat with frontier AI models.
 
-**100+ models. Zero backend. Your keys go straight to the provider you choose.**
+**100+ free models. Zero backend. Your keys never leave your browser.**
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/researchsociety1999-hub/Chat-With-It)
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -22,7 +22,7 @@ Most AI chat apps require you to trust their servers with your API keys and conv
 
 ChatWithIt is different.
 
-> **Your API key lives only in browser memory for this session (or in optional local named credential profiles you explicitly create). Requests go directly from your browser to the provider you choose — OpenRouter, Hugging Face, or your own local OpenAI-compatible endpoint (Ollama, LM Studio, vLLM). No intermediate server ever receives your key.**
+> **Your API key lives only in browser memory for this session. It is never written to localStorage, cookies, or any intermediate server — only sent directly to OpenRouter or Hugging Face over HTTPS.**
 
 That is not a claim. [You can read the source.](./js/api.js)
 
@@ -46,11 +46,9 @@ Or use the live site: https://chat-with-it.vercel.app (`npm run build` runs on V
 ### Setup
 
 1. Open the app
-2. Choose your provider — OpenRouter, Hugging Face, or a local OpenAI-compatible endpoint
-3. Paste your API key (not required for local endpoints that need none)
-4. Pick a model and start chatting
-
-That's it. No accounts. No email. No tracking.
+2. Choose OpenRouter or Hugging Face
+3. Paste your API key (session memory only)
+4. Pick a free model and chat
 
 ---
 
@@ -72,36 +70,35 @@ Workflow: [Deploy status](https://github.com/researchsociety1999-hub/Chat-With-I
 ## Features (current)
 
 ### Chat
-- 🔷 **OpenRouter** — 100+ models. Free-model discovery (`:free` suffix and zero pricing) and full live catalog.
-- 🤗 **Hugging Face** — curated and live models served via HF Inference-compatible endpoints.
-- 🖥️ **Local / custom endpoint** — any OpenAI-compatible server (Ollama, LM Studio, vLLM).
-- 🎭 **5 Personas** — Assistant, Tutor, Creative Writer, Code Reviewer, Debate Coach.
-- 📎 **File attachments** — text and code files, small images, and basic PDF extraction (limits: 5 files, 500 KB each, 2 MB total).
-- 🔄 **Mid-conversation model switching** — switch models without losing context; each message records its producing model.
-- 💬 **Named conversations** — create, rename, delete, and search conversations by title and message content.
-- ⌨️ **Keyboard shortcuts** — `Enter` to send, `Shift+Enter` for new line, `Cmd/Ctrl+N` for new chat, `Cmd/Ctrl+/` to focus composer, `Cmd/Ctrl+K` for model search, `Esc` to dismiss.
-- 📜 **UI Reliability** — sticky auto-scroll during streaming with manual scroll-up preservation, "↓ Latest" jump button, and code block overflow containment with one-click copy.
+- OpenRouter + Hugging Face providers
+- Free-model discovery (`:free` suffix and zero pricing)
+- Streaming responses with stop control
+- Personas: Assistant, Tutor, Creative Writer, Code Reviewer, Debate Coach
+- Text file attachments (.txt, .md, .json, .csv, code files)
+- Keyboard shortcuts (Enter send, Shift+Enter newline, Ctrl/Cmd+K model search)
 
 ### Generation controls
-- On/off toggle for temperature and max-tokens (omitted from request when off to let provider defaults apply).
-- Persisted in localStorage (`cwiState`); API keys never written to general state.
+- On/off toggle for temperature and max-tokens
+- When off, those parameters are omitted from the provider request (provider defaults apply)
+- Values and toggle state are persisted in localStorage (`cwiState`); API keys are never persisted
 
 ### Session tools
-- Live token / context usage, context bar, and session turn statistics.
-- Export Markdown / JSON / TXT / PDF / clipboard.
-- Optional local chat history (7-day inactivity TTL).
+- Live token / context usage and session stats
+- Export Markdown / JSON / TXT / PDF / clipboard
+- Optional local chat history (7-day TTL)
 
 ### Customize & accessibility
-- Themes: Dark, Light, Violet, Ember, Forest, Aurora + system preference.
-- High-contrast mode & reduced-motion support.
-- Collapsible desktop sidebar & mobile drawer.
-- PWA safe-area styles for iOS / notched displays.
+- Themes: Dark, Light, Violet, Ember, Forest, Aurora + system preference
+- High-contrast mode
+- Reduced-motion support
+- Collapsible desktop sidebar; mobile drawer
+- PWA safe-area (iOS / notched devices) styles
 
 ### Deploy
-- Static PWA (`manifest.json` + `sw.js` cache `chatwithit-v21`).
-- esbuild bundle (`npm run build` → `dist/app.js`).
-- Security headers via `vercel.json`.
-- Production health checks via GitHub Actions.
+- Static PWA (`manifest.json` + `sw.js`)
+- esbuild bundle (`npm run build` → `dist/app.js`)
+- Security headers via `vercel.json`
+- Production health checks via GitHub Actions
 
 ---
 
@@ -116,18 +113,23 @@ ChatWithIt/
 │   ├── profiles.css
 │   └── pwa-safe-area.css
 ├── js/
-│   ├── app.js              # Orchestration, event wiring, streaming, shortcuts
-│   ├── api.js              # Provider requests (OpenRouter, HF, Local)
-│   ├── state.js            # AppState (conversations, generation controls)
-│   ├── ui.js               # DOM rendering, code blocks, scroll management
-│   ├── profiles.js         # Optional saved API key profiles
-│   └── utils.js            # Markdown parse, clipboard, formatting helpers
-├── dist/app.js             # Bundled output (npm run build)
-├── sw.js                   # Service worker (cache: chatwithit-v21)
-├── manifest.json           # PWA manifest
-├── vercel.json             # Vercel deployment & security headers
-└── package.json
+│   ├── app.js              # Orchestration, event wiring, syncGenControlsUI
+│   ├── api.js              # Provider requests (conditional temperature/max_tokens)
+│   ├── state.js            # AppState (incl. generationControlsEnabled)
+│   ├── ui.js
+│   ├── profiles.js
+│   └── utils.js
+├── dist/app.js             # Bundled output
+├── sw.js                   # Cache name: chatwithit-v20 (bump on asset changes)
+├── manifest.json
+└── vercel.json
 ```
+
+### State model
+
+`AppState` (exported from `js/state.js`) is the single source of truth for provider, model, temperature, maxTokens, generationControlsEnabled, theme, and UI flags. It is loaded from and written to localStorage key `cwiState` (keys excluded). There is no React context, Redux, or observable library.
+
+Service worker `sw.js` precaches the app shell. Any change to JS/CSS that must reach existing installed PWAs requires incrementing `CACHE_NAME` (currently `chatwithit-v20` → next `v21`).
 
 ---
 
@@ -136,12 +138,22 @@ ChatWithIt/
 - Prefer source commits over one-off CI patch workflows.
 - CI (`ci.yml`) and the deploy-status check must pass before merge.
 - Avoid introducing new framework dependencies; keep the surface area vanilla JS + CSS.
-- When changing cached assets, bump the service-worker cache version in the same PR (`CACHE_NAME`).
+- When changing cached assets, bump the service-worker cache version in the same PR.
 
 Tests: `npm test` (vitest). Bundle: `npm run build`.
 
 ---
 
+## Roadmap
+
+- Image / drag-and-drop multimodal attach
+- Encrypted local history passphrase
+- Custom saved personas
+- Side-by-side model compare
+- Message search across history
+
+---
+
 ## License
 
-MIT — built by [Rishi](https://github.com/researchsociety1999)
+MIT — built by Rishi

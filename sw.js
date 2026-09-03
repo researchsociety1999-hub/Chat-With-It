@@ -7,9 +7,7 @@
  * returning users always get fresh code once the new SW takes control.
  */
 
-// Bumped to v21 to ensure returning users pick up fresh PWA UI updates.
-// Increment this string on every deployment that changes cached assets.
-const CACHE_NAME = 'chatwithit-v21';
+const CACHE_NAME = 'chatwithit-v20';
 
 const PRECACHE_URLS = [
   './',
