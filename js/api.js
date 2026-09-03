@@ -38,17 +38,6 @@ export const PROVIDERS = {
     extraHeaders: { 'HTTP-Referer': location.href, 'X-Title': 'ChatWithIt' },
     badgeClass: 'hf',
     badgeLabel: 'HF',
-  },
-  local: {
-    name: 'Local (Custom / Ollama)',
-    get baseUrl() { return (AppState.localBaseUrl || 'http://localhost:11434/v1').replace(/\/+$/, ''); },
-    authKey: 'cwi_local_key',
-    modelEndpoint: '/models',
-    chatEndpoint: '/chat/completions',
-    authHeader: 'Authorization',
-    extraHeaders: {},
-    badgeClass: 'loc',
-    badgeLabel: 'LOC',
   }
 };
 
@@ -56,71 +45,13 @@ export const PROVIDERS = {
  * Parameter-size tier buckets.
  */
 export const PARAM_TIERS = [
-  { value: 'all',        label: 'All sizes' },
-  { value: 'reasoning',  label: '🧠 Reasoning',   test: (t, m) => m?.role === 'reasoning' },
-  { value: 'code',       label: '💻 Code / Dev',   test: (t, m) => m?.role === 'code' },
-  { value: 'creative',   label: '🎨 Creative',     test: (t, m) => m?.role === 'creative' },
-  { value: 'tiny',       label: '≤ 3B params',    test: t => ['1B','2B','3B'].includes(t) },
-  { value: 'small',      label: '7–8B params',    test: t => ['7B','8B'].includes(t) },
-  { value: 'mid',        label: '13–30B params',  test: t => ['13B','14B','20B','22B','24B','30B','32B'].includes(t) },
-  { value: 'large',      label: '70B params',     test: t => ['70B','72B'].includes(t) },
-  { value: 'giant',      label: '≥ 105B params',  test: t => ['105B','123B','180B','236B','671B'].includes(t) },
+  { value: 'all',   label: 'All sizes' },
+  { value: 'tiny',  label: '≤ 3B params',    test: t => ['1B','2B','3B'].includes(t) },
+  { value: 'small', label: '7–8B params',    test: t => ['7B','8B'].includes(t) },
+  { value: 'mid',   label: '13–30B params',  test: t => ['13B','14B','20B','22B','24B','30B','32B'].includes(t) },
+  { value: 'large', label: '70B params',     test: t => ['70B','72B'].includes(t) },
+  { value: 'giant', label: '≥ 105B params',  test: t => ['105B','123B','180B','236B','671B'].includes(t) },
 ];
-
-/**
- * Infer honest model role & cost tier from model metadata without fake benchmarks.
- */
-export function inferModelProfile(modelId = '', modelName = '', pricing = null) {
-  const id = (modelId || '').toLowerCase();
-  const name = (modelName || '').toLowerCase();
-  const combined = `${id} ${name}`;
-
-  let role = 'general';
-  if (
-    combined.includes('r1') ||
-    combined.includes('reasoner') ||
-    combined.includes('reasoning') ||
-    combined.includes('qwq') ||
-    combined.includes('o1') ||
-    combined.includes('o3') ||
-    combined.includes('prover') ||
-    combined.includes('deepseek-r1')
-  ) {
-    role = 'reasoning';
-  } else if (
-    combined.includes('coder') ||
-    combined.includes('code') ||
-    combined.includes('starcoder') ||
-    combined.includes('codellama') ||
-    combined.includes('dev')
-  ) {
-    role = 'code';
-  } else if (
-    combined.includes('creative') ||
-    combined.includes('story') ||
-    combined.includes('novel') ||
-    combined.includes('roleplay') ||
-    combined.includes('mythomax') ||
-    combined.includes('hermes')
-  ) {
-    role = 'creative';
-  }
-
-  let costTier = null;
-  if (id.endsWith(':free') || id.includes('local') || id.includes('(local)')) {
-    costTier = 'free';
-  } else if (pricing && typeof pricing.prompt === 'string') {
-    const promptPrice = parseFloat(pricing.prompt);
-    if (!isNaN(promptPrice)) {
-      if (promptPrice === 0) costTier = 'free';
-      else if (promptPrice < 0.000001) costTier = 'low';
-      else if (promptPrice < 0.000005) costTier = 'mid';
-      else costTier = 'high';
-    }
-  }
-
-  return { role, costTier };
-}
 
 /**
  * Detect free OpenRouter models by :free suffix or zero pricing.
@@ -382,40 +313,11 @@ export const API = {
 
   async fetchModels(providerName = AppState.currentProvider, paramFilter = 'all') {
     const provider = this.getProvider(providerName);
-    const token = providerName === 'huggingface' ? AppState.hfToken : (providerName === 'openrouter' ? AppState.apiKey : AppState.getAuthToken());
+    const token = providerName === 'openrouter' ? AppState.apiKey : AppState.hfToken;
 
-    let models = [];
+    let models;
 
-    if (providerName === 'local') {
-      try {
-        const headers = { ...provider.extraHeaders };
-        if (token) headers[provider.authHeader] = `Bearer ${token}`;
-
-        const response = await this.fetchWithTimeout(
-          `${provider.baseUrl}${provider.modelEndpoint}`,
-          { headers },
-          5000
-        );
-
-        if (response.ok) {
-          const data = await response.json();
-          models = this.processModels(data, 'local');
-        } else {
-          throw new Error(`HTTP ${response.status}`);
-        }
-      } catch (err) {
-        console.warn('Local model fetch failed, using fallback:', err.message);
-        const fallbackId = (AppState.selectedModel && AppState.selectedModel !== 'none') ? AppState.selectedModel : 'llama3';
-        models = [{
-          id: fallbackId,
-          name: `${fallbackId} (Local)`,
-          ctx: 8192,
-          paramTier: '?',
-          uncensored: false,
-          type: 'chat'
-        }];
-      }
-    } else if (!token) {
+    if (!token) {
       // FIX Q: filter out embedding-only models from the curated fallback
       models = (CURATED_FREE[providerName] || []).filter(m => m.type !== 'embedding');
     } else {
@@ -447,7 +349,7 @@ export const API = {
 
     if (paramFilter && paramFilter !== 'all') {
       const tier = PARAM_TIERS.find(t => t.value === paramFilter);
-      if (tier) models = models.filter(m => tier.test(m.paramTier || '?', m));
+      if (tier) models = models.filter(m => tier.test(m.paramTier || '?'));
     }
 
     return models;
@@ -458,45 +360,18 @@ export const API = {
     (CURATED_FREE[providerName] || []).forEach(m => { curatedMap[m.id] = m; });
     let models = [];
 
-    if (providerName === 'local') {
-      const rawList = Array.isArray(data) ? data : (data.data || data.models || []);
-      models = rawList.map(m => {
-        const id = m.id || m.name || m.model || String(m);
-        const name = `${id} (Local)`;
-        const profile = inferModelProfile(id, name);
-        return {
-          id: id,
-          name: name,
-          ctx: m.context_length || 8192,
-          paramTier: '?',
-          uncensored: false,
-          type: 'chat',
-          role: profile.role,
-          costTier: 'free',
-        };
-      });
-      if (!models.length) {
-        const fallbackId = (AppState.selectedModel && AppState.selectedModel !== 'none') ? AppState.selectedModel : 'llama3';
-        const name = `${fallbackId} (Local)`;
-        const profile = inferModelProfile(fallbackId, name);
-        models = [{ id: fallbackId, name, ctx: 8192, paramTier: '?', uncensored: false, type: 'chat', role: profile.role, costTier: 'free' }];
-      }
-    } else if (providerName === 'openrouter') {
+    if (providerName === 'openrouter') {
       models = (data.data || [])
         .filter(model => isOpenRouterFreeModel(model) && !isEmbeddingModel(model))
         .map(m => {
           const curated = curatedMap[m.id];
-          const name = curated?.name || `${m.name || m.id} (${Math.round((m.context_length || 8192) / 1000)}k)`;
-          const profile = inferModelProfile(m.id, name, m.pricing);
           return {
             id:         m.id,
-            name:       name,
+            name:       curated?.name || `${m.name || m.id} (${Math.round((m.context_length || 8192) / 1000)}k)`,
             ctx:        m.context_length || curated?.ctx || 8192,
             paramTier:  curated?.paramTier || '?',
             uncensored: curated?.uncensored || false,
             type:       curated?.type || 'chat',
-            role:       curated?.role || profile.role,
-            costTier:   profile.costTier || 'free',
           };
         })
         // FIX Q: exclude embedding models from live-fetched list too
@@ -506,15 +381,7 @@ export const API = {
       models = CURATED_FREE.huggingface
         .filter(m => m.type !== 'embedding')
         .filter(m => liveIds.has(m.id))
-        .map(m => {
-          const profile = inferModelProfile(m.id, m.name);
-          return {
-            ...m,
-            live: true,
-            role: m.role || profile.role,
-            costTier: 'free',
-          };
-        });
+        .map(m => ({ ...m, live: true }));
     }
 
     const seen = new Set();
@@ -538,7 +405,7 @@ export const API = {
     const provider = this.getProvider();
     const token = AppState.getAuthToken();
 
-    if (!token && AppState.currentProvider !== 'local') {
+    if (!token) {
       throw Object.assign(
         new Error('Not authenticated. Please provide API credentials.'),
         { code: 'AUTH' }
@@ -561,11 +428,9 @@ export const API = {
 
     const headers = {
       'Content-Type':        'application/json',
+      [provider.authHeader]: `Bearer ${token}`,
       ...provider.extraHeaders
     };
-    if (token) {
-      headers[provider.authHeader] = `Bearer ${token}`;
-    }
 
     try {
       const appSignal = AppState.abortController?.signal;

@@ -2,21 +2,14 @@
   "name": "chatwithit",
   "version": "1.0.1",
   "private": true,
-  "description": "Private browser-based AI chat for 100+ models via OpenRouter, Hugging Face, or local OpenAI-compatible endpoints — named conversations, search, attachments, and PWA install",
+  "description": "ChatWithIt \u2014 privacy-first browser-only multi-provider AI chat. No backend. Keys stay in memory.",
   "scripts": {
     "dev": "esbuild js/app.js --bundle --outfile=dist/app.js --servedir=.",
+    "start": "npx serve -p 3000",
     "build": "esbuild js/app.js --bundle --minify --outfile=dist/app.js",
-    "test": "vitest run",
-    "test:watch": "vitest",
     "lint": "echo 'No linter configured'",
-    "start": "npx serve -p 3000"
-  },
-  "engines": {
-    "node": ">=16.0.0"
-  },
-  "dependencies": {
-    "dotenv": "^17.4.2",
-    "marked": "^18.0.6"
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "devDependencies": {
     "dompurify": "^3.4.12",
@@ -27,5 +20,13 @@
     "pdfjs-dist": "^6.1.200",
     "serve": "^14.2.0",
     "vitest": "^4.1.11"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "dependencies": {
+    "@vercel/speed-insights": "^2.0.0",
+    "dotenv": "^17.4.2",
+    "marked": "^18.0.6"
   }
 }
