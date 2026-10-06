@@ -46,6 +46,9 @@ export const App = {
       this.setupModelListeners();
       this.setupChatListeners();
       this.setupAttachListeners();
+      // Load preferences
+      UI.loadTheme();
+      UI.loadLowPowerMode();
       this.setupUIListeners();
       this.setupSearchListeners();
       this.setupExportListeners();
@@ -703,13 +706,13 @@ export const App = {
     }
 
     UI.el('shortcutsBtn').addEventListener('click', () => {
-      modal?.classList.toggle('open');
+      if (modal && !modal.open) modal.showModal();
     });
     UI.el('shortcutsClose')?.addEventListener('click', () => {
-      modal?.classList.remove('open');
+      if (modal) modal.close();
     });
     modal?.addEventListener('click', (e) => {
-      if (e.target === modal) modal.classList.remove('open');
+      if (e.target === modal) modal.close();
     });
 
     const sidebarToggle = UI.el('sidebarToggle');
@@ -752,15 +755,9 @@ export const App = {
         const theme = opt.dataset.theme;
         AppState.setTheme(theme);
         UI.setTheme(theme);
-        themeMenu.classList.remove('open');
-        UI.el('themeBtn')?.setAttribute('aria-expanded', 'false');
+        try { themeMenu.hidePopover(); } catch (e) {}
         UI.toast(`Theme: ${opt.textContent.trim()}`, 'info');
       });
-    });
-    UI.el('themeBtn')?.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const isOpen = themeMenu?.classList.toggle('open') || false;
-      UI.el('themeBtn')?.setAttribute('aria-expanded', String(isOpen));
     });
 
     const tempSlider = UI.el('tempSlider');
@@ -811,12 +808,20 @@ export const App = {
     }
     syncGenControlsUI();
 
+    const lowPowerToggle = UI.el('lowPowerToggle');
+    if (lowPowerToggle) {
+      lowPowerToggle.addEventListener('change', () => {
+        const on = lowPowerToggle.checked;
+        try { localStorage.setItem('cwi_low_power', on ? 'true' : 'false'); } catch (e) {}
+        UI.setLowPowerAttribute(on);
+        const lbl = UI.el('lowPowerLabel');
+        if (lbl) lbl.textContent = on ? 'On' : 'Off';
+      });
+    }
+
     // FIX R: single consolidated Escape handler — no duplicate listeners
     document.addEventListener('keydown', (e) => {
       if (e.key !== 'Escape') return;
-      themeMenu?.classList.remove('open');
-      UI.el('export-menu')?.classList.remove('open');
-      modal?.classList.remove('open');
       if (window.matchMedia('(max-width: 1100px)').matches && UI.el('sidebar')?.classList.contains('open')) {
         UI.toggleSidebar();
       }
@@ -832,13 +837,7 @@ export const App = {
       }
     });
 
-    document.addEventListener('click', (e) => {
-      if (!e.target.closest('#themeBtn, #theme-menu')) {
-        themeMenu?.classList.remove('open');
-        UI.el('themeBtn')?.setAttribute('aria-expanded', 'false');
-      }
-      if (!e.target.closest('#exportBtn, #export-menu')) UI.el('export-menu')?.classList.remove('open');
-    });
+    // Popovers natively handle closing when clicking outside
   },
 
   setupSearchListeners() {
@@ -874,13 +873,9 @@ export const App = {
     const exportBtn  = UI.el('exportBtn');
     const exportMenu = UI.el('export-menu');
 
-    // FIX Sofia: CSS class-only toggle — no style.display manipulation
-    exportBtn?.addEventListener('click', (e) => {
-      e.stopPropagation();
-      exportMenu?.classList.toggle('open');
-    });
-
-    const closeExport = () => exportMenu?.classList.remove('open');
+    const closeExport = () => {
+      try { exportMenu?.hidePopover(); } catch(e) {}
+    };
 
     UI.el('exportMd')?.addEventListener('click',   () => { this.exportChat('md');   closeExport(); });
     UI.el('exportJson')?.addEventListener('click',  () => { this.exportChat('json'); closeExport(); });

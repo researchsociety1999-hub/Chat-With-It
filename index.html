@@ -17,7 +17,11 @@
   <link rel="manifest" href="manifest.json">
   <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,600,700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/profiles.css">
-  <link rel="stylesheet" href="css/app.css">
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/themes.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/modals.css">
   <link rel="stylesheet" href="css/pwa-safe-area.css">
 </head>
 <body>
@@ -79,6 +83,14 @@
           <input id="maxTokensSlider" type="range" min="128" max="8192" step="128" value="1024" aria-label="Max tokens">
         </div>
         <p id="genControlsOffHint" class="muted hidden" style="font-size:.72rem;margin:0">Provider defaults (temperature / max tokens not sent).</p>
+        <div class="sidebar-card-heading" style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-top:.75rem">
+          <span class="card-title" style="margin:0">Low Power Mode</span>
+          <label class="gen-toggle" title="Disable heavy blurs and animations">
+            <input type="checkbox" id="lowPowerToggle" aria-label="Enable Low Power Mode">
+            <span class="gen-toggle-track" aria-hidden="true"></span>
+            <span class="gen-toggle-label" id="lowPowerLabel">Off</span>
+          </label>
+        </div>
       </div>
       <div class="card">
         <div class="sidebar-card-heading" style="display:flex;align-items:center;justify-content:space-between"><button class="card-title sidebar-section-toggle" data-icon="👤" title="Persona" aria-label="Open Persona settings" type="button" style="margin:0">Persona</button><button id="shortcutsBtn" class="btn btn-sm btn-ghost" type="button">⌨ Shortcuts</button></div>
@@ -103,8 +115,8 @@
           <button id="statsBtn" class="btn btn-ghost btn-sm" type="button" title="Session stats" aria-expanded="false">📊 <span>Stats</span></button>
           <button id="clearBtn" class="btn btn-ghost btn-sm" type="button" title="Clear chat" aria-label="Clear chat">🗑 <span>Clear</span></button>
           <div class="menu-wrap">
-            <button id="exportBtn" class="btn btn-ghost btn-sm" type="button" title="Export chat">⬇ <span>Export</span></button>
-            <div id="export-menu" class="dropdown-menu">
+            <button id="exportBtn" popovertarget="export-menu" class="btn btn-ghost btn-sm" type="button" title="Export chat">⬇ <span>Export</span></button>
+            <div id="export-menu" class="dropdown-menu" popover>
               <button id="exportMd" class="menu-item" type="button">📝 Markdown</button>
               <button id="exportJson" class="menu-item" type="button">📦 JSON</button>
               <button id="exportPdf" class="menu-item" type="button">📄 PDF</button>
@@ -114,8 +126,8 @@
             </div>
           </div>
           <div class="menu-wrap">
-            <button id="themeBtn" class="btn btn-ghost btn-icon" type="button" title="Toggle theme" aria-label="Toggle theme">🎨</button>
-            <div id="theme-menu" class="dropdown-menu">
+            <button id="themeBtn" popovertarget="theme-menu" class="btn btn-ghost btn-icon" type="button" title="Toggle theme" aria-label="Toggle theme">🎨</button>
+            <div id="theme-menu" class="dropdown-menu" popover>
               <button class="menu-item theme-opt" data-theme="dark" type="button">🌙 Dark</button>
               <button class="menu-item theme-opt" data-theme="light" type="button">☀️ Light</button>
               <button class="menu-item theme-opt" data-theme="violet" type="button">💜 Violet</button>
@@ -177,7 +189,7 @@
       <div class="card"><div class="card-title">Diagnostics</div><div id="stat-diag" class="muted" style="font-size:.76rem;line-height:1.6">Provider: OpenRouter<br>Model: none</div></div>
     </aside>
   </div>
-  <div id="shortcuts-modal">
+  <dialog id="shortcuts-modal">
     <div class="modal-box">
       <div class="modal-header"><strong>⌨ Keyboard Shortcuts</strong><button id="shortcutsClose" class="btn btn-ghost btn-icon" type="button" aria-label="Close shortcuts">✕</button></div>
       <div class="shortcut-grid">
@@ -188,7 +200,7 @@
         <kbd class="shortcut-key">Ctrl+K</kbd><span class="shortcut-desc">Focus model search</span>
       </div>
     </div>
-  </div>
+  </dialog>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function() {

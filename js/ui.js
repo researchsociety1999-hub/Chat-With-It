@@ -41,6 +41,20 @@ export const UI = {
     this.setThemeAttribute(stored);
   },
 
+  loadLowPowerMode() {
+    let stored = false;
+    try { stored = localStorage.getItem('cwi_low_power') === 'true'; } catch (_) {}
+    this.setLowPowerAttribute(stored);
+    const toggle = this.el('lowPowerToggle');
+    if (toggle) toggle.checked = stored;
+    const label = this.el('lowPowerLabel');
+    if (label) label.textContent = stored ? 'On' : 'Off';
+  },
+
+  setLowPowerAttribute(enabled) {
+    document.documentElement.setAttribute('data-low-power', enabled ? 'true' : 'false');
+  },
+
   setThemeAttribute(theme) {
     const resolved = theme === 'system'
       ? (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark')

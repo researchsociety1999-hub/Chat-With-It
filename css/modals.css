@@ -1,0 +1,101 @@
+/* Modals and Menus using modern Dialog & Popover API */
+
+.menu-wrap { position: relative; }
+
+.dropdown-menu {
+  background: var(--panel);
+  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
+  border: 1px solid var(--border-2);
+  border-radius: var(--radius);
+  padding: .35rem;
+  z-index: 100;
+  min-width: 140px;
+  box-shadow: var(--shadow);
+  margin-top: 0.4rem;
+  color: var(--fg);
+}
+
+/* Base states for native popovers */
+[popover] {
+  margin: 0;
+  border: none;
+  background: transparent;
+  padding: 0;
+  overflow: visible;
+}
+
+[popover]:popover-open {
+  display: flex;
+  flex-direction: column;
+  gap: .2rem;
+  animation: menuIn .15s ease;
+}
+
+/* We need to override native positioning to stick it under the button. 
+   Without anchor positioning, we use absolute positioning relative to a containing block, 
+   but popovers are rendered in the top layer. So we might need JS to position them, 
+   or rely on standard absolute positioning if we don't use the popover attribute.
+   Actually, the Popover API can use anchor positioning or JS. 
+   Since the original used absolute positioning relative to `.menu-wrap`, 
+   we can just stick to `position: absolute` inside the popover if it's placed carefully, 
+   or use anchor positioning (which is experimental). 
+   Let's ensure the JS handles basic positioning or we fall back to fixed offsets if needed.
+*/
+.dropdown-menu:popover-open {
+  position: absolute;
+  top: calc(100% + .4rem);
+  right: 0;
+}
+
+@keyframes menuIn { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:translateY(0)} }
+
+.menu-item { padding: .55rem .8rem; border-radius: .6rem; border: none; background: transparent; color: var(--fg-muted); font-size: .83rem; font-weight: 600; cursor: pointer; text-align: left; transition: all var(--transition); display: flex; align-items: center; gap: .5rem; }
+.menu-item:hover { background: var(--panel-2); color: var(--fg); }
+.menu-sep { height: 1px; background: var(--border); margin: .2rem 0; }
+
+/* Dialog Modals */
+dialog {
+  background: var(--panel-solid);
+  border: 1px solid var(--border-2);
+  border-radius: 1.25rem;
+  padding: 1.5rem;
+  max-width: 500px;
+  width: 100%;
+  box-shadow: var(--shadow);
+  color: var(--fg);
+  margin: auto;
+}
+
+dialog::backdrop {
+  background: rgba(0,0,0,.6);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+
+dialog[open] {
+  animation: modalSlide .2s ease;
+}
+
+dialog[open]::backdrop {
+  animation: fadeIn .15s ease;
+}
+
+@keyframes fadeIn { from{opacity:0} to{opacity:1} }
+@keyframes modalSlide { from{opacity:0;transform:scale(.95)translateY(12px)} to{opacity:1;transform:scale(1)translateY(0)} }
+
+.modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+.modal-header strong { font-size: 1rem; font-weight: 800; }
+
+.shortcut-grid { display: grid; grid-template-columns: auto 1fr; gap: .5rem .9rem; font-size: .85rem; }
+.shortcut-key { font-family: monospace; background: var(--panel-2); border: 1px solid var(--border-2); border-radius: .4rem; padding: .2rem .5rem; font-size: .78rem; white-space: nowrap; color: var(--fg); }
+.shortcut-desc { color: var(--fg-muted); align-self: center; }
+
+/* Confirm Dialog specific classes */
+dialog.confirm-box { max-width: 380px; display: flex; flex-direction: column; gap: 1.1rem; }
+.confirm-msg { font-size: .95rem; font-weight: 600; color: var(--fg); line-height: 1.5; margin: 0; }
+.confirm-actions { display: flex; gap: .6rem; justify-content: flex-end; }
+.confirm-cancel { padding: .5rem 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border-2); background: var(--panel-2); color: var(--fg-muted); font-size: .85rem; font-weight: 600; cursor: pointer; transition: all var(--transition); }
+.confirm-cancel:hover { background: var(--border); color: var(--fg); }
+.confirm-confirm { padding: .5rem 1.1rem; border-radius: var(--radius-sm); border: 1px solid var(--accent); background: var(--accent); color: #fff; font-size: .85rem; font-weight: 700; cursor: pointer; box-shadow: 0 2px 12px var(--accent-glow); transition: all var(--transition); }
+.confirm-confirm:hover { background: #0284c7; }
