@@ -5,10 +5,21 @@
 ChatWithIt is designed with privacy and security as core principles:
 
 - **No backend** — there is no ChatWithIt server that receives your data
-- **Keys in browser only** — API keys are stored in `localStorage` and sent directly to OpenRouter or Hugging Face
-- **No telemetry** — zero analytics, tracking, or cookies
-- **CSP enforced** — Content Security Policy headers are set in `vercel.json`
+- **Keys in browser memory only** — API keys are held in JavaScript memory for the current session only. They are **never** written to `localStorage`, IndexedDB, cookies, or any server. Keys are cleared after 30 minutes of inactivity.
+- **Direct provider calls** — messages travel from your browser directly to OpenRouter or Hugging Face over HTTPS
+- **No telemetry** — zero analytics, tracking, or third-party cookies from ChatWithIt itself
+- **CSP enforced** — Content Security Policy and related security headers are set in `vercel.json`
 - **MIT licensed** — the entire codebase is auditable
+
+### What is stored locally
+
+| Data | Storage | Notes |
+|------|---------|-------|
+| API keys | Memory only | Cleared on idle timeout or page unload |
+| Theme / UI prefs | `localStorage` (`cwiState`, `cwi_theme`) | Non-sensitive |
+| Chat history | `localStorage` (`cwiChatHistory`) | 7-day TTL, user-clearable |
+
+Provider privacy policies still apply to any data you send to OpenRouter or Hugging Face.
 
 ---
 

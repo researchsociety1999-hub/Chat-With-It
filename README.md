@@ -12,7 +12,7 @@
 [![Privacy First](https://img.shields.io/badge/tracking-none-red.svg)]()
 [![PWA Ready](https://img.shields.io/badge/PWA-ready-purple.svg)]()
 
-[**Live Demo →**](https://chat-with-it.vercel.app) · [**View Source**](https://github.com/researchsociety1999-hub/Chat-With-It)
+[**Live Demo →**](https://chat-with-it.vercel.app) · [**View Source**](https://github.com/researchsociety1999-hub/Chat-With-It) · [**Privacy**](./PRIVACY.md) · [**Security**](./SECURITY.md)
 
 ---
 
@@ -24,7 +24,7 @@ ChatWithIt is different.
 
 > **Your API key lives only in browser memory for this session. It is never written to localStorage, cookies, or any intermediate server — only sent directly to OpenRouter or Hugging Face over HTTPS.**
 
-That is not a claim. [You can read the source.](./js/api.js)
+That is not a claim. [You can read the source.](./js/api.js) and [PRIVACY.md](./PRIVACY.md).
 
 The app is **framework-free modular JavaScript** (no React, no TypeScript, no component library). State lives in a single `AppState` object; the UI is plain DOM + CSS.
 
@@ -67,7 +67,7 @@ Workflow: [Deploy status](https://github.com/researchsociety1999-hub/Chat-With-I
 
 ---
 
-## Features (current)
+## Features (current — implemented)
 
 ### Chat
 - OpenRouter + Hugging Face providers
@@ -109,27 +109,34 @@ ChatWithIt/
 ├── index.html              # App shell
 ├── health.json             # Production probe
 ├── css/
-│   ├── app.css             # Layout, themes, tokens, gen-toggle
+│   ├── variables.css       # Design tokens
+│   ├── themes.css          # Theme definitions
+│   ├── layout.css          # Responsive layout
+│   ├── components.css
+│   ├── app.css
+│   ├── modals.css
 │   ├── profiles.css
 │   └── pwa-safe-area.css
 ├── js/
-│   ├── app.js              # Orchestration, event wiring, syncGenControlsUI
-│   ├── api.js              # Provider requests (conditional temperature/max_tokens)
-│   ├── state.js            # AppState (incl. generationControlsEnabled)
+│   ├── app.js              # Orchestration, event wiring
+│   ├── api.js              # Provider requests (OpenRouter + HF)
+│   ├── state.js            # AppState (keys memory-only)
 │   ├── ui.js
 │   ├── profiles.js
 │   └── utils.js
 ├── dist/app.js             # Bundled output
-├── sw.js                   # Cache name: chatwithit-v20 (bump on asset changes)
+├── sw.js                   # Service worker (bump CACHE_NAME on asset changes)
 ├── manifest.json
+├── PRIVACY.md
+├── SECURITY.md
 └── vercel.json
 ```
 
 ### State model
 
-`AppState` (exported from `js/state.js`) is the single source of truth for provider, model, temperature, maxTokens, generationControlsEnabled, theme, and UI flags. It is loaded from and written to localStorage key `cwiState` (keys excluded). There is no React context, Redux, or observable library.
+`AppState` (exported from `js/state.js`) is the single source of truth for provider, model, temperature, maxTokens, generationControlsEnabled, theme, and UI flags. Non-sensitive prefs are loaded from / written to localStorage key `cwiState` (**API keys are intentionally excluded**). There is no React context, Redux, or observable library.
 
-Service worker `sw.js` precaches the app shell. Any change to JS/CSS that must reach existing installed PWAs requires incrementing `CACHE_NAME` (currently `chatwithit-v20` → next `v21`).
+Service worker `sw.js` precaches the app shell. Any change to JS/CSS that must reach existing installed PWAs requires incrementing `CACHE_NAME`.
 
 ---
 
@@ -144,13 +151,17 @@ Tests: `npm test` (vitest). Bundle: `npm run build`.
 
 ---
 
-## Roadmap
+## Roadmap (planned — not yet implemented)
 
 - Image / drag-and-drop multimodal attach
 - Encrypted local history passphrase
 - Custom saved personas
 - Side-by-side model compare
 - Message search across history
+- Provider interface abstraction + additional providers
+- Intelligent model routing
+- Cost estimation when pricing is available
+- Optional SaaS / multi-tenant mode (future)
 
 ---
 
