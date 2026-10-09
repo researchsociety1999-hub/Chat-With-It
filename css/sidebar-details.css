@@ -1,0 +1,47 @@
+/* Progressive disclosure — secondary sidebar sections (Generation, Persona) */
+.card-advanced {
+  gap: 0.45rem;
+}
+.sidebar-details {
+  border: none;
+  margin: 0;
+  padding: 0;
+}
+.sidebar-details-summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  user-select: none;
+  padding: 0.15rem 0;
+  border-radius: 0.35rem;
+}
+.sidebar-details-summary::-webkit-details-marker {
+  display: none;
+}
+.sidebar-details-summary::before {
+  content: '▸';
+  font-size: 0.7rem;
+  color: var(--fg-subtle);
+  transition: transform 0.15s ease;
+  flex-shrink: 0;
+}
+.sidebar-details[open] > .sidebar-details-summary::before {
+  transform: rotate(90deg);
+}
+.sidebar-details-summary:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.sidebar-details-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding-top: 0.45rem;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-details-summary::before {
+    transition: none;
+  }
+}
