@@ -11,9 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="mobile-web-app-capable" content="yes">
-<!-- FIX B4: blue branded favicon — matches sidebar + welcome SVG logo -->
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect width='48' height='48' rx='12' fill='%230ea5e9'/%3E%3Cpath d='M12 16h24M12 24h18M12 32h12' stroke='%23fff' stroke-width='2.5' stroke-linecap='round'/%3E%3C/svg%3E">
-  <!-- FIX U: PWA manifest link -->
   <link rel="manifest" href="manifest.json">
   <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,600,700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/profiles.css">
@@ -67,33 +65,48 @@
         <div id="modelMeta" class="muted" style="font-size:.72rem"></div>
         <div id="modelCount" class="muted" style="font-size:.72rem">0 models</div>
       </div>
-      <div class="card">
-        <div class="sidebar-card-heading" style="display:flex;align-items:center;justify-content:space-between;gap:.5rem">
-          <button class="card-title sidebar-section-toggle" data-icon="⚙️" title="Generation" aria-label="Open Generation settings" type="button" style="margin:0">Generation</button>
-          <label class="gen-toggle" title="Use temperature and max tokens">
-            <input type="checkbox" id="genControlsToggle" checked aria-label="Enable generation controls">
-            <span class="gen-toggle-track" aria-hidden="true"></span>
-            <span class="gen-toggle-label">On</span>
-          </label>
-        </div>
-        <div id="genControlsPanel">
-          <div class="row" style="justify-content:space-between;font-size:.8rem"><label for="tempSlider">Temperature</label><span id="tempVal" style="font-weight:700">0.7</span></div>
-          <input id="tempSlider" type="range" min="0" max="2" step="0.1" value="0.7" aria-label="Temperature">
-          <div class="row" style="justify-content:space-between;font-size:.8rem"><label for="maxTokensSlider">Max tokens</label><span id="maxTokensVal" style="font-weight:700">1,024</span></div>
-          <input id="maxTokensSlider" type="range" min="128" max="8192" step="128" value="1024" aria-label="Max tokens">
-        </div>
-        <p id="genControlsOffHint" class="muted hidden" style="font-size:.72rem;margin:0">Provider defaults (temperature / max tokens not sent).</p>
-        <div class="sidebar-card-heading" style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-top:.75rem">
-          <span class="card-title" style="margin:0">Low Power Mode</span>
-          <label class="gen-toggle" title="Disable heavy blurs and animations">
-            <input type="checkbox" id="lowPowerToggle" aria-label="Enable Low Power Mode">
-            <span class="gen-toggle-track" aria-hidden="true"></span>
-            <span class="gen-toggle-label" id="lowPowerLabel">Off</span>
-          </label>
-        </div>
+      <div class="card card-advanced">
+        <details class="sidebar-details">
+          <summary class="sidebar-details-summary">
+            <span class="card-title" data-icon="⚙️" style="margin:0;pointer-events:none">Generation &amp; display</span>
+          </summary>
+          <div class="sidebar-details-body">
+            <div class="sidebar-card-heading" style="display:flex;align-items:center;justify-content:space-between;gap:.5rem">
+              <span class="muted" style="font-size:.76rem;font-weight:600">Generation controls</span>
+              <label class="gen-toggle" title="Use temperature and max tokens">
+                <input type="checkbox" id="genControlsToggle" checked aria-label="Enable generation controls">
+                <span class="gen-toggle-track" aria-hidden="true"></span>
+                <span class="gen-toggle-label">On</span>
+              </label>
+            </div>
+            <div id="genControlsPanel">
+              <div class="row" style="justify-content:space-between;font-size:.8rem"><label for="tempSlider">Temperature</label><span id="tempVal" style="font-weight:700">0.7</span></div>
+              <input id="tempSlider" type="range" min="0" max="2" step="0.1" value="0.7" aria-label="Temperature">
+              <div class="row" style="justify-content:space-between;font-size:.8rem"><label for="maxTokensSlider">Max tokens</label><span id="maxTokensVal" style="font-weight:700">1,024</span></div>
+              <input id="maxTokensSlider" type="range" min="128" max="8192" step="128" value="1024" aria-label="Max tokens">
+            </div>
+            <p id="genControlsOffHint" class="muted hidden" style="font-size:.72rem;margin:0">Provider defaults (temperature / max tokens not sent).</p>
+            <div class="sidebar-card-heading" style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-top:.75rem">
+              <span class="card-title" style="margin:0">Low Power Mode</span>
+              <label class="gen-toggle" title="Disable heavy blurs and animations">
+                <input type="checkbox" id="lowPowerToggle" aria-label="Enable Low Power Mode">
+                <span class="gen-toggle-track" aria-hidden="true"></span>
+                <span class="gen-toggle-label" id="lowPowerLabel">Off</span>
+              </label>
+            </div>
+          </div>
+        </details>
       </div>
-      <div class="card">
-        <div class="sidebar-card-heading" style="display:flex;align-items:center;justify-content:space-between"><button class="card-title sidebar-section-toggle" data-icon="👤" title="Persona" aria-label="Open Persona settings" type="button" style="margin:0">Persona</button><button id="shortcutsBtn" class="btn btn-sm btn-ghost" type="button">⌨ Shortcuts</button></div>
+      <div class="card card-advanced">
+        <div class="sidebar-card-heading" style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-bottom:.35rem">
+          <span class="card-title" style="margin:0">Persona</span>
+          <button id="shortcutsBtn" class="btn btn-sm btn-ghost" type="button">⌨ Shortcuts</button>
+        </div>
+        <details class="sidebar-details">
+          <summary class="sidebar-details-summary">
+            <span class="muted" style="font-size:.76rem;font-weight:600">Choose persona</span>
+          </summary>
+          <div class="sidebar-details-body">
         <div id="personaLabel" class="muted" style="font-size:.76rem;font-weight:600">Active: Assistant</div>
         <div class="persona-grid">
           <div class="persona-card active" tabindex="0" data-prompt="You are a helpful AI assistant. Be concise, accurate, and developer-friendly. Use Markdown formatting in your responses."><span class="persona-icon">🤖</span><div class="persona-info"><strong>Assistant</strong><div class="muted">Balanced default helper</div></div></div>
@@ -102,6 +115,8 @@
           <div class="persona-card" tabindex="0" data-prompt="You are a code reviewer. Find bugs, edge cases, maintainability issues, and offer practical refactors with concise examples."><span class="persona-icon">🔍</span><div class="persona-info"><strong>Code Reviewer</strong><div class="muted">Bugs, refactors, edge cases</div></div></div>
           <div class="persona-card" tabindex="0" data-prompt="You are a debate coach. Help build strong arguments, steelman opposing views, and sharpen rebuttals logically and respectfully."><span class="persona-icon">🎙️</span><div class="persona-info"><strong>Debate Coach</strong><div class="muted">Arguments and rebuttals</div></div></div>
         </div>
+          </div>
+        </details>
       </div>
     </aside>
     <main class="main">
