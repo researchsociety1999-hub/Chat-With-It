@@ -38,6 +38,7 @@ export const UI = {
   loadTheme() {
     let stored = 'dark';
     try { stored = localStorage.getItem('cwi_theme') || 'dark'; } catch (_) {}
+    this.ensureSystemThemeListener();
     this.setThemeAttribute(stored);
   },
 
@@ -55,12 +56,41 @@ export const UI = {
     document.documentElement.setAttribute('data-low-power', enabled ? 'true' : 'false');
   },
 
+  themeColors: {
+    dark: '#0d0f1a',
+    light: '#f4f7ff',
+    violet: '#0a0a0f',
+    ember: '#17100e',
+    forest: '#091511',
+    aurora: '#07131b',
+  },
+
   setThemeAttribute(theme) {
     const resolved = theme === 'system'
       ? (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark')
       : theme;
     document.documentElement.setAttribute('data-theme', resolved);
     this.updateThemeMenu(theme);
+    this.syncThemeColor(resolved);
+  },
+
+  syncThemeColor(resolved) {
+    const color = this.themeColors[resolved] || this.themeColors.dark;
+    document.querySelectorAll('meta[name="theme-color"]').forEach(meta => {
+      meta.setAttribute('content', color);
+    });
+  },
+
+  ensureSystemThemeListener() {
+    if (this._systemThemeListener || !window.matchMedia) return;
+    const query = window.matchMedia('(prefers-color-scheme: light)');
+    if (!query.addEventListener) return;
+    this._systemThemeListener = () => {
+      let stored = 'dark';
+      try { stored = localStorage.getItem('cwi_theme') || 'dark'; } catch (_) {}
+      if (stored === 'system') this.setThemeAttribute('system');
+    };
+    query.addEventListener('change', this._systemThemeListener);
   },
 
   updateThemeMenu(theme) {
@@ -78,6 +108,7 @@ export const UI = {
   },
 
   setTheme(theme) {
+    this.ensureSystemThemeListener();
     this.setThemeAttribute(theme);
     try { localStorage.setItem('cwi_theme', theme); } catch (_) {}
   },

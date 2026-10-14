@@ -81,14 +81,16 @@ jobs:
           }
 
           check "/"
-          check "/css/app.css"
+          check "/css/themes.css"
+          check "/css/layout.css"
+          check "/css/components.css"
           check "/css/profiles.css"
           check "/dist/app.js"
           check "/manifest.json"
 
-          # Spot-check that index references the extracted stylesheet
-          curl -sS --max-time 20 -H "Cache-Control: no-cache" "$BASE/" | grep -q 'css/app.css' \
-            || { echo "::error::index.html missing css/app.css link"; exit 1; }
+          # The live shell uses the split stylesheets, not the legacy app.css bundle.
+          curl -sS --max-time 20 -H "Cache-Control: no-cache" "$BASE/" | grep -q 'css/themes.css' \
+            || { echo "::error::index.html missing css/themes.css link"; exit 1; }
 
           echo "Production asset checks passed."
 

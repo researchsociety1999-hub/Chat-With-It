@@ -52,6 +52,7 @@
 
 .menu-item { padding: .55rem .8rem; border-radius: .6rem; border: none; background: transparent; color: var(--fg-muted); font-size: .83rem; font-weight: 600; cursor: pointer; text-align: left; transition: all var(--transition); display: flex; align-items: center; gap: .5rem; }
 .menu-item:hover { background: var(--panel-2); color: var(--fg); }
+.theme-opt[aria-pressed="true"] { background: var(--accent-glow); color: var(--fg); box-shadow: inset 3px 0 0 var(--accent); }
 .menu-sep { height: 1px; background: var(--border); margin: .2rem 0; }
 
 /* Dialog Modals */

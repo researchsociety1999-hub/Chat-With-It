@@ -34,7 +34,7 @@ select option { background: var(--panel-solid); }
 .btn:hover { background: var(--border); color: var(--fg); transform: translateY(-1px); }
 .btn:active { transform: translateY(0); }
 .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; box-shadow: 0 2px 12px var(--accent-glow); }
-.btn-primary:hover { background: #0284c7; box-shadow: 0 4px 20px var(--accent-glow); }
+.btn-primary:hover { background: color-mix(in srgb, var(--accent) 78%, #000); box-shadow: 0 4px 20px var(--accent-glow); }
 .btn-primary:disabled { opacity: .45; cursor: not-allowed; transform: none; box-shadow: none; }
 .btn-ghost { background: transparent; border-color: transparent; color: var(--fg-muted); padding: .4rem .6rem; }
 .btn-ghost:hover { background: var(--panel-2); color: var(--fg); }
@@ -177,8 +177,8 @@ html.high-contrast .gen-toggle input:checked + .gen-toggle-track { background: v
 html.high-contrast .gen-toggle-track::after { background: var(--fg); box-shadow: none; }
 
 /* Header actions — glassmorphism */
-.header-actions > .btn, .header-actions > .dropdown > .btn { width: 36px; height: 36px; min-width: 36px; padding: 0; justify-content: center; border-radius: 50%; border: 1px solid rgba(255, 255, 255, 0.1); background: rgba(255, 255, 255, 0.06); color: var(--fg-muted); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1); transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease; }
-.header-actions > .btn:hover, .header-actions > .dropdown > .btn:hover { background: rgba(255, 255, 255, 0.14); border-color: rgba(255, 255, 255, 0.2); color: var(--fg); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.16); }
+.header-actions > .btn, .header-actions > .dropdown > .btn { width: 36px; height: 36px; min-width: 36px; padding: 0; justify-content: center; border-radius: 50%; border: 1px solid var(--border); background: var(--panel-2); color: var(--fg-muted); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); box-shadow: inset 0 1px 0 var(--border); transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease; }
+.header-actions > .btn:hover, .header-actions > .dropdown > .btn:hover { background: var(--accent-glow); border-color: var(--accent); color: var(--fg); transform: translateY(-1px); box-shadow: 0 4px 12px var(--shadow-sm); }
 .header-actions > .btn:active, .header-actions > .dropdown > .btn:active { transform: translateY(0) scale(0.96); }
 .header-actions > .btn:focus-visible, .header-actions > .dropdown > .btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 .header-actions .btn-ghost span, .header-actions .btn-sm span { display: none; }
@@ -190,6 +190,7 @@ html.high-contrast .gen-toggle-track::after { background: var(--fg); box-shadow:
   .header-actions > .btn, .header-actions > .dropdown > .btn { width: 34px; height: 34px; min-width: 34px; }
 }
 @media (prefers-reduced-motion: reduce) { .header-actions > .btn, .header-actions > .dropdown > .btn { transition: none; } }
-html[data-theme="light"] .header-actions { background: rgba(255, 255, 255, 0.55); border-color: rgba(0, 0, 0, 0.08); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.7); }
-html[data-theme="light"] .header-actions > .btn, html[data-theme="light"] .header-actions > .dropdown > .btn { background: rgba(255, 255, 255, 0.55); border-color: rgba(0, 0, 0, 0.08); color: var(--fg-muted); }
-html[data-theme="light"] .header-actions > .btn:hover, html[data-theme="light"] .header-actions > .dropdown > .btn:hover { background: rgba(255, 255, 255, 0.85); color: var(--fg); }
+html[data-theme="light"] .header-actions > .btn,
+html[data-theme="light"] .header-actions > .dropdown > .btn { background: var(--panel-solid); border-color: var(--border); color: var(--fg-muted); }
+html[data-theme="light"] .header-actions > .btn:hover,
+html[data-theme="light"] .header-actions > .dropdown > .btn:hover { background: var(--accent-glow); color: var(--fg); }

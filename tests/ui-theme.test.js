@@ -5,6 +5,7 @@ describe('theme behavior', () => {
   beforeEach(() => {
     localStorage.clear();
     document.documentElement.removeAttribute('data-theme');
+    document.head.innerHTML = '<meta name="theme-color" content="#000">';
     document.body.innerHTML = `
       <button id="themeBtn" aria-expanded="false"></button>
       <div id="theme-menu">
@@ -29,6 +30,7 @@ describe('theme behavior', () => {
     UI.setTheme('violet');
 
     expect(document.documentElement.getAttribute('data-theme')).toBe('violet');
+    expect(document.querySelector('meta[name="theme-color"]').getAttribute('content')).toBe('#0a0a0f');
     expect(localStorage.getItem('cwi_theme')).toBe('violet');
     expect(document.querySelector('.theme-opt[data-theme="violet"]').getAttribute('aria-pressed')).toBe('true');
     expect(document.querySelector('.theme-opt[data-theme="dark"]').getAttribute('aria-pressed')).toBe('false');
