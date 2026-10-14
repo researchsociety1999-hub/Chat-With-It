@@ -43,9 +43,11 @@
    Let's ensure the JS handles basic positioning or we fall back to fixed offsets if needed.
 */
 .dropdown-menu:popover-open {
-  position: absolute;
-  top: calc(100% + .4rem);
-  right: 0;
+  position: fixed;
+  background: var(--panel-solid);
+  border: 1px solid var(--border-2);
+  color: var(--fg);
+  max-width: calc(100vw - 1.5rem);
 }
 
 @keyframes menuIn { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:translateY(0)} }

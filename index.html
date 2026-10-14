@@ -31,6 +31,7 @@
   <div class="app">
     <aside id="sidebar" class="sidebar">
       <div class="brand">
+        <button id="sidebarClose" class="btn btn-ghost btn-icon sidebar-close" type="button" aria-label="Close menu">✕</button>
         <span class="brand-icon"><svg aria-label="ChatWithIt logo" width="32" height="32" viewBox="0 0 48 48" fill="none" style="vertical-align: middle"><rect width="48" height="48" rx="12" fill="var(--accent)"/><path d="M12 16h24M12 24h18M12 32h12" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/></svg></span>
         <span class="brand-label">ChatWithIt</span>
         <span class="brand-badge">Free</span>
@@ -112,6 +113,8 @@
         </div>
         <div class="header-actions">
           <button id="sidebarToggle" class="btn btn-ghost btn-icon" type="button" aria-label="Toggle sidebar" title="Menu">☰</button>
+          <button id="moreBtn" class="btn btn-ghost more-btn" type="button" aria-expanded="false" aria-controls="actionTray">More</button>
+          <div id="actionTray" class="action-tray">
           <button id="statsBtn" class="btn btn-ghost btn-sm" type="button" title="Session stats" aria-expanded="false">📊 <span>Stats</span></button>
           <button id="clearBtn" class="btn btn-ghost btn-sm" type="button" title="Clear chat" aria-label="Clear chat">🗑 <span>Clear</span></button>
           <div class="menu-wrap">
@@ -121,12 +124,11 @@
               <button id="exportJson" class="menu-item" type="button">📦 JSON</button>
               <button id="exportPdf" class="menu-item" type="button">📄 PDF</button>
               <button id="exportTxt" class="menu-item" type="button">📄 Text</button>
-              <div class="menu-sep"></div>
               <button id="exportCopy" class="menu-item" type="button">📋 Copy all</button>
             </div>
           </div>
           <div class="menu-wrap">
-            <button id="themeBtn" popovertarget="theme-menu" class="btn btn-ghost btn-icon" type="button" title="Toggle theme" aria-label="Toggle theme">🎨</button>
+            <button id="themeBtn" popovertarget="theme-menu" class="btn btn-ghost btn-icon" type="button" title="Toggle theme" aria-label="Toggle theme">🎨 <span>Theme</span></button>
             <div id="theme-menu" class="dropdown-menu" popover>
               <button class="menu-item theme-opt" data-theme="dark" type="button">🌙 Dark</button>
               <button class="menu-item theme-opt" data-theme="light" type="button">☀️ Light</button>
@@ -137,8 +139,9 @@
               <button class="menu-item theme-opt" data-theme="system" type="button">💻 System</button>
             </div>
           </div>
-          <button id="highContrastBtn" class="btn btn-ghost btn-icon" type="button" title="Toggle high contrast mode" aria-label="Toggle high contrast mode">◐</button>
-          <button id="resetBtn" class="btn btn-ghost btn-icon btn-danger" type="button" title="Reset session" aria-label="Reset session">↺</button>
+          <button id="highContrastBtn" class="btn btn-ghost btn-icon" type="button" title="Toggle high contrast mode" aria-label="Toggle high contrast mode">◐ <span>Contrast</span></button>
+          <button id="resetBtn" class="btn btn-ghost btn-icon btn-danger" type="button" title="Reset session" aria-label="Reset session">↺ <span>Reset</span></button>
+          </div>
         </div>
       </header>
       <div class="main-wrapper">

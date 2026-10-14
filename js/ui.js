@@ -469,10 +469,89 @@ export const UI = {
     document.body.classList.toggle('stats-open', isOpen);
     this.el('statsBtn')?.setAttribute('aria-expanded', String(isOpen));
     if (isOpen) {
+      this.closeActionTray();
+      if (window.matchMedia('(max-width: 1100px)').matches && this.el('sidebar')?.classList.contains('open')) {
+        this.toggleSidebar();
+      }
       this.updateStats(AppState.totalPromptTokens || 0, AppState.totalCompletionTokens || 0);
       this.updateRateLimitInfo(AppState.getRemainingRequests());
       this.updateDiagnostics(AppState.currentProvider, AppState.selectedModel);
     }
+    this.syncMobileOverlay();
+  },
+
+  closeStats() {
+    const panel = this.el('rightPanel');
+    panel?.classList.remove('open');
+    document.body.classList.remove('stats-open');
+    this.el('statsBtn')?.setAttribute('aria-expanded', 'false');
+    this.syncMobileOverlay();
+  },
+
+  toggleActionTray() {
+    const tray = this.el('actionTray');
+    if (!tray) return;
+    const isOpen = tray.classList.toggle('open');
+    this.el('moreBtn')?.setAttribute('aria-expanded', String(isOpen));
+    document.body.classList.toggle('actions-open', isOpen);
+    if (isOpen) {
+      this.closeStats();
+      if (this.el('sidebar')?.classList.contains('open')) this.toggleSidebar();
+    }
+    this.syncMobileOverlay();
+  },
+
+  closeActionTray() {
+    this.el('actionTray')?.classList.remove('open');
+    this.el('moreBtn')?.setAttribute('aria-expanded', 'false');
+    document.body.classList.remove('actions-open');
+    this.syncMobileOverlay();
+  },
+
+  syncMobileOverlay() {
+    const overlay = this.el('mobileOverlay');
+    if (!overlay || !window.matchMedia('(max-width: 1100px)').matches) return;
+    const sidebarOpen = this.el('sidebar')?.classList.contains('open');
+    const statsOpen = document.body.classList.contains('stats-open');
+    const actionsOpen = document.body.classList.contains('actions-open');
+    overlay.classList.toggle('show', Boolean(sidebarOpen || statsOpen || actionsOpen));
+  },
+
+  bindPopover(menu, anchor) {
+    if (!menu || !anchor || menu.dataset.placed === 'true') return;
+    menu.dataset.placed = 'true';
+    menu.addEventListener('toggle', (event) => {
+      if (event.newState !== 'open') return;
+      const anchorRect = anchor.getBoundingClientRect();
+      menu.style.position = 'fixed';
+      menu.style.margin = '0';
+      menu.style.right = 'auto';
+      menu.style.maxHeight = 'min(70dvh, 420px)';
+      menu.style.overflow = 'auto';
+      const menuRect = menu.getBoundingClientRect();
+      let top = anchorRect.bottom + 8;
+      if (top + menuRect.height > window.innerHeight - 12) {
+        top = Math.max(12, anchorRect.top - menuRect.height - 8);
+      }
+      let left = anchorRect.right - menuRect.width;
+      left = Math.max(12, Math.min(left, window.innerWidth - menuRect.width - 12));
+      menu.style.top = `${top}px`;
+      menu.style.left = `${left}px`;
+    });
+  },
+
+  bindVisualViewport() {
+    const viewport = window.visualViewport;
+    if (!viewport || this._viewportBound) return;
+    this._viewportBound = true;
+    const sync = () => {
+      const layoutShrunk = document.documentElement.clientHeight < window.innerHeight - 40;
+      const inset = layoutShrunk ? 0 : Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop);
+      document.documentElement.style.setProperty('--keyboard-inset', `${Math.round(inset)}px`);
+    };
+    viewport.addEventListener('resize', sync);
+    viewport.addEventListener('scroll', sync);
+    sync();
   },
 
   // Send button
@@ -580,8 +659,12 @@ export const UI = {
     if (overlay) overlay.classList.toggle('show', isOpen);
     if (toggle)  toggle.setAttribute('aria-expanded', String(isOpen));
     document.body.classList.toggle('sidebar-open', isOpen);
-    if (isOpen) this._focusFirstSidebarControl(toggle);
-    else toggle?.focus();
+    if (isOpen) {
+      this.closeStats();
+      this.closeActionTray();
+      this._focusFirstSidebarControl(toggle);
+    } else toggle?.focus();
+    this.syncMobileOverlay();
   },
 
   collapseSidebarDesktop() {

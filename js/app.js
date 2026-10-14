@@ -669,12 +669,18 @@ export const App = {
     const themeMenu = UI.el('theme-menu');
 
     UI.el('statsBtn').addEventListener('click', () => UI.toggleStats());
-    UI.el('rp-close').addEventListener('click', () => {
-      UI.el('rightPanel')?.classList.remove('open');
+    UI.el('rp-close').addEventListener('click', () => UI.closeStats());
+    UI.el('moreBtn')?.addEventListener('click', () => UI.toggleActionTray());
+    UI.el('sidebarClose')?.addEventListener('click', () => {
+      if (UI.el('sidebar')?.classList.contains('open')) UI.toggleSidebar();
     });
+    UI.bindPopover(UI.el('export-menu'), UI.el('exportBtn'));
+    UI.bindPopover(themeMenu, UI.el('themeBtn'));
+    UI.bindVisualViewport();
 
     // FIX Sofia/Zara: replaced native confirm() with accessible modal
     UI.el('clearBtn').addEventListener('click', () => {
+      UI.closeActionTray();
       const doClear = () => {
         UI.clearChat();
         UI.hideUnsavedBanner();
@@ -690,6 +696,7 @@ export const App = {
     const resetBtn = UI.el('resetBtn');
     if (resetBtn) {
       resetBtn.addEventListener('click', () => {
+        UI.closeActionTray();
         UI.confirmModal('Reset session (auth, model, chat)?', () => {
           AppState.reset();
           UI.clearChat();
@@ -718,7 +725,11 @@ export const App = {
     const sidebarToggle = UI.el('sidebarToggle');
     sidebarToggle?.setAttribute('aria-pressed', 'false');
     sidebarToggle?.addEventListener('click', () => UI.toggleSidebar());
-    UI.el('mobileOverlay')?.addEventListener('click', () => UI.toggleSidebar());
+    UI.el('mobileOverlay')?.addEventListener('click', () => {
+      if (UI.el('sidebar')?.classList.contains('open')) UI.toggleSidebar();
+      UI.closeStats();
+      UI.closeActionTray();
+    });
 
     document.querySelectorAll('.sidebar-section-toggle').forEach(sectionToggle => {
       sectionToggle.addEventListener('click', () => {
@@ -824,7 +835,13 @@ export const App = {
       if (e.key !== 'Escape') return;
       if (window.matchMedia('(max-width: 1100px)').matches && UI.el('sidebar')?.classList.contains('open')) {
         UI.toggleSidebar();
+        return;
       }
+      if (document.body.classList.contains('stats-open')) {
+        UI.closeStats();
+        return;
+      }
+      if (document.body.classList.contains('actions-open')) UI.closeActionTray();
     });
 
     // FIX: Ctrl+K model search — moved here from inline <script> in index.html
