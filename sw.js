@@ -5,9 +5,13 @@
  * CACHE_NAME bump strategy: increment the version suffix (v2, v3, …) whenever
  * JS or CSS files change. The activate handler deletes all previous caches so
  * returning users always get fresh code once the new SW takes control.
+ *
+ * Fetch strategy: the HTML shell and the app bundle are network-first so users
+ * get new code as soon as they are online; other same-origin assets are
+ * cache-first. Offline, everything falls back to the cache.
  */
 
-const CACHE_NAME = 'chatwithit-v22';
+const CACHE_NAME = 'chatwithit-v23';
 
 const PRECACHE_URLS = [
   './',
@@ -49,6 +53,16 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+function isNetworkFirst(req, url) {
+  if (url.origin !== self.location.origin) return false;
+  if (req.mode === 'navigate') return true;
+  return (
+    url.pathname.endsWith('/') ||
+    url.pathname.endsWith('/index.html') ||
+    url.pathname.endsWith('/dist/app.js')
+  );
+}
+
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   if (req.method !== 'GET') return;
@@ -60,6 +74,25 @@ self.addEventListener('fetch', (event) => {
     url.hostname.includes('huggingface.co') ||
     url.hostname.includes('cdn.jsdelivr.net')
   ) {
+    return;
+  }
+
+  if (isNetworkFirst(req, url)) {
+    event.respondWith(
+      fetch(req).then((res) => {
+        if (res.ok) {
+          const clone = res.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(req, clone));
+        }
+        return res;
+      }).catch(() =>
+        caches.match(req).then((cached) =>
+          cached ||
+          (req.mode === 'navigate' ? caches.match('./index.html') : null) ||
+          new Response('Offline', { status: 503 })
+        )
+      )
+    );
     return;
   }
 
