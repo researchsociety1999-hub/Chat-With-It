@@ -42,6 +42,24 @@ A static, framework-free Progressive Web App for chatting with models through Op
 - `vercel.json` sets security headers: X-Frame-Options, Referrer-Policy, X-Content-Type-Options, Permissions-Policy, HSTS, COOP, and CORP.
 - A client-side token-bucket rate limit (default 20 requests per minute) and API-key format validation are in place.
 
+## Key trade-offs
+
+| Decision | Benefit | Cost |
+|---|---|---|
+| No backend | No server ever sees keys or chats | No cross-device sync, no server-side usage data |
+| Keys in memory only | No persistent credential exposure | Users re-enter their key each session and after the 30-minute idle timeout |
+| Vanilla JS, no framework | Small, auditable surface area | More manual DOM and state handling |
+| Browser-direct provider calls | No intermediary to trust | Provider CORS and rate limits apply, so the app depends on them |
+| Optional local history (7-day TTL) | Convenience without a database | Data is device-bound and expires |
+
+## Success metric
+
+**North-star metric (proposed, not yet instrumented): activation rate** — the share of sessions where a user adds a key, picks a model, and sends at least one message.
+
+Why this metric: the app's main friction is the bring-your-own-key step, so activation shows whether the privacy model is usable.
+
+How to measure without breaking the privacy promise: a manual usability test with 5 users, or an opt-in, content-free counter. Current value: N/A.
+
 ## Self-audit (AUDIT.md, 2026-07-15)
 
 I audited my own project against its README claims. The audit found Google Analytics and Vercel Speed Insights scripts in `index.html` that contradicted the "no telemetry" claim, and I removed them. It also found unsanitized `innerHTML` assignments in `js/ui.js`, which I wrapped with DOMPurify. One known gap remains open: the CSP still allows `'unsafe-inline'` scripts, and the fix is nonce-based CSP.
