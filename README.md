@@ -26,7 +26,22 @@ ChatWithIt is different.
 
 That is not a claim. [You can read the source.](./js/api.js) and [PRIVACY.md](./PRIVACY.md).
 
+> **Note:** Keys are never stored. Optional non-sensitive preferences and optional chat history (7-day TTL) stay local to your device.
+
 The app is **framework-free modular JavaScript** (no React, no TypeScript, no component library). State lives in a single `AppState` object; the UI is plain DOM + CSS.
+
+---
+
+## Product Decisions
+
+| Decision | Why |
+|---|---|
+| No backend | Eliminates server-side key and conversation exposure |
+| Vanilla JS + esbuild | Keeps the surface area small, fast, and auditable |
+| Free-model discovery | Lowers the barrier to trying frontier models |
+| Personas | Gives users a clear starting job-to-be-done |
+| Optional local history (7-day TTL) | Balances convenience with privacy |
+| Health checks via GitHub Actions | Catches production regressions after every push |
 
 ---
 
@@ -167,4 +182,4 @@ Tests: `npm test` (vitest). Bundle: `npm run build`.
 
 ## License
 
-MIT — built by Rishi
+MIT — built by [Rishi](https://www.linkedin.com/in/hrushikesh-singh-revops) — AI product & operations builder.
