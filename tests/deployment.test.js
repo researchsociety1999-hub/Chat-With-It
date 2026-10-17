@@ -22,10 +22,18 @@ describe('deployment configuration', () => {
       'https://huggingface.co',
       'https://api-inference.huggingface.co',
       'https://router.huggingface.co',
-      'https://vitals.vercel-insights.com',
     ]) {
       expect(csp).toContain(endpoint);
     }
+  });
+
+  it('does not allow Vercel analytics hosts in the CSP', () => {
+    const csp = vercel.headers
+      .flatMap(entry => entry.headers)
+      .find(header => header.key === 'Content-Security-Policy')?.value;
+
+    expect(csp).not.toContain('vitals.vercel-insights.com');
+    expect(csp).not.toContain('va.vercel-scripts.com');
   });
 
   it('bumps the service-worker cache version for the updated bundle', () => {
