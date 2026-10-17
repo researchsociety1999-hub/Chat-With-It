@@ -15,7 +15,7 @@ ChatWithIt is designed to keep as much data as possible under your control.
 |------|-------|-----------|
 | API keys | Browser memory only | Cleared on idle timeout or tab close |
 | Theme, generation settings, selected model | `localStorage` (`cwiState`) | Until you clear site data |
-| Chat history (optional) | `localStorage` (`cwiChatHistory`) | 7-day TTL; you can clear anytime |
+| Chat history (always saved in this version) | `localStorage` (`cwiChatHistory`) | 7-day TTL; you can clear anytime |
 
 ## What providers receive
 
@@ -25,6 +25,10 @@ ChatWithIt does **not** control provider retention, logging, or training policie
 
 - [OpenRouter privacy](https://openrouter.ai/privacy)
 - [Hugging Face privacy](https://huggingface.co/privacy)
+
+## Third-party requests
+
+When the page loads, the browser requests the Satoshi typeface stylesheet from Fontshare (`api.fontshare.com`). Fontshare therefore receives the visitor's IP address and browser details, and ChatWithIt does not control its logging. No other third-party request is made by `index.html`. Self-hosting the font would remove this request.
 
 ## Honest limitations
 

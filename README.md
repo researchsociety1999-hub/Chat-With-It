@@ -26,7 +26,7 @@ ChatWithIt is different.
 
 That is not a claim. [You can read the source.](./js/api.js) and [PRIVACY.md](./PRIVACY.md).
 
-> **Note:** Keys are never stored. Optional non-sensitive preferences and optional chat history (7-day TTL) stay local to your device.
+> **Note:** Keys are never stored. Non-sensitive preferences and chat history (7-day TTL, currently always saved; see docs/decisions/history-persistence.md) stay local to your device.
 
 The app is **framework-free modular JavaScript** (no React, no TypeScript, no component library). State lives in a single `AppState` object; the UI is plain DOM + CSS.
 
@@ -40,7 +40,7 @@ The app is **framework-free modular JavaScript** (no React, no TypeScript, no co
 | Vanilla JS + esbuild | Keeps the surface area small, fast, and auditable |
 | Free-model discovery | Lowers the barrier to trying frontier models |
 | Personas | Gives users a clear starting job-to-be-done |
-| Optional local history (7-day TTL) | Balances convenience with privacy |
+| Local history (7-day TTL, always saved today) | Balances convenience with privacy |
 | Health checks via GitHub Actions | Catches production regressions after every push |
 
 ---
@@ -100,7 +100,7 @@ Workflow: [Deploy status](https://github.com/researchsociety1999-hub/Chat-With-I
 ### Session tools
 - Live token / context usage and session stats
 - Export Markdown / JSON / TXT / PDF / clipboard
-- Optional local chat history (7-day TTL)
+- Local chat history (7-day TTL). Note: the code currently persists history unconditionally; an opt-out is tracked as an open decision (audit N5).
 
 ### Customize & accessibility
 - Themes: Dark, Light, Violet, Ember, Forest, Aurora + system preference
