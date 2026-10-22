@@ -1,0 +1,188 @@
+diff --git a/css/components.css b/css/components.css
+index fca0099..1517a80 100644
+--- a/css/components.css
++++ b/css/components.css
+@@ -77,11 +77,11 @@ input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; border-radius
+ .msg { display: flex; gap: .75rem; align-items: flex-end; animation: msgIn .22s ease; max-width: 100%; }
+ .msg.user { flex-direction: row-reverse; }
+ @keyframes msgIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+-.msg-avatar { width: 34px; height: 34px; border-radius: .7rem; display: grid; place-items: center; flex-shrink: 0; font-size: .95rem; border: 1px solid var(--border); background: var(--panel-2); -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur); }
++.msg-avatar { width: 34px; height: 34px; border-radius: .7rem; display: grid; place-items: center; flex-shrink: 0; font-size: .95rem; border: 1px solid var(--border); background: var(--panel-2); }
+ .msg.user .msg-avatar { background: var(--accent-glow); border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
+ .msg-col { display: flex; flex-direction: column; gap: .3rem; max-width: min(75%, 620px); min-width: 0; }
+ .msg.user .msg-col { align-items: flex-end; }
+-.msg-bubble { padding: clamp(0.75rem, 2vw, 0.85rem) clamp(1rem, 2vw, 1.1rem); border-radius: 1.2rem 1.2rem 1.2rem .3rem; border: 1px solid var(--border); background: var(--ai-bubble); -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur); line-height: 1.65; overflow-wrap: anywhere; word-break: break-word; position: relative; }
++.msg-bubble { padding: clamp(0.75rem, 2vw, 0.85rem) clamp(1rem, 2vw, 1.1rem); border-radius: 1.2rem 1.2rem 1.2rem .3rem; border: 1px solid var(--border); background: var(--ai-bubble); line-height: 1.65; overflow-wrap: anywhere; word-break: break-word; position: relative; }
+ .msg.user .msg-bubble { background: var(--user-bubble); border-color: transparent; border-radius: 1.2rem 1.2rem .3rem 1.2rem; color: #fff; box-shadow: 0 4px 20px var(--accent-glow); }
+ .msg-bubble.streaming { opacity: .9; border-color: color-mix(in srgb, var(--accent) 40%, transparent); }
+ .msg-bubble.is-error { border-color: color-mix(in srgb, var(--danger) 50%, transparent); background: color-mix(in srgb, var(--danger) 9%, transparent); }
+@@ -114,7 +114,7 @@ input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; border-radius
+ .msg-bubble th,.msg-bubble td { border:1px solid var(--border); padding:.45rem .65rem; text-align:left; }
+ .msg-bubble th { background:var(--panel-2); font-weight:700; }
+ 
+-.typing-indicator { display: inline-flex; gap: .4rem; padding: .85rem 1.1rem; background: var(--ai-bubble); border: 1px solid var(--border); border-radius: 1.2rem 1.2rem 1.2rem .3rem; -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur); }
++.typing-indicator { display: inline-flex; gap: .4rem; padding: .85rem 1.1rem; background: var(--ai-bubble); border: 1px solid var(--border); border-radius: 1.2rem 1.2rem 1.2rem .3rem; }
+ .typing-indicator span { width: 7px; height: 7px; border-radius: 50%; background: var(--fg-muted); animation: typingPulse 1.4s infinite ease-in-out; }
+ .typing-indicator span:nth-child(2) { animation-delay: .2s; }
+ .typing-indicator span:nth-child(3) { animation-delay: .4s; }
+@@ -263,3 +263,17 @@ html[data-theme="light"] .header-actions > .dropdown > .btn:hover { background:
+ .send-error { align-self: center; max-width: min(36rem, 100%); display: flex; flex-direction: column; align-items: center; gap: .6rem; padding: .8rem 1rem; border: 1px solid var(--danger); border-radius: 1rem; background: var(--panel-2); }
+ .send-error-text { margin: 0; color: var(--fg); font-size: .85rem; line-height: 1.45; text-align: center; overflow-wrap: anywhere; }
+ .send-error-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: .5rem; }
++
++
++/* Larger touch targets for small controls on coarse pointers */
++@media (pointer: coarse) {
++  .profile-btn { min-height: 44px; min-width: 44px; }
++  #scrollToBottom { width: 44px; height: 44px; }
++}
++
++/* Reduced motion: stop the remaining looping and entry animations */
++@media (prefers-reduced-motion: reduce) {
++  .chat-body { scroll-behavior: auto; }
++  .typing-indicator span, .msg-bubble.streaming::after, #stopBtn.streaming-visible, .ctx-fill.over,
++  .sidebar.open, .mobile-overlay.show, #profilesPanel { animation: none; }
++}
+diff --git a/css/profiles.css b/css/profiles.css
+index 7ead07a..5969def 100644
+--- a/css/profiles.css
++++ b/css/profiles.css
+@@ -121,23 +121,8 @@
+   border-radius: 4px;
+   letter-spacing: 0.04em;
+ }
+-.badge-or  { background: #0ea5e922; color: #38bdf8; border: 1px solid #0ea5e955; }
+-.badge-hf  { background: #06b6d422; color: #22d3ee; border: 1px solid #06b6d455; }
+-
+-.profile-name {
+-  flex: 1;
+-  font-size: 0.83rem;
+-  color: var(--fg);
+-  white-space: nowrap;
+-  overflow: hidden;
+-  text-overflow: ellipsis;
+-}
+-
+-.profile-actions {
+-  display: flex;
+-  gap: 4px;
+-  flex-shrink: 0;
+-}
++.badge-or  { background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); }
++.badge-hf  { background: color-mix(in srgb, var(--fg) 8%, transparent); color: var(--fg); border: 1px solid color-mix(in srgb, var(--fg) 30%, transparent); }
+ 
+ .profile-btn {
+   font-size: 0.73rem;
+diff --git a/index.html b/index.html
+index 5e38888..5075feb 100644
+--- a/index.html
++++ b/index.html
+@@ -51,8 +51,8 @@
+         <button id="authBtn" class="btn btn-primary" type="button" style="width:100%">Authenticate</button>
+         <div id="authHint" class="muted" style="font-size:.73rem">OpenRouter key (sk-or-…) — <a id="authHintLink" href="https://openrouter.ai/keys" target="_blank" rel="noreferrer" style="color:var(--accent-2)">Get key →</a></div>
+         <div class="profiles-wrapper" style="margin-top:.25rem">
+-          <button id="profilesToggleBtn" class="btn btn-sm btn-ghost" aria-expanded="false" aria-haspopup="true">🔑 Profiles</button>
+-          <div id="profilesPanel" role="menu" aria-label="API key profiles"></div>
++          <button id="profilesToggleBtn" class="btn btn-sm btn-ghost" aria-expanded="false" aria-controls="profilesPanel">🔑 Profiles</button>
++          <div id="profilesPanel" role="region" aria-label="API key profiles"></div>
+         </div>
+       </div>
+       <div class="card">
+diff --git a/js/profiles.js b/js/profiles.js
+index 15aba88..1898033 100644
+--- a/js/profiles.js
++++ b/js/profiles.js
+@@ -112,8 +112,8 @@ export const Profiles = (() => {
+         <span class="profile-badge ${providerClass(p)}">${providerLabel(p)}</span>
+         <span class="profile-name" title="${escHtml(p.name)}">${escHtml(p.name)}</span>
+         <div class="profile-actions">
+-          <button class="profile-btn profile-use" data-id="${p.id}" title="Activate">${isActive(p) ? '✓ Active' : 'Use'}</button>
+-          <button class="profile-btn profile-del" data-id="${p.id}" title="Delete">✕</button>
++          <button type="button" class="profile-btn profile-use" data-id="${p.id}" title="Activate" aria-label="${isActive(p) ? 'Active profile' : 'Use profile'} ${escHtml(p.name)}">${isActive(p) ? '✓ Active' : 'Use'}</button>
++          <button type="button" class="profile-btn profile-del" data-id="${p.id}" title="Delete" aria-label="Delete profile ${escHtml(p.name)}">✕</button>
+         </div>
+       </div>
+     `).join('');
+@@ -123,8 +123,8 @@ export const Profiles = (() => {
+         ${profiles.length ? rows : '<p class="profiles-empty">No saved profiles yet.</p>'}
+       </div>
+       <div class="profiles-add">
+-        <input id="profileNameInput" type="text" placeholder="Profile name…" maxlength="40" />
+-        <button id="profileSaveBtn" class="btn-secondary">Save current key</button>
++        <input id="profileNameInput" type="text" placeholder="Profile name…" maxlength="40" aria-label="Profile name" />
++        <button type="button" id="profileSaveBtn" class="btn-secondary">Save current key</button>
+       </div>
+     `;
+ 
+@@ -205,6 +205,15 @@ export const Profiles = (() => {
+       if (open) renderProfilesPanel();
+     });
+ 
++    // Escape closes the panel and returns focus to its button
++    panel.addEventListener('keydown', e => {
++      if (e.key === 'Escape' && panel.classList.contains('open')) {
++        panel.classList.remove('open');
++        toggleBtn.setAttribute('aria-expanded', 'false');
++        toggleBtn.focus();
++      }
++    });
++
+     // Close panel when clicking outside
+     document.addEventListener('click', e => {
+       if (!panel.contains(e.target) && e.target !== toggleBtn) {
+diff --git a/tests/ui-a11y.test.js b/tests/ui-a11y.test.js
+index bd36a3f..3fa3163 100644
+--- a/tests/ui-a11y.test.js
++++ b/tests/ui-a11y.test.js
+@@ -172,3 +172,51 @@ describe('css wiring guards', () => {
+     expect(readFileSync('css/components.css', 'utf8')).toMatch(/@keyframes pulse-danger/);
+   });
+ });
++
++describe('profile panel semantics, touch targets and motion', () => {
++  const html = readFileSync('index.html', 'utf8');
++  const comp = readFileSync('css/components.css', 'utf8');
++  it('profiles panel is a labeled region, not an ARIA menu', () => {
++    expect(html).not.toMatch(/id="profilesPanel"[^>]*role="menu"/);
++    expect(html).toMatch(/id="profilesPanel"[^>]*role="region"/);
++    expect(html).toMatch(/id="profilesToggleBtn"[^>]*aria-controls="profilesPanel"/);
++    expect(html).not.toMatch(/id="profilesToggleBtn"[^>]*aria-haspopup/);
++  });
++  it('profile badges use theme tokens, not fixed pale colors', () => {
++    const pc = readFileSync('css/profiles.css', 'utf8');
++    expect(pc).not.toMatch(/#38bdf8|#22d3ee/);
++    expect(pc).toMatch(/\.badge-or[^}]*var\(--accent\)/);
++  });
++  it('profile row buttons have real names and button types', () => {
++    const js = readFileSync('js/profiles.js', 'utf8');
++    expect(js).toMatch(/profile-use[^>]*aria-label=/);
++    expect(js).toMatch(/profile-del[^>]*aria-label="Delete profile/);
++    expect(js).not.toMatch(/<button class="profile-btn/);
++  });
++  it('message bubbles, avatars and typing indicator no longer use backdrop blur', () => {
++    for (const sel of ['.msg-avatar', '.msg-bubble {', '.typing-indicator {']) {
++      const line = comp.split('\n').find(l => l.startsWith(sel));
++      expect(line, sel).toBeTruthy();
++      expect(line).not.toMatch(/backdrop-filter/);
++    }
++  });
++  it('coarse-pointer rule enlarges profile buttons and scroll-to-bottom', () => {
++    expect(comp).toMatch(/pointer: coarse\)\s*\{[^}]*\.profile-btn[^}]*44px[\s\S]*?#scrollToBottom[^}]*44px/);
++  });
++  it('reduced motion stops the typing, cursor, stop pulse, sidebar and profile animations', () => {
++    const block = comp.slice(comp.lastIndexOf('prefers-reduced-motion'));
++    for (const sel of ['.typing-indicator span', '.msg-bubble.streaming::after', '#stopBtn.streaming-visible', '.sidebar.open', '#profilesPanel']) {
++      expect(block).toContain(sel);
++    }
++    expect(block).toMatch(/scroll-behavior:\s*auto/);
++  });
++  for (const t of ['dark', 'light', 'violet', 'ember', 'forest', 'aurora']) {
++    it(`${t}: OR and HF profile badges keep 4.5:1 on their tinted background`, () => {
++      const block = css.match(new RegExp(`\\[data-theme="${t}"\\]\\s*\\{([^}]*)\\}`))[1];
++      const v = { ...base, ...vars(block) };
++      const [ar, ag, ab] = hexToRgb(v.accent), [fr, fg, fb] = hexToRgb(v.fg);
++      expect(ratio(v.accent, blend([ar, ag, ab, 0.12], v['panel-solid']))).toBeGreaterThanOrEqual(4.5);
++      expect(ratio(v.fg, blend([fr, fg, fb, 0.08], v['panel-solid']))).toBeGreaterThanOrEqual(4.5);
++    });
++  }
++});
