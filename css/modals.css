@@ -59,12 +59,13 @@
 
 /* Dialog Modals */
 dialog {
+  box-sizing: border-box;
   background: var(--panel-solid);
   border: 1px solid var(--border-2);
   border-radius: 1.25rem;
   padding: 1.5rem;
   max-width: 500px;
-  width: 100%;
+  width: calc(100% - 1.5rem); /* always leaves a gutter, including on 320px phones */
   box-shadow: var(--shadow);
   color: var(--fg);
   margin: auto;
@@ -95,10 +96,16 @@ dialog[open]::backdrop {
 .shortcut-desc { color: var(--fg-muted); align-self: center; }
 
 /* Confirm Dialog specific classes */
-dialog.confirm-box { max-width: 380px; display: flex; flex-direction: column; gap: 1.1rem; }
+dialog.confirm-box { max-width: 380px; }
+dialog.confirm-box[open] { display: flex; flex-direction: column; gap: 1.1rem; }
 .confirm-msg { font-size: .95rem; font-weight: 600; color: var(--fg); line-height: 1.5; margin: 0; }
 .confirm-actions { display: flex; gap: .6rem; justify-content: flex-end; }
 .confirm-cancel { padding: .5rem 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border-2); background: var(--panel-2); color: var(--fg-muted); font-size: .85rem; font-weight: 600; cursor: pointer; transition: all var(--transition); }
 .confirm-cancel:hover { background: var(--border); color: var(--fg); }
-.confirm-confirm { padding: .5rem 1.1rem; border-radius: var(--radius-sm); border: 1px solid var(--accent); background: var(--accent); color: #fff; font-size: .85rem; font-weight: 700; cursor: pointer; box-shadow: 0 2px 12px var(--accent-glow); transition: all var(--transition); }
-.confirm-confirm:hover { background: #0284c7; }
+.confirm-confirm { padding: .5rem 1.1rem; border-radius: var(--radius-sm); border: 1px solid var(--accent); background: var(--accent); color: var(--on-accent); font-size: .85rem; font-weight: 700; cursor: pointer; box-shadow: 0 2px 12px var(--accent-glow); transition: all var(--transition); }
+.confirm-confirm:hover { background: color-mix(in srgb, var(--accent) 78%, #000); }
+.confirm-cancel:focus-visible, .confirm-confirm:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+@media (prefers-reduced-motion: reduce) {
+  dialog[open], dialog[open]::backdrop { animation: none; }
+}

@@ -156,10 +156,8 @@ export const AppState = {
   _onIdle() {
     this._apiKey  = '';
     this._hfToken = '';
-    if (typeof UI !== 'undefined') {
-      UI.setAuthState(false, 'Session expired — please re-authenticate');
-      UI.toast('⏱ Session timed out. Please re-authenticate.', 'warning', 6000);
-    }
+    // `UI` is not a global in ES modules, so the old `typeof UI` guard never fired. Emit an event instead.
+    if (typeof document !== 'undefined') document.dispatchEvent(new CustomEvent('cwi:idle-timeout'));
   },
 
   // ── Model cooldowns ───────────────────────────────────────────────────────
@@ -318,8 +316,8 @@ export const AppState = {
     if (trimmed.length < messages.length) {
       const dropped = messages.length - trimmed.length;
       console.warn(`[ChatWithIt] Context trim: dropped ${dropped} old message(s) to fit within ${ctxLimit} token context.`);
-      if (typeof UI !== 'undefined') {
-        UI.toast(`ℹ️ ${dropped} old message${dropped > 1 ? 's' : ''} trimmed to fit context window.`, 'info', 5000);
+      if (typeof document !== 'undefined') {
+        document.dispatchEvent(new CustomEvent('cwi:context-trimmed', { detail: { dropped } }));
       }
     }
 

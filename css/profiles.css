@@ -9,14 +9,14 @@
   font-weight: 600;
   border-radius: 6px;
   cursor: pointer;
-  background: var(--bg-secondary, #1e2333);
-  color: var(--text-secondary, #9ca3af);
-  border: 1px solid var(--border, #2d3654);
+  background: var(--panel-solid);
+  color: var(--fg-muted);
+  border: 1px solid var(--border-2);
   transition: color 0.15s, border-color 0.15s;
 }
 #profilesToggleBtn:hover {
-  color: var(--text-primary, #e5e7eb);
-  border-color: var(--accent, #0ea5e9);
+  color: var(--fg);
+  border-color: var(--accent);
 }
 
 /* Wrapper: position:relative so the panel anchors to it */
@@ -40,8 +40,8 @@
   width: 320px;
   max-width: calc(100vw - 24px);
 
-  background: var(--bg-secondary, #1e2333);
-  border: 1px solid var(--border, #2d3654);
+  background: var(--panel-solid);
+  border: 1px solid var(--border-2);
   border-radius: 10px;
   box-shadow: 0 8px 32px rgba(0,0,0,0.4);
   padding: 12px;
@@ -92,7 +92,7 @@
 
 .profiles-empty {
   font-size: 0.8rem;
-  color: var(--text-muted, #6b7280);
+  color: var(--fg-muted);
   text-align: center;
   padding: 12px 0;
   margin: 0;
@@ -104,13 +104,13 @@
   gap: 8px;
   padding: 7px 9px;
   border-radius: 7px;
-  background: var(--bg-tertiary, #252d42);
+  background: var(--panel-2);
   border: 1px solid transparent;
   transition: border-color 0.15s;
 }
 .profile-row.profile-active {
-  border-color: var(--accent, #0ea5e9);
-  background: rgba(14,165,233,0.08);
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
 }
 
 .profile-badge {
@@ -127,7 +127,7 @@
 .profile-name {
   flex: 1;
   font-size: 0.83rem;
-  color: var(--text-primary, #e5e7eb);
+  color: var(--fg);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -144,7 +144,7 @@
   padding: 3px 8px;
   border-radius: 5px;
   cursor: pointer;
-  border: 1px solid var(--border, #2d3654);
+  border: 1px solid var(--border-2);
   background: transparent;
   transition: background 0.12s, color 0.12s;
   /* Increase tap target on touch devices */
@@ -152,13 +152,13 @@
   min-width: 36px;
 }
 .profile-use {
-  color: var(--accent, #0ea5e9);
+  color: var(--accent);
 }
 .profile-use:hover {
-  background: rgba(14,165,233,0.15);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
 }
 .profile-del {
-  color: var(--text-muted, #6b7280);
+  color: var(--fg-muted);
 }
 .profile-del:hover {
   background: rgba(239,68,68,0.15);
@@ -169,7 +169,7 @@
 .profiles-add {
   display: flex;
   gap: 6px;
-  border-top: 1px solid var(--border, #2d3654);
+  border-top: 1px solid var(--border-2);
   padding-top: 10px;
   /* Wrap on very narrow screens so input + button don't squash */
   flex-wrap: wrap;
@@ -181,14 +181,14 @@
   font-size: 0.82rem;
   padding: 6px 9px;
   border-radius: 6px;
-  border: 1px solid var(--border, #2d3654);
-  background: var(--bg-primary, #0b1020);
-  color: var(--text-primary, #e5e7eb);
+  border: 1px solid var(--border-2);
+  background: var(--bg);
+  color: var(--fg);
   outline: none;
   box-sizing: border-box;
 }
 .profiles-add input:focus {
-  border-color: var(--accent, #0ea5e9);
+  border-color: var(--accent);
 }
 
 .profiles-add .btn-secondary {
@@ -197,14 +197,14 @@
   border-radius: 6px;
   cursor: pointer;
   white-space: nowrap;
-  background: rgba(14,165,233,0.12);
-  color: var(--accent, #0ea5e9);
-  border: 1px solid rgba(14,165,233,0.3);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
   transition: background 0.12s;
   flex-shrink: 0;
 }
 .profiles-add .btn-secondary:hover {
-  background: rgba(14,165,233,0.22);
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
 }
 
 /* ── High Contrast Mode additions ────────────────────────────────────────── */

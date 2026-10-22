@@ -6,12 +6,15 @@
 import { AppState } from './state.js';
 import { UI } from './ui.js';
 import { API, PROVIDERS, PARAM_TIERS } from './api.js';
+import { gatedStream } from './model-gate.js';
 import { Utils } from './utils.js';
 import { Profiles } from './profiles.js';
 import DOMPurify from 'dompurify';
 
 export const App = {
   _sending: false,
+  _reqId: 0,
+  _failedSend: false,
   _cooldownInterval: null,
   _scrollScheduled: false, // FIX Marcus: rAF scroll throttle flag
   _modelRefreshId: 0,
@@ -88,7 +91,22 @@ export const App = {
         }
       }
 
-      UI.toast('✅ ChatWithIt loaded', 'success');
+      // Start typing immediately where that is safe: pointer devices only, because focusing on a
+      // phone would open the virtual keyboard over the empty state before the user has acted.
+      if (window.matchMedia('(pointer: fine)').matches) UI.el('userInput')?.focus({ preventScroll: true });
+      UI.updateWelcomeHint();
+
+      // state.js is not allowed to import the UI (and a bare `UI` is not a global in a module),
+      // so it emits events and the app layer turns them into UI.
+      document.addEventListener('cwi:idle-timeout', () => {
+        UI.setAuthState(false, 'Session expired — please re-authenticate');
+        UI.toast('⏱ Session timed out. Please re-authenticate.', 'warning', 6000);
+      });
+      document.addEventListener('cwi:context-trimmed', (e) => {
+        const dropped = e.detail?.dropped || 0;
+        UI.toast(`ℹ️ ${dropped} old message${dropped > 1 ? 's' : ''} trimmed to fit context window.`, 'info', 5000);
+      });
+
     } catch (error) {
       console.error('Init error:', error);
       UI.toast('Failed to initialise application', 'error');
@@ -135,7 +153,7 @@ export const App = {
 
         document.querySelectorAll('.ptab').forEach(b => {
           b.classList.toggle('active', b.dataset.provider === provider);
-          b.setAttribute('aria-selected', String(b.dataset.provider === provider));
+          b.setAttribute('aria-pressed', String(b.dataset.provider === provider));
         });
 
         const input = UI.el('apiKeyInput');
@@ -175,21 +193,6 @@ export const App = {
       UI.el('modelSelect').innerHTML = '<option value="none" disabled selected>— authenticate first —</option>';
       UI.updateModelLabel('No model selected');
       UI.toast('Authentication cleared', 'info');
-    });
-    UI.el('lockBtn')?.addEventListener('click', () => this.lockApp());
-  },
-
-  lockApp() {
-    // Wipe the in-memory encryption key and show passphrase modal
-    if (typeof AppState.lockKey === 'function') {
-      AppState.lockKey();
-    } else {
-      // Fallback if encryption not available
-      UI.toast('App locked', 'info');
-    }
-    // Show passphrase modal again
-    UI.confirmModal('Enter your passphrase to unlock', (passphrase) => {
-      UI.toast('Unlocked', 'success');
     });
   },
 
@@ -377,7 +380,8 @@ export const App = {
     // FIX Marcus: debounce textarea resize to avoid forced reflow on every keystroke
     const resizeInput = Utils.debounce((el) => {
       el.style.height = 'auto';
-      el.style.height = Math.min(el.scrollHeight, 160) + 'px';
+      const cap = parseFloat(getComputedStyle(el).maxHeight) || 180; // CSS owns the cap
+      el.style.height = Math.min(el.scrollHeight, cap) + 'px';
     }, 16);
 
     userInput.addEventListener('input', (e) => {
@@ -388,11 +392,15 @@ export const App = {
     UI.el('sendBtn').addEventListener('click', () => this.sendMessage());
 
     UI.el('stopBtn').addEventListener('click', () => {
+      if (!this._sending) return;
       API.cancelRequest();
       this._sending = false;
       UI.setSendButtonState(true);
+      UI.setChatBusy(false);
       UI.removeTyping();
-      UI.toast('Generation stopped', 'info');
+      // Existing contract, now stated: stopping discards the partial answer and it is not saved to history.
+      UI.toast('Generation stopped. Any partial response was discarded.', 'info');
+      userInput.focus(); // the Stop button just vanished; keep keyboard focus somewhere useful
     });
 
     document.querySelectorAll('.persona-card').forEach(card => {
@@ -417,8 +425,7 @@ export const App = {
         UI.toast(`Persona: ${name}`, 'info');
         this._updateWelcomeChips(name);
       };
-      card.addEventListener('click', activate);
-      card.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(); } });
+      card.addEventListener('click', activate); // real <button>: Enter/Space already fire click
     });
 
     document.querySelectorAll('.chip').forEach(chip => {
@@ -512,6 +519,12 @@ export const App = {
       return;
     }
 
+    // Free-only guard: never send to a model that is not in the current free list.
+    if (AppState.allModels?.length && !AppState.allModels.some(m => m.id === AppState.selectedModel)) {
+      UI.toast('That model is not in the free list. Please pick one from the model menu.', 'warning');
+      return;
+    }
+
     if (!AppState.isAuthenticatedFor(AppState.currentProvider)) {
       UI.toast('Please authenticate first', 'warning');
       return;
@@ -528,9 +541,15 @@ export const App = {
       AppState.recordRequest();
     }
 
+    // Retrying a FAILED send re-uses the user message already in history/UI instead of duplicating it.
+    const lastMsg = AppState.chatHistory[AppState.chatHistory.length - 1];
+    const resendingFailed = isRetry && this._failedSend && lastMsg?.role === 'user' && lastMsg.content === text;
+    this._failedSend = false;
+    const history = resendingFailed ? AppState.chatHistory.slice(0, -1) : AppState.chatHistory;
+
     const rawMessages = [
       { role: 'system', content: AppState.currentPersonaPrompt },
-      ...AppState.chatHistory.map(m => ({ role: m.role, content: m.content })),
+      ...history.map(m => ({ role: m.role, content: m.content })),
       { role: 'user', content: text },
     ];
     const messages = AppState.trimHistoryToFitContext(rawMessages);
@@ -538,14 +557,14 @@ export const App = {
 
     this._lastUserText = text;
     UI.removeRetryButton();
-    AppState.addMessage('user', text);
+    if (!resendingFailed) AppState.addMessage('user', text);
     AppState.attachedFiles = [];
     this._renderAttachments();
     userInput.value = '';
     userInput.style.height = 'auto';
     UI.updateCharCount(0);
     UI.showChat();
-    UI.appendMessage('user', text);
+    if (!resendingFailed) UI.appendMessage('user', text);
     UI.setSendButtonState(false);
     UI.showTyping();
     UI.updateLiveUsage({ completionTokens: 0, streaming: true });
@@ -556,16 +575,24 @@ export const App = {
     let fullContent  = '';
     let firstToken   = true;
 
+    // Request token: a Stop followed by a quick new Send must not let the OLD request's
+    // cleanup clobber the NEW request's state (typing indicator, busy flag, Send button).
+    const reqId = ++this._reqId;
+    const isCurrent = () => reqId === this._reqId;
+    UI.setChatBusy(true);
+    if (document.activeElement === UI.el('sendBtn')) userInput.focus();
+
     API.createAbortController();
 
     try {
       // FIX: wire Utils.retryWithBackoff for transient network errors (not auth/rate-limit errors).
       // We define the streaming call as a thunk and wrap it — on a genuine network drop it will
       // retry up to 2 times with exponential backoff before surfacing the error to the user.
-      const doStream = () => API.sendMessageStream(
+      const doStream = () => gatedStream({
+        provider: AppState.currentProvider,
+        modelId: AppState.selectedModel,
         messages,
-        AppState.selectedModel,
-        (delta) => {
+        onToken: (delta) => {
           if (firstToken) {
             UI.removeTyping();
             streamBubble = UI.createStreamBubble();
@@ -577,10 +604,10 @@ export const App = {
           // FIX Marcus: throttled rAF scroll instead of direct scrollTop
           this._scheduleScroll();
         },
-        AppState.generationControlsEnabled
+        options: AppState.generationControlsEnabled
           ? { temperature: AppState.temperature, maxTokens: AppState.maxTokens }
-          : {}
-      );
+          : {},
+      });
 
       // Only retry on transient network failures — propagate API error codes immediately.
       const response = await Utils.retryWithBackoff(
@@ -617,10 +644,11 @@ export const App = {
       }
 
     } catch (error) {
-      UI.removeTyping();
+      if (isCurrent()) UI.removeTyping();
       if (streamBubble) UI.removeStreamBubble(streamBubble);
 
       if (error.code === 'ABORTED') {
+        // User pressed Stop; the Stop handler already told them. Nothing more to show.
       } else if (error.code === 'UPSTREAM_RATE_LIMIT') {
         AppState.setModelCooldown(AppState.selectedModel, 60000);
         this._renderModelOptions(AppState.allModels, UI.el('modelSelect'));
@@ -634,8 +662,16 @@ export const App = {
         );
         const altHint = alt ? ` Try: ${alt.name}` : '';
         UI.toast((error.message || 'Model temporarily overloaded — try another') + altHint, 'warning', 8000);
+        if (isCurrent()) this._failedSend = true;
+        if (isCurrent()) UI.showSendError({
+          message: (error.message || 'Model temporarily overloaded — try another') + altHint,
+          onRetry: () => this._retryLastMessage(),
+          suggestion: alt ? { label: alt.name, onUse: () => this._useModel(alt.id) } : null,
+        });
       } else if (error.code === 'RATE_LIMIT') {
         UI.toast(error.message || 'Rate limited — please wait', 'warning', 6000);
+        if (isCurrent()) this._failedSend = true;
+        if (isCurrent()) UI.showSendError({ message: error.message || 'Rate limited — please wait', onRetry: () => this._retryLastMessage() });
       } else if (error.code === 'AUTH') {
         AppState.apiKey  = '';
         AppState.hfToken = '';
@@ -643,16 +679,44 @@ export const App = {
         UI.toast(error.message || 'Authentication error — please re-enter your API key', 'error');
         const input = UI.el('apiKeyInput');
         if (input) { input.value = ''; input.focus(); }
-      } else if (error.code === 'MODEL_NOT_FREE' || error.code === 'MODEL_MISSING') {
-        UI.toast(error.message || 'Model unavailable', 'error');
-        await this.refreshModels();
+      } else if (['MODEL_NOT_FREE', 'MODEL_MISSING', 'MODEL_UNAVAILABLE'].includes(error.code)) {
+        // A privacy/data-policy block is an account setting: no model switch, no list refresh.
+        const blocked = error.code === 'MODEL_UNAVAILABLE' || error.kind === 'POLICY_BLOCKED';
+        const msg = blocked
+          ? (error.code === 'MODEL_UNAVAILABLE' ? error.message : 'OpenRouter blocked this free model because of your OpenRouter privacy settings. In OpenRouter, open Settings → Privacy and allow free models, or choose a paid model.')
+          : 'This free model is not available right now.';
+        // Ask first: only a model that is in the current free list can be suggested, and only a click switches.
+        const alt = blocked ? null : AppState.allModels.find(m => m.id === error.replacement && m.id !== AppState.selectedModel);
+        if (isCurrent()) this._failedSend = true;
+        UI.toast(msg, 'error', 6000);
+        if (isCurrent()) UI.showSendError({
+          message: msg,
+          onRetry: () => this._retryLastMessage(),
+          suggestion: alt ? { label: alt.name, onUse: () => this._useModel(alt.id) } : null,
+        });
+        if (!blocked) await this.refreshModels();
       } else {
-        UI.toast(error.message || 'Request failed — please try again', 'error');
+        if (isCurrent()) this._failedSend = true;
+        const msg = error.message || 'Request failed — please try again';
+        UI.toast(msg, 'error');
+        if (isCurrent()) UI.showSendError({ message: msg, onRetry: () => this._retryLastMessage() });
       }
     } finally {
-      this._sending = false;
-      UI.setSendButtonState(true);
+      if (isCurrent()) {
+        this._sending = false;
+        UI.setSendButtonState(true);
+        UI.setChatBusy(false);
+      }
     }
+  },
+
+  // Switch model through the same path as the dropdown, then resend the failed message.
+  _useModel(id) {
+    const sel = UI.el('modelSelect');
+    if (!sel || !AppState.allModels.some(m => m.id === id)) return;
+    sel.value = id;
+    sel.dispatchEvent(new Event('change'));
+    this._retryLastMessage();
   },
 
   _retryLastMessage() {
@@ -669,7 +733,7 @@ export const App = {
     const themeMenu = UI.el('theme-menu');
 
     UI.el('statsBtn').addEventListener('click', () => UI.toggleStats());
-    UI.el('rp-close').addEventListener('click', () => UI.closeStats());
+    UI.el('rp-close').addEventListener('click', () => UI.closeStats({ restoreFocus: true }));
     UI.el('moreBtn')?.addEventListener('click', () => UI.toggleActionTray());
     UI.el('sidebarClose')?.addEventListener('click', () => {
       if (UI.el('sidebar')?.classList.contains('open')) UI.toggleSidebar();
@@ -680,14 +744,14 @@ export const App = {
 
     // FIX Sofia/Zara: replaced native confirm() with accessible modal
     UI.el('clearBtn').addEventListener('click', () => {
-      UI.closeActionTray();
+      UI.closeActionTray({ restoreFocus: true });
       const doClear = () => {
         UI.clearChat();
         UI.hideUnsavedBanner();
         UI.toast('Chat cleared', 'info');
       };
       if (AppState.chatHistory.length && !AppState.chatExported) {
-        UI.confirmModal('Clear this conversation?', doClear);
+        UI.confirmModal('Clear this conversation? It has not been exported.', doClear, { confirmLabel: 'Clear chat' });
       } else {
         doClear();
       }
@@ -696,8 +760,8 @@ export const App = {
     const resetBtn = UI.el('resetBtn');
     if (resetBtn) {
       resetBtn.addEventListener('click', () => {
-        UI.closeActionTray();
-        UI.confirmModal('Reset session (auth, model, chat)?', () => {
+        UI.closeActionTray({ restoreFocus: true });
+        UI.confirmModal('Reset session (API key, model and chat)?', () => {
           AppState.reset();
           UI.clearChat();
           UI.hideUnsavedBanner();
@@ -708,7 +772,7 @@ export const App = {
           if (sel) sel.innerHTML = '<option value="none" disabled selected>— authenticate first —</option>';
           UI.updateModelLabel('No model selected');
           UI.toast('Session reset', 'info');
-        });
+        }, { confirmLabel: 'Reset session' });
       });
     }
 
@@ -727,8 +791,8 @@ export const App = {
     sidebarToggle?.addEventListener('click', () => UI.toggleSidebar());
     UI.el('mobileOverlay')?.addEventListener('click', () => {
       if (UI.el('sidebar')?.classList.contains('open')) UI.toggleSidebar();
-      UI.closeStats();
-      UI.closeActionTray();
+      UI.closeStats({ restoreFocus: true });
+      UI.closeActionTray({ restoreFocus: true });
     });
 
     document.querySelectorAll('.sidebar-section-toggle').forEach(sectionToggle => {
@@ -838,10 +902,10 @@ export const App = {
         return;
       }
       if (document.body.classList.contains('stats-open')) {
-        UI.closeStats();
+        UI.closeStats({ restoreFocus: true });
         return;
       }
-      if (document.body.classList.contains('actions-open')) UI.closeActionTray();
+      if (document.body.classList.contains('actions-open')) UI.closeActionTray({ restoreFocus: true });
     });
 
     // FIX: Ctrl+K model search — moved here from inline <script> in index.html

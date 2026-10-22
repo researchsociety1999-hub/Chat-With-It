@@ -28,15 +28,25 @@ export const ModelGate = createAvailabilityGate({ curated: CURATED_FREE.openrout
  * @param {object} [p.options]
  * @param {(info: {from: string, to: string, reason: string}) => void} [p.onFallback]
  */
-export async function gatedStream({ provider, modelId, messages, onToken, options, onFallback }) {
+export async function gatedStream({ provider, modelId, messages, onToken, options, onFallback, autoFallback = false }) {
   if (provider !== 'openrouter') {
     return API.sendMessageStream(messages, modelId, onToken, options);
   }
 
-  const out = await dispatchWithGate({
+  const CODE_FOR_KIND = {
+    NOT_FREE: 'MODEL_NOT_FREE',
+    MODEL_MISSING: 'MODEL_MISSING',
+    NO_ENDPOINTS: 'MODEL_MISSING',
+    POLICY_BLOCKED: 'MODEL_UNAVAILABLE',
+  };
+  let out;
+  try {
+    out = await dispatchWithGate({
     gate: ModelGate,
     modelId,
     onFallback,
+    autoFallback,
+    strictPreflight: false, // the app's own free list already vets the model
     send: async (id, ctx) => {
       try {
         return await API.sendMessageStream(
@@ -52,7 +62,12 @@ export async function gatedStream({ provider, modelId, messages, onToken, option
         throw err;
       }
     },
-  });
+    });
+  } catch (err) {
+    // Structured codes stop Utils.retryWithBackoff from retrying these as network errors.
+    if (!err.code && CODE_FOR_KIND[err.kind]) err.code = CODE_FOR_KIND[err.kind];
+    throw err;
+  }
 
   return { ...out.result, modelUsed: out.modelId };
 }

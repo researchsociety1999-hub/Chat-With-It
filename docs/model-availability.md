@@ -18,54 +18,19 @@ Keeps chat from being sent to a model that OpenRouter no longer serves for free.
 5. `AUTH`, `RATE_LIMIT`, `POLICY_BLOCKED` (privacy-setting 404) and aborts never fall back. A policy block means every free model is blocked, so the user must change OpenRouter privacy settings.
 6. Failed models are skipped for 15 minutes.
 
-## Wiring into `js/app.js` (three small edits, not yet applied)
+## Wiring (done)
 
-`js/api.js` needs no change. The edits below are against the current `sendMessage`.
+`js/app.js` calls `gatedStream()` from `js/model-gate.js` instead of `API.sendMessageStream`. Hugging Face passes straight through unchanged.
 
-1. Import the bridge at the top of `js/app.js`:
+Defaults, chosen to keep the user in control:
 
-```js
-import { gatedStream } from './model-gate.js';
-```
+- **Ask first.** The gate never switches models on its own (`autoFallback` is off). When a model is unavailable the chat shows a persistent inline error. If a replacement from the current free list exists, a "Use <model>" button appears, and only that click switches the model and resends.
+- **Privacy blocks are not model problems.** A data-policy 404 is classified once, in `classifyDispatchError`, and `api.js` uses that same function. It shows a message pointing at the OpenRouter privacy settings, offers no model switch, and does not refresh the model list.
+- **Never delays a send.** `awaitFresh` is off, so the catalog refreshes in the background (at most every 10 minutes). Only a deprecated model blocks before sending (`strictPreflight: false`). The app's own free-list guard in `App.sendMessage` remains the authority for "free and listed", and an explicit Retry is never refused.
+- **One free-model predicate.** `api.js` and the provider adapter both use `isFreeModel` from `availability.mjs`.
+- **Retry after a failure** resends the same message without duplicating it in history or in the request.
 
-2. In `sendMessage`, replace the `doStream` thunk so it calls `gatedStream` instead of `API.sendMessageStream`:
-
-```js
-const doStream = () => gatedStream({
-  provider: AppState.currentProvider,
-  modelId: AppState.selectedModel,
-  messages,
-  onToken: (delta) => { /* existing token handler body, unchanged */ },
-  options: AppState.generationControlsEnabled
-    ? { temperature: AppState.temperature, maxTokens: AppState.maxTokens }
-    : {},
-  onFallback: ({ from, to }) => this._applyFallbackModel(from, to),
-});
-```
-
-3. Add a helper to the `App` object, and a branch for policy blocks in the `catch` chain (before the `MODEL_NOT_FREE` branch):
-
-```js
-_applyFallbackModel(from, to) {
-  AppState.selectedModel = to;
-  AppState.persistState();
-  const sel = UI.el('modelSelect');
-  if (sel) sel.value = to;
-  const m = AppState.allModels.find((x) => x.id === to);
-  if (m) UI.updateModelLabel(m.name);
-  UI.toast(`${from} is unavailable. Switched to ${to}.`, 'warning', 8000);
-},
-```
-
-```js
-} else if (error.kind === 'POLICY_BLOCKED') {
-  UI.toast('OpenRouter blocked free models for your privacy settings. Review openrouter.ai/settings/privacy.', 'error', 9000);
-```
-
-Notes:
-- `Utils.retryWithBackoff` wraps `doStream`, so the gate runs inside each attempt. It only retries errors without a `.code`, so gate and provider errors are not retried twice.
-- If the model changes mid-send, the stored selection is updated so the next message does not retry the dead model.
-- The curated list in `js/api.js` (`CURATED_FREE.openrouter`) is large and likely stale. Run the validator and prune it.
+A silent free-to-free fallback is still available as `autoFallback: true`, but it is off by default and is an owner decision.
 
 ## Validator
 

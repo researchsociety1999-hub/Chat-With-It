@@ -158,12 +158,13 @@ export const Utils = {
     return window.innerWidth <= 768;
   },
 
-  async retryWithBackoff(fn, maxRetries = 3, baseDelay = 1000) {
+  // `shouldRetry(error)` decides whether an error is worth another attempt (default: always).
+  async retryWithBackoff(fn, maxRetries = 3, baseDelay = 1000, shouldRetry = () => true) {
     for (let i = 0; i < maxRetries; i++) {
       try {
         return await fn();
       } catch (error) {
-        if (i === maxRetries - 1) throw error;
+        if (i === maxRetries - 1 || !shouldRetry(error)) throw error;
         const delay = baseDelay * Math.pow(2, i);
         await Utils.sleep(delay);
       }

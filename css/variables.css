@@ -13,7 +13,10 @@
   --accent-glow: rgba(14, 165, 233, 0.30);
   --accent-2: #06b6d4;
   --accent-3: #f59e0b;
-  --user-bubble: linear-gradient(135deg, #0284c7, #0ea5e9);
+  --user-bubble: linear-gradient(135deg, #0369a1, #257da4);
+  /* Foreground for content painted on --accent. Dark ink by default (the accents are light);
+     Light theme overrides to white, high-contrast to black. */
+  --on-accent: #0b1020;
   --ai-bubble: rgba(255, 255, 255, 0.04);
   --danger: #ef4444;
   --success: #22c55e;
@@ -28,7 +31,9 @@
   --sidebar-w: clamp(260px, 20vw, 280px);
   --rp-w: clamp(280px, 20vw, 300px);
   --sidebar-collapsed-w: 68px;
-  --focus-ring: 0 0 0 3px var(--accent-glow);
+  /* Two-ring focus indicator: a gap in the page colour keeps the accent ring visible
+     even when the focused control is itself filled with the accent. */
+  --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent);
   --surface-elevated: rgba(255, 255, 255, .065);
 }
 
@@ -54,5 +59,6 @@ html.high-contrast {
   --warn: #ffff00;
   --shadow: 0 8px 32px rgba(255, 255, 255, 0.5);
   --shadow-sm: 0 2px 8px rgba(255, 255, 255, 0.3);
-  --focus-ring: 0 0 0 3px #ffffff;
+  --on-accent: #000000;
+  --focus-ring: 0 0 0 2px #000000, 0 0 0 4px #ffffff;
 }

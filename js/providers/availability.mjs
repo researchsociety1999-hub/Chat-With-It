@@ -282,19 +282,28 @@ export async function dispatchWithGate({
   gate,
   modelId,
   send,
-  autoFallback = true,
+  autoFallback = false, // ask-first: switching models silently is an owner decision
   maxFallbacks = 2,
   onFallback,
+  awaitFresh = false,   // never delay a send on a catalog fetch
+  // strictPreflight=false: only DEPRECATED / NO_MODEL block before sending (an explicit user Retry is never refused).
+  // An unverified or unlisted model is sent and the server decides, because the caller's own
+  // model list is the authority for "free and listed".
+  strictPreflight = true,
 }) {
   let current = modelId;
   const tried = [];
   let fallbacks = 0;
 
-  try { await gate.ensureFresh(); } catch (_) { /* gate must never throw here */ }
+  try {
+    if (awaitFresh) await gate.ensureFresh();
+    else gate.ensureFresh().catch(() => {});
+  } catch (_) { /* gate must never throw here */ }
 
   for (;;) {
     const verdict = gate.check(current);
-    if (!verdict.ok) {
+    const HARD = ['DEPRECATED', 'NO_MODEL'];
+    if (!verdict.ok && (strictPreflight || HARD.includes(verdict.reason))) {
       const next = autoFallback && verdict.replacement && fallbacks < maxFallbacks ? verdict.replacement : null;
       if (!next) {
         throw new GateError(

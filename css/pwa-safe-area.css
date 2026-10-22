@@ -121,11 +121,6 @@ body {
     box-sizing: border-box;
   }
 
-  .toast-area {
-    right: calc(1rem + env(safe-area-inset-right, 0px));
-    bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
-  }
-
   .chips,
   .welcome,
   .msg,

@@ -11,12 +11,13 @@ export const UI = {
   el(id) { return document.getElementById(id); },
 
   initEnhancements() {
-    // 1. Add role="log" and aria-live to chat message list for accessibility
+    // 1. The chat list is a navigable log, but it is NOT a live region: streamed tokens would be
+    //    re-announced on every chunk. Completion is announced once through #chatAnnouncer instead.
     const chatList = this.el('chatBody');
     if (chatList) {
       chatList.setAttribute('role', 'log');
-      chatList.setAttribute('aria-live', 'polite');
-      chatList.setAttribute('aria-relevant', 'additions');
+      chatList.setAttribute('aria-live', 'off');
+      chatList.removeAttribute('aria-relevant');
     }
 
     // 4. All inputs must have associated labels
@@ -118,6 +119,22 @@ export const UI = {
     const status = this.el('authStatus');
     if (dot)    dot.className    = 'auth-dot ' + (ok ? 'ok' : 'err');
     if (status) status.textContent = label;
+    this.updateWelcomeHint();
+  },
+
+  // First-use guidance on the empty screen: say what to do next, not just what the app is.
+  updateWelcomeHint() {
+    const hint = this.el('welcomeHint');
+    if (!hint) return;
+    const authed = AppState.isAuthenticatedFor(AppState.currentProvider);
+    const hasModel = AppState.selectedModel && AppState.selectedModel !== 'none';
+    if (!authed) hint.textContent = 'To begin, add your API key in the sidebar (☰ Menu on a phone).';
+    else if (!hasModel) hint.textContent = 'Key accepted. Choose a model in the sidebar, then start typing.';
+    else hint.textContent = 'Ready. Type below or tap a suggestion.';
+  },
+
+  setChatBusy(busy) {
+    this.el('chatBody')?.setAttribute('aria-busy', String(Boolean(busy)));
   },
 
   showSecurityBanner(message) {
@@ -162,60 +179,80 @@ export const UI = {
 
   clearChat() {
     const body = this.el('chatBody');
-    if (body) body.innerHTML = '';
     const welcome = this.el('welcome');
+    // Remove messages but keep #welcome in the DOM so the empty state can return.
+    if (body) Array.from(body.children).forEach(child => { if (child !== welcome) child.remove(); });
     if (welcome) welcome.classList.remove('hidden');
+    this.updateWelcomeHint();
     AppState.clearChat();
     this.updateStats(0, 0);
     this.updateContextBar();
     this._updateScrollBtn();
   },
 
-  // Confirm modal (replaces native confirm() — Zara/Priya fix)
-  confirmModal(message, onConfirm) {
-    const overlay = document.createElement('div');
-    overlay.className = 'confirm-overlay';
-    overlay.setAttribute('role', 'presentation');
+  // Confirm modal — native <dialog> opened with showModal(), so the browser
+  // provides top-layer stacking, an inert background, focus containment and Escape.
+  // Cancel is the default focus target (the non-destructive action) and focus is
+  // restored to whatever opened the dialog. onConfirm only runs from Confirm.
+  confirmModal(message, onConfirm, options = {}) {
+    const { confirmLabel = 'Confirm', cancelLabel = 'Cancel' } = options;
+    const opener = document.activeElement;
+    this._confirmSeq = (this._confirmSeq || 0) + 1;
+    const msgId = `confirm-msg-${this._confirmSeq}`;
 
-    const box = document.createElement('div');
-    box.className = 'confirm-box';
-    box.setAttribute('role', 'alertdialog');
-    box.setAttribute('aria-modal', 'true');
-    box.setAttribute('aria-label', message);
-    box.tabIndex = -1;
+    const dlg = document.createElement('dialog');
+    dlg.className = 'confirm-box';
+    dlg.setAttribute('role', 'alertdialog');
+    dlg.setAttribute('aria-labelledby', msgId);
 
     const msg = document.createElement('p');
     msg.className = 'confirm-msg';
+    msg.id = msgId;
     msg.textContent = message;
 
     const actions = document.createElement('div');
     actions.className = 'confirm-actions';
 
     const cancelBtn = document.createElement('button');
+    cancelBtn.type = 'button';
     cancelBtn.className = 'btn-secondary confirm-cancel';
-    cancelBtn.textContent = 'Cancel';
+    cancelBtn.textContent = cancelLabel;
+    cancelBtn.autofocus = true;
 
     const confirmBtn = document.createElement('button');
+    confirmBtn.type = 'button';
     confirmBtn.className = 'btn-primary confirm-confirm';
-    confirmBtn.textContent = 'Confirm';
+    confirmBtn.textContent = confirmLabel;
 
-    actions.appendChild(cancelBtn);
-    actions.appendChild(confirmBtn);
-    box.appendChild(msg);
-    box.appendChild(actions);
-    overlay.appendChild(box);
-    document.body.appendChild(overlay);
+    actions.append(cancelBtn, confirmBtn);
+    dlg.append(msg, actions);
+    document.body.appendChild(dlg);
 
-    requestAnimationFrame(() => {
-      overlay.classList.add('open');
-      box.focus();
+    dlg.addEventListener('close', () => {
+      dlg.remove();
+      if (opener && typeof opener.focus === 'function' && document.contains(opener)) opener.focus();
     });
 
-    const close = () => { overlay.classList.remove('open'); setTimeout(() => overlay.remove(), 200); };
-    cancelBtn.addEventListener('click', close);
-    confirmBtn.addEventListener('click', () => { onConfirm(); close(); });
-    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
-    overlay.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+    let confirmed = false;
+    cancelBtn.addEventListener('click', () => dlg.close('cancel'));
+    confirmBtn.addEventListener('click', () => {
+      if (confirmed) return;
+      confirmed = true;
+      dlg.close('confirm');
+      onConfirm();
+    });
+    // Backdrop click: the dialog element itself is the click target only outside its box.
+    dlg.addEventListener('click', (e) => {
+      if (e.target !== dlg) return;
+      const r = dlg.getBoundingClientRect();
+      const inside = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+      if (!inside) dlg.close('cancel');
+    });
+
+    if (typeof dlg.showModal === 'function') dlg.showModal();
+    else dlg.setAttribute('open', '');
+    cancelBtn.focus();
+    return dlg;
   },
 
   // Chat divider (Sofia fix — persona change indicator)
@@ -305,7 +342,7 @@ export const UI = {
       Utils.parseMarkdown(text).then(html => {
         bubble.innerHTML = html;
         this._scrollToBottom();
-        this.announce('Assistant replied');
+        this.announce('Response complete');
       });
     } else {
       bubble.textContent = text;
@@ -349,7 +386,7 @@ export const UI = {
     Utils.parseMarkdown(fullContent).then(html => {
       content.innerHTML = html;
       this._scrollToBottom();
-      this.announce('Assistant finished reply');
+      this.announce('Response complete');
     });
   },
 
@@ -462,6 +499,37 @@ export const UI = {
     el.innerHTML = `Provider: ${name}<br>Model: ${modelId === 'none' ? 'none' : modelId}`;
   },
 
+  _isMobile() { return window.matchMedia('(max-width: 1100px)').matches; },
+
+  // Focus the first candidate that actually takes focus (hidden elements silently refuse it).
+  _focusFirst(candidates) {
+    for (const el of candidates) {
+      if (!el || typeof el.focus !== 'function') continue;
+      el.focus();
+      if (document.activeElement === el) return true;
+    }
+    return false;
+  },
+
+  // While a mobile drawer/sheet is open, everything behind it is inert: no Tab, click or
+  // screen-reader access to the page underneath. Desktop panels are non-modal, so nothing is inert.
+  _syncInert() {
+    const q = (sel) => document.querySelector(sel);
+    const all = [q('.main'), this.el('sidebar'), this.el('rightPanel'), q('.main-wrapper'), this.el('composerWrap'), q('.header-left')];
+    const inertSet = new Set();
+    if (this._isMobile()) {
+      const sidebarOpen = this.el('sidebar')?.classList.contains('open');
+      const statsOpen = document.body.classList.contains('stats-open');
+      const actionsOpen = document.body.classList.contains('actions-open');
+      if (sidebarOpen) { inertSet.add(q('.main')); inertSet.add(this.el('rightPanel')); }
+      else if (statsOpen) { inertSet.add(q('.main')); inertSet.add(this.el('sidebar')); }
+      else if (actionsOpen) {
+        [q('.main-wrapper'), this.el('composerWrap'), q('.header-left'), this.el('sidebar'), this.el('rightPanel')].forEach(el => inertSet.add(el));
+      }
+    }
+    all.forEach(el => { if (el) el.toggleAttribute('inert', inertSet.has(el)); });
+  },
+
   toggleStats() {
     const panel = this.el('rightPanel');
     if (!panel) return;
@@ -470,22 +538,28 @@ export const UI = {
     this.el('statsBtn')?.setAttribute('aria-expanded', String(isOpen));
     if (isOpen) {
       this.closeActionTray();
-      if (window.matchMedia('(max-width: 1100px)').matches && this.el('sidebar')?.classList.contains('open')) {
+      if (this._isMobile() && this.el('sidebar')?.classList.contains('open')) {
         this.toggleSidebar();
       }
       this.updateStats(AppState.totalPromptTokens || 0, AppState.totalCompletionTokens || 0);
       this.updateRateLimitInfo(AppState.getRemainingRequests());
       this.updateDiagnostics(AppState.currentProvider, AppState.selectedModel);
+      this.syncMobileOverlay();
+      if (this._isMobile()) this._focusFirst([this.el('rp-close')]);
+    } else {
+      this.syncMobileOverlay();
+      this._focusFirst([this.el('statsBtn'), this.el('moreBtn')]);
     }
-    this.syncMobileOverlay();
   },
 
-  closeStats() {
+  closeStats({ restoreFocus = false } = {}) {
     const panel = this.el('rightPanel');
+    const hadFocus = panel?.contains(document.activeElement);
     panel?.classList.remove('open');
     document.body.classList.remove('stats-open');
     this.el('statsBtn')?.setAttribute('aria-expanded', 'false');
     this.syncMobileOverlay();
+    if (restoreFocus && hadFocus) this._focusFirst([this.el('statsBtn'), this.el('moreBtn')]);
   },
 
   toggleActionTray() {
@@ -499,18 +573,24 @@ export const UI = {
       if (this.el('sidebar')?.classList.contains('open')) this.toggleSidebar();
     }
     this.syncMobileOverlay();
+    if (isOpen && this._isMobile()) this._focusFirst([tray.querySelector('button:not([disabled])')]);
+    else if (!isOpen) this._focusFirst([this.el('moreBtn')]);
   },
 
-  closeActionTray() {
-    this.el('actionTray')?.classList.remove('open');
+  closeActionTray({ restoreFocus = false } = {}) {
+    const tray = this.el('actionTray');
+    const hadFocus = tray?.contains(document.activeElement);
+    tray?.classList.remove('open');
     this.el('moreBtn')?.setAttribute('aria-expanded', 'false');
     document.body.classList.remove('actions-open');
     this.syncMobileOverlay();
+    if (restoreFocus && (hadFocus || document.activeElement === document.body)) this._focusFirst([this.el('moreBtn')]);
   },
 
   syncMobileOverlay() {
+    this._syncInert();
     const overlay = this.el('mobileOverlay');
-    if (!overlay || !window.matchMedia('(max-width: 1100px)').matches) return;
+    if (!overlay || !this._isMobile()) return;
     const sidebarOpen = this.el('sidebar')?.classList.contains('open');
     const statsOpen = document.body.classList.contains('stats-open');
     const actionsOpen = document.body.classList.contains('actions-open');
@@ -586,6 +666,7 @@ export const UI = {
       badge.className   = 'model-badge' + (AppState.currentProvider === 'huggingface' ? ' hf' : '');
     }
     if (inl)   inl.textContent = short !== 'No model' ? short : '';
+    this.updateWelcomeHint();
   },
 
   setPersonaLabel(name) {
@@ -662,9 +743,10 @@ export const UI = {
     if (isOpen) {
       this.closeStats();
       this.closeActionTray();
-      this._focusFirstSidebarControl(toggle);
-    } else toggle?.focus();
+    }
     this.syncMobileOverlay();
+    if (isOpen) this._focusFirstSidebarControl(toggle);
+    else toggle?.focus();
   },
 
   collapseSidebarDesktop() {
@@ -695,6 +777,43 @@ export const UI = {
 
   removeRetryButton() {
     this.el('retryBtn')?.remove();
+    this.removeSendError();
+  },
+
+  // Persistent inline error for a failed send. Real actions only: Retry resends the same
+  // message; the optional suggestion switches to a model from the free list on click.
+  showSendError({ message, onRetry, suggestion } = {}) {
+    this.removeRetryButton();
+    const chat = this.el('chatBody');
+    if (!chat) return;
+    const box = document.createElement('div');
+    box.id = 'sendError';
+    box.className = 'send-error';
+    box.setAttribute('role', 'group');
+    box.setAttribute('aria-label', 'Message failed');
+    const text = document.createElement('p');
+    text.className = 'send-error-text';
+    text.textContent = message || 'Request failed — please try again.';
+    box.appendChild(text);
+    const row = document.createElement('div');
+    row.className = 'send-error-actions';
+    const mk = (label, handler) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'retry-btn';
+      b.textContent = label;
+      b.addEventListener('click', () => { this.removeSendError(); handler(); });
+      row.appendChild(b);
+    };
+    if (suggestion?.label && suggestion.onUse) mk(`Use ${suggestion.label}`, suggestion.onUse);
+    if (onRetry) mk('↻ Retry', onRetry);
+    box.appendChild(row);
+    chat.appendChild(box);
+    this._scrollToBottom();
+  },
+
+  removeSendError() {
+    this.el('sendError')?.remove();
   },
 
   // Toast
@@ -704,13 +823,15 @@ export const UI = {
     Array.from(area.querySelectorAll('.toast')).find(t => t.dataset.msg === message)?.remove();
     const toast = document.createElement('div');
     toast.className = `toast toast-${type}`;
-    const text = document.createElement('span');
-    text.textContent = message;
-    toast.appendChild(text);
     toast.dataset.msg = message;
-    toast.setAttribute('role', 'alert');
+    // Errors interrupt (alert); everything else waits its turn (status).
+    toast.setAttribute('role', type === 'error' ? 'alert' : 'status');
+    // Insert the live-region element empty, then fill it, so assistive tech reliably announces it.
     area.appendChild(toast);
-    requestAnimationFrame(() => toast.classList.add('show'));
+    requestAnimationFrame(() => {
+      toast.textContent = message;
+      toast.classList.add('show');
+    });
     setTimeout(() => {
       toast.classList.remove('show');
       setTimeout(() => toast.remove(), 300);

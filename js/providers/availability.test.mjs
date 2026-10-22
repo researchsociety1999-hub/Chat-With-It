@@ -118,7 +118,7 @@ describe('dispatchWithGate', () => {
   it('falls back on a no-endpoints error and reports the switch', async () => {
     const onFallback = vi.fn();
     const send = vi.fn(async (id) => { if (id === 'a/one:free') throw noEndpoints(); return 'ok'; });
-    const out = await dispatchWithGate({ gate: mk(), modelId: 'a/one:free', send, onFallback });
+    const out = await dispatchWithGate({ gate: mk(), modelId: 'a/one:free', send, onFallback, autoFallback: true });
     expect(out).toMatchObject({ modelId: 'a/two:free', result: 'ok', fellBackFrom: ['a/one:free'] });
     expect(onFallback).toHaveBeenCalledWith({ from: 'a/one:free', to: 'a/two:free', reason: ErrorKind.NO_ENDPOINTS });
   });
@@ -142,13 +142,13 @@ describe('dispatchWithGate', () => {
     await expect(dispatchWithGate({ gate: mk(), modelId: 'a/one:free', send, autoFallback: false })).rejects.toBeTruthy();
     expect(send).toHaveBeenCalledTimes(1);
     const send2 = vi.fn(async () => { throw noEndpoints(); });
-    await expect(dispatchWithGate({ gate: mk(), modelId: 'a/one:free', send: send2, maxFallbacks: 1 })).rejects.toBeTruthy();
+    await expect(dispatchWithGate({ gate: mk(), modelId: 'a/one:free', send: send2, maxFallbacks: 1, autoFallback: true })).rejects.toBeTruthy();
     expect(send2).toHaveBeenCalledTimes(2);
   });
 
   it('pre-flight swaps a model that is not in the free list before sending', async () => {
     const send = vi.fn(async () => 'ok');
-    const out = await dispatchWithGate({ gate: mk(), modelId: 'z/gone:free', send });
+    const out = await dispatchWithGate({ gate: mk(), modelId: 'z/gone:free', send, autoFallback: true, awaitFresh: true });
     expect(out.fellBackFrom).toEqual(['z/gone:free']);
     expect(send).toHaveBeenCalledTimes(1);
   });
@@ -156,6 +156,50 @@ describe('dispatchWithGate', () => {
   it('never swaps an aborted request', async () => {
     const send = vi.fn(async () => { throw Object.assign(new Error('x'), { kind: ErrorKind.ABORTED }); });
     await expect(dispatchWithGate({ gate: mk(), modelId: 'a/one:free', send })).rejects.toMatchObject({ kind: ErrorKind.ABORTED });
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+
+  // ── ask-first defaults ──
+  it('does not switch models by default: it throws with a suggested replacement', async () => {
+    const send = vi.fn(async () => { throw noEndpoints(); });
+    const onFallback = vi.fn();
+    await expect(dispatchWithGate({ gate: mk(), modelId: 'a/one:free', send, onFallback }))
+      .rejects.toMatchObject({ kind: ErrorKind.NO_ENDPOINTS, replacement: 'a/two:free' });
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(onFallback).not.toHaveBeenCalled();
+  });
+  it('a pre-flight miss throws a GateError carrying the replacement instead of swapping', async () => {
+    const send = vi.fn(async () => 'ok');
+    await expect(dispatchWithGate({ gate: mk(), modelId: 'z/gone:free', send, awaitFresh: true }))
+      .rejects.toMatchObject({ name: 'GateError' });
+    expect(send).not.toHaveBeenCalled();
+  });
+  it('a policy block is never fallback-eligible even with autoFallback on', async () => {
+    const policy = Object.assign(new Error('x'), { status: 404, raw: 'No endpoints found matching your data policy' });
+    const send = vi.fn(async () => { throw policy; });
+    await expect(dispatchWithGate({ gate: mk(), modelId: 'a/one:free', send, autoFallback: true }))
+      .rejects.toMatchObject({ kind: ErrorKind.POLICY_BLOCKED });
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+  it('does not wait for the catalog before sending', async () => {
+    const gate = mk();
+    const spy = vi.spyOn(gate, 'ensureFresh');
+    await dispatchWithGate({ gate, modelId: 'a/one:free', send: async () => 'ok' });
+    expect(spy).toHaveBeenCalledTimes(1);
+  });
+
+  it('strictPreflight:false sends an unverified or unlisted model and lets the server decide', async () => {
+    const send = vi.fn(async () => 'ok');
+    const out = await dispatchWithGate({ gate: mk(), modelId: 'new/model:free', send, strictPreflight: false, awaitFresh: true });
+    expect(out.modelId).toBe('new/model:free');
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+  it('strictPreflight:false never refuses an explicit retry of a recently failed model', async () => {
+    const send = vi.fn(async () => 'ok');
+    const g = mk();
+    g.markUnavailable('a/one:free');
+    const out = await dispatchWithGate({ gate: g, modelId: 'a/one:free', send, strictPreflight: false });
+    expect(out.modelId).toBe('a/one:free');
     expect(send).toHaveBeenCalledTimes(1);
   });
 });

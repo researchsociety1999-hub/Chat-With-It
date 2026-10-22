@@ -90,3 +90,31 @@ describe('free provider model discovery', () => {
     expect(models).toEqual([]);
   });
 });
+
+describe('OpenRouter 404 classification', () => {
+  const body = JSON.stringify({ error: { message: 'No endpoints found matching your data policy (Free model publication). Configure: https://openrouter.ai/settings/privacy' } });
+  it('explains a data-policy block instead of calling the model retired', () => {
+    const r = API.parseProviderError(404, body);
+    expect(r.code).toBe('MODEL_UNAVAILABLE');
+    expect(r.userMessage).toMatch(/privacy settings/i);
+    expect(r.userMessage).not.toMatch(/no longer available/i);
+  });
+  it('still reports a genuinely missing model as missing', () => {
+    const r = API.parseProviderError(404, JSON.stringify({ error: { message: 'Model not found' } }));
+    expect(r.code).toBe('MODEL_MISSING');
+  });
+});
+
+describe('free-only model list', () => {
+  it('keeps :free and zero-priced models and drops paid, unpriced and null-priced ones', () => {
+    const data = { data: [
+      { id: 'a/free-one:free', name: 'A', context_length: 8000 },
+      { id: 'b/zero', name: 'B', pricing: { prompt: '0', completion: '0' } },
+      { id: 'c/paid', name: 'C', pricing: { prompt: '0.000001', completion: '0.000002' } },
+      { id: 'd/unpriced', name: 'D' },
+      { id: 'e/null', name: 'E', pricing: { prompt: null, completion: null } },
+    ] };
+    const ids = API.processModels(data, 'openrouter').map(m => m.id).sort();
+    expect(ids).toEqual(['a/free-one:free', 'b/zero']);
+  });
+});

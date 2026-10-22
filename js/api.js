@@ -15,6 +15,7 @@
  */
 
 import { AppState } from './state.js';
+import { isFreeModel, classifyDispatchError, ErrorKind } from './providers/availability.mjs';
 
 export const PROVIDERS = {
   openrouter: {
@@ -57,14 +58,7 @@ export const PARAM_TIERS = [
  * Detect free OpenRouter models by :free suffix or zero pricing.
  */
 function isOpenRouterFreeModel(model) {
-  if (!model?.id) return false;
-  if (model.id.endsWith(':free')) return true;
-  const prompt = Number(model.pricing?.prompt);
-  const completion = Number(model.pricing?.completion);
-  return Number.isFinite(prompt) &&
-         Number.isFinite(completion) &&
-         prompt === 0 &&
-         completion === 0;
+  return isFreeModel(model); // single shared predicate (js/providers/availability.mjs)
 }
 
 function isEmbeddingModel(model) {
@@ -298,6 +292,13 @@ export const API = {
       return {
         code: 'MODEL_NOT_FREE',
         userMessage: 'This model is no longer free. Refreshing models — please choose another one.',
+        raw: providerMsg,
+      };
+    }
+    if (classifyDispatchError(status, rawText).kind === ErrorKind.POLICY_BLOCKED) {
+      return {
+        code: 'MODEL_UNAVAILABLE',
+        userMessage: 'OpenRouter blocked this free model because of your OpenRouter privacy settings. In OpenRouter, open Settings → Privacy and allow free models, or choose a paid model.',
         raw: providerMsg,
       };
     }

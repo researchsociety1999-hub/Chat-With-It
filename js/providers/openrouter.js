@@ -5,16 +5,10 @@
 
 import { ErrorCode, providerError } from './types.js';
 import { normalizeModel, dedupeAndSort } from './normalize.js';
+import { isFreeModel, classifyDispatchError, ErrorKind } from './availability.mjs';
 
 const BASE = 'https://openrouter.ai/api/v1';
 
-function isFreeModel(model) {
-  if (!model?.id) return false;
-  if (String(model.id).endsWith(':free')) return true;
-  const prompt = Number(model.pricing?.prompt);
-  const completion = Number(model.pricing?.completion);
-  return Number.isFinite(prompt) && Number.isFinite(completion) && prompt === 0 && completion === 0;
-}
 
 function isEmbedding(model) {
   const modality = String(model?.architecture?.modality || '').toLowerCase();
@@ -43,6 +37,9 @@ function parseError(status, rawText = '') {
   }
   if (status === 404 && (normalized.includes('unavailable for free') || normalized.includes('paid version'))) {
     return providerError(ErrorCode.MODEL_NOT_FREE, 'This model is no longer free. Please choose another one.', { raw: providerMsg, status });
+  }
+  if (classifyDispatchError(status, rawText).kind === ErrorKind.POLICY_BLOCKED) {
+    return providerError(ErrorCode.MODEL_UNAVAILABLE, 'OpenRouter blocked this free model because of your OpenRouter privacy settings. In OpenRouter, open Settings → Privacy and allow free models, or choose a paid model.', { raw: providerMsg, status });
   }
   if (status === 404 || (normalized.includes('model') && normalized.includes('not found'))) {
     return providerError(ErrorCode.MODEL_MISSING, 'This model is no longer available. Please choose another one.', { raw: providerMsg, status });
