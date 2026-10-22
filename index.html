@@ -25,131 +25,133 @@
   <link rel="stylesheet" href="css/pwa-safe-area.css">
 </head>
 <body>
-  <div id="chatAnnouncer" role="status" aria-live="polite" aria-atomic="true" class="sr-only" style="position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0"></div>
+  <div id="chatAnnouncer" role="status" aria-live="polite" aria-atomic="true" class="sr-only"></div>
   <div id="toastArea" class="toast-area"></div>
   <div id="mobileOverlay" class="mobile-overlay"></div>
   <div class="app">
     <aside id="sidebar" class="sidebar">
       <div class="brand">
-        <button id="sidebarClose" class="btn btn-ghost btn-icon sidebar-close" type="button" aria-label="Close menu">✕</button>
-        <span class="brand-icon"><svg aria-label="ChatWithIt logo" width="32" height="32" viewBox="0 0 48 48" fill="none" style="vertical-align: middle"><rect width="48" height="48" rx="12" fill="var(--accent)"/><path d="M12 16h24M12 24h18M12 32h12" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/></svg></span>
+        <button id="sidebarClose" class="btn btn-ghost btn-icon sidebar-close" type="button" aria-label="Close menu"><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+        <span class="brand-icon"><svg aria-hidden="true" width="32" height="32" viewBox="0 0 48 48" fill="none" style="vertical-align: middle"><rect width="48" height="48" rx="12" fill="var(--accent)"/><path d="M12 16h24M12 24h18M12 32h12" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/></svg></span>
         <span class="brand-label">ChatWithIt</span>
         <span class="brand-badge">Free</span>
               </div>
       <div class="card">
-        <button class="card-title sidebar-section-toggle" data-icon="🔌" title="Provider" aria-label="Open Provider settings" type="button">Provider</button>
+        <button class="card-title sidebar-section-toggle" data-icon="C" title="Provider" aria-label="Open Provider settings" type="button"><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M7 3v5m10-5v5M5 8h14v3a7 7 0 0 1-14 0V8Zm7 10v3m-4 0h8"/></svg><span>Provider</span></button>
         <div class="ptabs" role="group" aria-label="Provider">
           <button type="button" class="ptab active" data-provider="openrouter" aria-pressed="true">OpenRouter</button>
           <button type="button" class="ptab" data-provider="huggingface" aria-pressed="false" aria-label="Hugging Face">HF</button>
         </div>
-        <label for="apiKeyInput" class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)">API Key</label>
+        <label for="apiKeyInput" class="sr-only">API Key</label>
         <div class="auth-row">
           <div class="auth-pill"><span id="authDot" class="auth-dot err"></span><span id="authStatus">Not authenticated</span></div>
-          <button id="clearAuthBtn" class="btn btn-sm btn-ghost" type="button" title="Clear credentials" aria-label="Clear credentials">✕</button>
+          <button id="clearAuthBtn" class="btn btn-sm btn-ghost" type="button" title="Clear credentials" aria-label="Clear credentials"><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
         </div>
         <input id="apiKeyInput" type="password" placeholder="sk-or-…" autocomplete="off" spellcheck="false" aria-label="API Key">
         <button id="authBtn" class="btn btn-primary" type="button" style="width:100%">Authenticate</button>
-        <div id="authHint" class="muted" style="font-size:.73rem">OpenRouter key (sk-or-…) — <a id="authHintLink" href="https://openrouter.ai/keys" target="_blank" rel="noreferrer" style="color:var(--accent-2)">Get key →</a></div>
+        <div id="authHint" class="muted">OpenRouter key (sk-or-…) — <a id="authHintLink" href="https://openrouter.ai/keys" target="_blank" rel="noreferrer">Get key</a></div>
         <div class="profiles-wrapper" style="margin-top:.25rem">
-          <button id="profilesToggleBtn" class="btn btn-sm btn-ghost" aria-expanded="false" aria-haspopup="true">🔑 Profiles</button>
-          <div id="profilesPanel" role="menu" aria-label="API key profiles"></div>
+          <button id="profilesToggleBtn" class="btn btn-sm btn-ghost" type="button" aria-expanded="false" aria-controls="profilesPanel"><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"/><path d="m11 12 8-8 2 2-2 2 2 2-3 3-2-2-3 3"/></svg><span>Profiles</span></button>
+          <div id="profilesPanel" role="region" aria-label="API key profiles"></div>
         </div>
       </div>
       <div class="card">
-        <button class="card-title sidebar-section-toggle" data-icon="🤖" title="Model" aria-label="Open Model settings" type="button">Model</button>
-        <label for="paramFilter" class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)">Parameter filter</label>
+        <button class="card-title sidebar-section-toggle" data-icon="M" title="Model" aria-label="Open Model settings" type="button"><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5 9-5Zm-9 9 9 5 9-5m-18 4 9 5 9-5"/></svg><span>Model</span></button>
+        <label for="paramFilter" class="sr-only">Parameter filter</label>
         <select id="paramFilter" aria-label="Parameter filter"></select>
-        <label for="searchInput" class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)">Search models</label>
-        <input id="searchInput" type="search" placeholder="🔍 Search models…" aria-label="Search models">
-        <div id="modelFilterHint" class="muted" style="font-size:.72rem"></div>
+        <label for="searchInput" class="sr-only">Search models</label>
+        <input id="searchInput" type="search" placeholder="Search models…" aria-label="Search models">
+        <div id="modelFilterHint" class="muted"></div>
         <select id="modelSelect" aria-label="Model selection"><option value="none" disabled selected>— authenticate first —</option></select>
-        <div id="modelLabel" class="muted" style="font-size:.76rem;font-weight:600">No model selected</div>
-        <div id="modelMeta" class="muted" style="font-size:.72rem"></div>
-        <div id="modelCount" class="muted" style="font-size:.72rem">0 models</div>
+        <div id="modelLabel" class="muted model-label">No model selected</div>
+        <div id="modelMeta" class="muted model-meta"></div>
+        <div id="modelCount" class="muted model-count">0 models</div>
       </div>
-      <div class="card">
-        <div class="sidebar-card-heading" style="display:flex;align-items:center;justify-content:space-between;gap:.5rem">
-          <button class="card-title sidebar-section-toggle" data-icon="⚙️" title="Generation" aria-label="Open Generation settings" type="button" style="margin:0">Generation</button>
-          <label class="gen-toggle" title="Use temperature and max tokens">
-            <input type="checkbox" id="genControlsToggle" checked aria-label="Enable generation controls">
-            <span class="gen-toggle-track" aria-hidden="true"></span>
-            <span class="gen-toggle-label">On</span>
-          </label>
-        </div>
+      <details class="card settings-disclosure">
+        <summary class="card-title sidebar-section-toggle" data-icon="G"><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="9" cy="6" r="2"/><circle cx="15" cy="12" r="2"/><circle cx="7" cy="18" r="2"/></svg><span>Generation</span></summary>
+        <div class="settings-disclosure-content">
+        <div class="settings-toggle-row"><span class="setting-label">Generation controls</span><label class="gen-toggle" title="Use temperature and max tokens">
+          <input type="checkbox" id="genControlsToggle" checked aria-label="Enable generation controls">
+          <span class="gen-toggle-track" aria-hidden="true"></span>
+          <span class="gen-toggle-label">On</span>
+        </label></div>
         <div id="genControlsPanel">
-          <div class="row" style="justify-content:space-between;font-size:.8rem"><label for="tempSlider">Temperature</label><span id="tempVal" style="font-weight:700">0.7</span></div>
+          <div class="row setting-value-row"><label for="tempSlider">Temperature</label><span id="tempVal">0.7</span></div>
           <input id="tempSlider" type="range" min="0" max="2" step="0.1" value="0.7" aria-label="Temperature">
-          <div class="row" style="justify-content:space-between;font-size:.8rem"><label for="maxTokensSlider">Max tokens</label><span id="maxTokensVal" style="font-weight:700">1,024</span></div>
+          <div class="row setting-value-row"><label for="maxTokensSlider">Max tokens</label><span id="maxTokensVal">1,024</span></div>
           <input id="maxTokensSlider" type="range" min="128" max="8192" step="128" value="1024" aria-label="Max tokens">
         </div>
-        <p id="genControlsOffHint" class="muted hidden" style="font-size:.72rem;margin:0">Provider defaults (temperature / max tokens not sent).</p>
-        <div class="sidebar-card-heading" style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-top:.75rem">
-          <span class="card-title" style="margin:0">Low Power Mode</span>
+        <p id="genControlsOffHint" class="muted hidden settings-hint">Provider defaults (temperature / max tokens not sent).</p>
+        <div class="sidebar-card-heading low-power-row">
+          <span class="card-title">Low Power Mode</span>
           <label class="gen-toggle" title="Disable heavy blurs and animations">
             <input type="checkbox" id="lowPowerToggle" aria-label="Enable Low Power Mode">
             <span class="gen-toggle-track" aria-hidden="true"></span>
             <span class="gen-toggle-label" id="lowPowerLabel">Off</span>
           </label>
         </div>
-      </div>
-      <div class="card">
-        <div class="sidebar-card-heading" style="display:flex;align-items:center;justify-content:space-between"><button class="card-title sidebar-section-toggle" data-icon="👤" title="Persona" aria-label="Open Persona settings" type="button" style="margin:0">Persona</button><button id="shortcutsBtn" class="btn btn-sm btn-ghost" type="button">⌨ Shortcuts</button></div>
-        <div id="personaLabel" class="muted" style="font-size:.76rem;font-weight:600">Active: Assistant</div>
-        <div class="persona-grid">
-          <button type="button" class="persona-card active" aria-pressed="true" data-prompt="You are a helpful AI assistant. Be concise, accurate, and developer-friendly. Use Markdown formatting in your responses."><span class="persona-icon" aria-hidden="true">🤖</span><span class="persona-info"><strong>Assistant</strong><span class="muted">Balanced default helper</span></span></button>
-          <button type="button" class="persona-card" aria-pressed="false" data-prompt="You are a Socratic tutor. Teach step by step, ask guiding questions, and help the user reason toward the answer."><span class="persona-icon" aria-hidden="true">📚</span><span class="persona-info"><strong>Tutor</strong><span class="muted">Step-by-step teacher</span></span></button>
-          <button type="button" class="persona-card" aria-pressed="false" data-prompt="You are a creative writing assistant. Generate vivid, original prose, dialogue, and story ideas while matching the user's requested tone."><span class="persona-icon" aria-hidden="true">✍️</span><span class="persona-info"><strong>Creative Writer</strong><span class="muted">Ideas, prose, dialogue</span></span></button>
-          <button type="button" class="persona-card" aria-pressed="false" data-prompt="You are a code reviewer. Find bugs, edge cases, maintainability issues, and offer practical refactors with concise examples."><span class="persona-icon" aria-hidden="true">🔍</span><span class="persona-info"><strong>Code Reviewer</strong><span class="muted">Bugs, refactors, edge cases</span></span></button>
-          <button type="button" class="persona-card" aria-pressed="false" data-prompt="You are a debate coach. Help build strong arguments, steelman opposing views, and sharpen rebuttals logically and respectfully."><span class="persona-icon" aria-hidden="true">🎙️</span><span class="persona-info"><strong>Debate Coach</strong><span class="muted">Arguments and rebuttals</span></span></button>
         </div>
-      </div>
+      </details>
+      <details id="personaSettings" class="card settings-disclosure">
+        <summary class="card-title sidebar-section-toggle persona-summary" data-icon="P"><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg><span>Persona</span><span id="personaSummaryName" class="disclosure-value">Assistant</span></summary>
+        <div class="settings-disclosure-content">
+        <div class="persona-tools"><div id="personaLabel" class="muted">Active: Assistant</div><button id="shortcutsBtn" class="btn btn-sm btn-ghost" type="button"><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 9h.01M11 9h.01M15 9h.01M7 13h.01M11 13h.01M15 13h.01M8 16h8"/></svg><span>Shortcuts</span></button></div>
+        <div class="persona-grid">
+          <button type="button" class="persona-card active" aria-pressed="true" data-prompt="You are a helpful AI assistant. Be concise, accurate, and developer-friendly. Use Markdown formatting in your responses."><span class="persona-icon" aria-hidden="true">A</span><span class="persona-info"><strong>Assistant</strong><span class="muted">Balanced default helper</span></span></button>
+          <button type="button" class="persona-card" aria-pressed="false" data-prompt="You are a Socratic tutor. Teach step by step, ask guiding questions, and help the user reason toward the answer."><span class="persona-icon" aria-hidden="true">T</span><span class="persona-info"><strong>Tutor</strong><span class="muted">Step-by-step teacher</span></span></button>
+          <button type="button" class="persona-card" aria-pressed="false" data-prompt="You are a creative writing assistant. Generate vivid, original prose, dialogue, and story ideas while matching the user's requested tone."><span class="persona-icon" aria-hidden="true">CW</span><span class="persona-info"><strong>Creative Writer</strong><span class="muted">Ideas, prose, dialogue</span></span></button>
+          <button type="button" class="persona-card" aria-pressed="false" data-prompt="You are a code reviewer. Find bugs, edge cases, maintainability issues, and offer practical refactors with concise examples."><span class="persona-icon" aria-hidden="true">CR</span><span class="persona-info"><strong>Code Reviewer</strong><span class="muted">Bugs, refactors, edge cases</span></span></button>
+          <button type="button" class="persona-card" aria-pressed="false" data-prompt="You are a debate coach. Help build strong arguments, steelman opposing views, and sharpen rebuttals logically and respectfully."><span class="persona-icon" aria-hidden="true">D</span><span class="persona-info"><strong>Debate Coach</strong><span class="muted">Arguments and rebuttals</span></span></button>
+        </div>
+        </div>
+      </details>
     </aside>
     <main class="main">
+      <h1 class="sr-only">ChatWithIt AI chat workspace</h1>
       <header class="chat-header">
         <div class="header-left">
           <div class="header-model-row"><span id="modelBadge" class="model-badge">No model</span></div>
-          <div class="ctx-row"><span id="ctxInfo" class="ctx-label">0%</span><div class="ctx-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="ctxTrack"><div id="ctxBar" class="ctx-fill"></div></div></div>
+          <div class="ctx-row"><span id="ctxInfo" class="ctx-label">0%</span><div class="ctx-track" role="progressbar" aria-label="Context window usage" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="ctxTrack"><div id="ctxBar" class="ctx-fill"></div></div></div>
         </div>
         <div class="header-actions">
-          <button id="sidebarToggle" class="btn btn-ghost btn-icon" type="button" aria-label="Toggle sidebar" title="Menu">☰</button>
+          <button id="sidebarToggle" class="btn btn-ghost btn-icon" type="button" aria-label="Toggle sidebar" aria-controls="sidebar" aria-expanded="true" title="Menu"><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
           <button id="moreBtn" class="btn btn-ghost more-btn" type="button" aria-expanded="false" aria-controls="actionTray">More</button>
           <div id="actionTray" class="action-tray">
-          <button id="statsBtn" class="btn btn-ghost btn-sm" type="button" title="Session stats" aria-expanded="false">📊 <span>Stats</span></button>
-          <button id="clearBtn" class="btn btn-ghost btn-sm" type="button" title="Clear chat" aria-label="Clear chat">🗑 <span>Clear</span></button>
+          <button id="statsBtn" class="btn btn-ghost btn-sm" type="button" title="Session stats" aria-label="Session stats" aria-controls="rightPanel" aria-expanded="false"><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M4 19V5M4 19h17M8 16v-4m4 4V8m4 8v-6m4 6V4"/></svg><span>Stats</span></button>
+          <button id="clearBtn" class="btn btn-ghost btn-sm" type="button" title="Clear chat" aria-label="Clear chat"><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6m4-6v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg><span>Clear</span></button>
           <div class="menu-wrap">
-            <button id="exportBtn" popovertarget="export-menu" class="btn btn-ghost btn-sm" type="button" title="Export chat">⬇ <span>Export</span></button>
+            <button id="exportBtn" popovertarget="export-menu" class="btn btn-ghost btn-sm" type="button" title="Export chat" aria-label="Export chat"><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M5 17v4h14v-4"/></svg><span>Export</span></button>
             <div id="export-menu" class="dropdown-menu" popover>
-              <button id="exportMd" class="menu-item" type="button">📝 Markdown</button>
-              <button id="exportJson" class="menu-item" type="button">📦 JSON</button>
-              <button id="exportPdf" class="menu-item" type="button">📄 PDF</button>
-              <button id="exportTxt" class="menu-item" type="button">📄 Text</button>
-              <button id="exportCopy" class="menu-item" type="button">📋 Copy all</button>
+              <button id="exportMd" class="menu-item" type="button"><span class="format-mark" aria-hidden="true">MD</span>Markdown</button>
+              <button id="exportJson" class="menu-item" type="button"><span class="format-mark" aria-hidden="true">{ }</span>JSON</button>
+              <button id="exportPdf" class="menu-item" type="button"><span class="format-mark" aria-hidden="true">PDF</span>PDF</button>
+              <button id="exportTxt" class="menu-item" type="button"><span class="format-mark" aria-hidden="true">TXT</span>Text</button>
+              <button id="exportCopy" class="menu-item" type="button"><span class="format-mark" aria-hidden="true">COPY</span>Copy all</button>
             </div>
           </div>
           <div class="menu-wrap">
-            <button id="themeBtn" popovertarget="theme-menu" class="btn btn-ghost btn-icon" type="button" title="Toggle theme" aria-label="Toggle theme">🎨 <span>Theme</span></button>
+            <button id="themeBtn" popovertarget="theme-menu" class="btn btn-ghost btn-icon" type="button" title="Choose theme" aria-label="Choose theme"><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18h1.1a2 2 0 0 0 1.4-3.4 1.8 1.8 0 0 1 1.3-3.1H18a3 3 0 0 0 3-3c0-4.7-4-8.5-9-8.5Z"/><circle cx="7.5" cy="10" r=".8"/><circle cx="11" cy="7" r=".8"/><circle cx="15" cy="8" r=".8"/></svg><span>Theme</span></button>
             <div id="theme-menu" class="dropdown-menu" popover>
-              <button class="menu-item theme-opt" data-theme="dark" type="button">🌙 Dark</button>
-              <button class="menu-item theme-opt" data-theme="light" type="button">☀️ Light</button>
-              <button class="menu-item theme-opt" data-theme="violet" type="button">💜 Violet</button>
-              <button class="menu-item theme-opt" data-theme="ember" type="button">🔥 Ember</button>
-              <button class="menu-item theme-opt" data-theme="forest" type="button">🌿 Forest</button>
-              <button class="menu-item theme-opt" data-theme="aurora" type="button">🌊 Aurora</button>
-              <button class="menu-item theme-opt" data-theme="system" type="button">💻 System</button>
+              <button class="menu-item theme-opt" data-theme="dark" type="button"><span class="theme-swatch" data-theme-swatch="dark" aria-hidden="true"></span>Dark</button>
+              <button class="menu-item theme-opt" data-theme="light" type="button"><span class="theme-swatch" data-theme-swatch="light" aria-hidden="true"></span>Light</button>
+              <button class="menu-item theme-opt" data-theme="violet" type="button"><span class="theme-swatch" data-theme-swatch="violet" aria-hidden="true"></span>Violet</button>
+              <button class="menu-item theme-opt" data-theme="ember" type="button"><span class="theme-swatch" data-theme-swatch="ember" aria-hidden="true"></span>Ember</button>
+              <button class="menu-item theme-opt" data-theme="forest" type="button"><span class="theme-swatch" data-theme-swatch="forest" aria-hidden="true"></span>Forest</button>
+              <button class="menu-item theme-opt" data-theme="aurora" type="button"><span class="theme-swatch" data-theme-swatch="aurora" aria-hidden="true"></span>Aurora</button>
+              <button class="menu-item theme-opt" data-theme="system" type="button"><span class="theme-swatch" data-theme-swatch="system" aria-hidden="true"></span>System</button>
             </div>
           </div>
-          <button id="highContrastBtn" class="btn btn-ghost btn-icon" type="button" title="Toggle high contrast mode" aria-label="Toggle high contrast mode">◐ <span>Contrast</span></button>
-          <button id="resetBtn" class="btn btn-ghost btn-icon btn-danger" type="button" title="Reset session" aria-label="Reset session">↺ <span>Reset</span></button>
+          <button id="highContrastBtn" class="btn btn-ghost btn-icon" type="button" title="Toggle high contrast mode" aria-label="Toggle high contrast mode" aria-pressed="false"><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18Z"/></svg><span>Contrast</span></button>
+          <button id="resetBtn" class="btn btn-ghost btn-icon btn-danger" type="button" title="Reset session" aria-label="Reset session"><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M4 11a8 8 0 1 1 2.3 6M4 5v6h6"/></svg><span>Reset</span></button>
           </div>
         </div>
       </header>
       <div class="main-wrapper">
         <div id="chatBody" class="chat-body" role="log" aria-live="off" aria-busy="false">
           <div id="welcome" class="welcome">
-            <div class="welcome-logo"><svg aria-label="ChatWithIt logo" width="48" height="48" viewBox="0 0 48 48" fill="none"><rect width="48" height="48" rx="12" fill="var(--accent)"/><path d="M12 16h24M12 24h18M12 32h12" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/></svg></div>
-            <h2>Start a conversation</h2>
-            <p>Choose a model, pick a persona, and send a message. Your API key stays in memory only — never logged or stored.</p>
-            <p id="welcomeHint" class="welcome-hint">To begin, add your API key in the sidebar (☰ Menu on a phone).</p>
+            <div class="welcome-heading"><div class="welcome-logo"><svg aria-hidden="true" width="48" height="48" viewBox="0 0 48 48" fill="none"><rect width="48" height="48" rx="12" fill="var(--accent)"/><path d="M12 16h24M12 24h18M12 32h12" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/></svg></div><div class="welcome-title"><p class="welcome-eyebrow">CHATWITHIT · MULTI-MODEL WORKSPACE</p><h2>One chat. Many models.</h2></div></div>
+            <p class="welcome-description">Connect a provider, choose a model, then bring any question into the conversation.</p>
+            <p id="welcomeHint" class="welcome-hint" role="status" aria-live="polite">Connect a provider in the sidebar (Menu on mobile) to begin.</p>
             <div class="chips">
               <button class="chip" type="button" data-persona="default">Explain quantum entanglement simply</button>
               <button class="chip" type="button" data-persona="default">Write a Python web scraper</button>
@@ -158,7 +160,7 @@
             </div>
           </div>
         </div>
-        <button id="scrollToBottom" type="button" title="Scroll to bottom" aria-label="Scroll to bottom">↓</button>
+        <button id="scrollToBottom" type="button" title="Scroll to bottom" aria-label="Scroll to bottom"><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M12 4v16m-7-7 7 7 7-7"/></svg></button>
       </div>
       <div id="composerWrap">
         <div class="composer-box">
@@ -167,18 +169,18 @@
             <div class="composer-meta"><span id="charCount" class="char-count">0</span><span id="modelLabelInline" class="model-inline"></span></div>
             <div class="composer-btns">
               <input id="fileInput" type="file" class="hidden" accept=".txt,.md,.json,.csv,.py,.js,.ts,.tsx,.jsx,.html,.css,.xml,.yml,.yaml,.toml,.sh,.sql,.log" multiple aria-hidden="true">
-              <button id="attachBtn" class="btn btn-ghost btn-icon" type="button" title="Attach text files" aria-label="Attach text files">📎</button>
-              <button id="stopBtn" class="btn" type="button" aria-label="Stop generation">⏹ Stop</button>
-              <button id="sendBtn" class="btn btn-primary" type="button" aria-label="Send message">Send ↑</button>
+              <button id="attachBtn" class="btn btn-ghost btn-icon" type="button" title="Attach text files" aria-label="Attach text files"><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="m8 12.5 6.8-6.8a4 4 0 0 1 5.7 5.7l-9.2 9.2a6 6 0 0 1-8.5-8.5l9.2-9.2"/></svg></button>
+              <button id="stopBtn" class="btn" type="button" aria-label="Stop generation"><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg><span>Stop</span></button>
+              <button id="sendBtn" class="btn btn-primary" type="button" aria-label="Send message"><span>Send</span><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M5 12h14m-7-7 7 7-7 7"/></svg></button>
             </div>
           </div>
         </div>
         <div id="attachList" class="attach-list" aria-live="polite"></div>
-        <details class="privacy-panel" style="margin-top:.45rem"><summary>Key stays in memory only</summary><div class="privacy-body">No backend server. Your API key and messages travel directly from your browser to the provider over HTTPS. Nothing is logged or stored on any server.</div></details>
+        <details class="privacy-panel"><summary><svg class="privacy-lock" aria-hidden="true" viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><span>Key stays in memory only</span></summary><div class="privacy-body">No backend server. Your API key and messages travel directly from your browser to the provider over HTTPS. Nothing is logged or stored on any server.</div></details>
       </div>
     </main>
     <aside id="rightPanel" class="right-panel">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.25rem"><div><span class="rp-title">Session Stats</span><div id="stat-live" class="live-usage" aria-live="polite">Idle</div></div><button id="rp-close" class="btn btn-ghost btn-icon btn-sm" type="button" title="Close stats" aria-label="Close stats panel">✕</button></div>
+      <div class="rp-heading"><div><span class="rp-title">Session Stats</span><div id="stat-live" class="live-usage" aria-live="polite">Idle</div></div><button id="rp-close" class="btn btn-ghost btn-icon btn-sm" type="button" title="Close stats" aria-label="Close stats panel"><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
       <div class="card">
         <div class="stat-row"><span>Prompt tokens</span><span id="stat-prompt">0</span></div>
         <div class="stat-bar-wrap"><div id="stat-prompt-bar" class="stat-bar" style="width:0"></div></div>
@@ -189,12 +191,12 @@
         <div class="stat-row"><span>Req / min left</span><span id="stat-rl">—</span></div>
       </div>
       <div class="card"><div class="card-title">Token history</div><div id="stat-chart" class="chart"></div></div>
-      <div class="card"><div class="card-title">Diagnostics</div><div id="stat-diag" class="muted" style="font-size:.76rem;line-height:1.6">Provider: OpenRouter<br>Model: none</div></div>
+      <div class="card"><div class="card-title">Diagnostics</div><div id="stat-diag" class="muted stat-diag">Provider: OpenRouter<br>Model: none</div></div>
     </aside>
   </div>
-  <dialog id="shortcuts-modal">
+  <dialog id="shortcuts-modal" aria-labelledby="shortcutsTitle">
     <div class="modal-box">
-      <div class="modal-header"><strong>⌨ Keyboard Shortcuts</strong><button id="shortcutsClose" class="btn btn-ghost btn-icon" type="button" aria-label="Close shortcuts">✕</button></div>
+      <div class="modal-header"><strong id="shortcutsTitle">Keyboard Shortcuts</strong><button id="shortcutsClose" class="btn btn-ghost btn-icon" type="button" aria-label="Close shortcuts"><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
       <div class="shortcut-grid">
         <kbd class="shortcut-key">Enter</kbd><span class="shortcut-desc">Send message</span>
         <kbd class="shortcut-key">Shift+Enter</kbd><span class="shortcut-desc">New line</span>

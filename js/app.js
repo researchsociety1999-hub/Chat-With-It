@@ -84,10 +84,10 @@ export const App = {
         const provider = AppState.currentProvider;
         if (provider === 'huggingface') {
           hint.childNodes[0].textContent = 'Use your Hugging Face token (hf_…) — ';
-          if (hintLink) { hintLink.textContent = 'Get token →'; hintLink.href = 'https://huggingface.co/settings/tokens'; }
+          if (hintLink) { hintLink.textContent = 'Get token'; hintLink.href = 'https://huggingface.co/settings/tokens'; }
         } else {
           hint.childNodes[0].textContent = 'Use your OpenRouter key (sk-or-…) — ';
-          if (hintLink) { hintLink.textContent = 'Get key →'; hintLink.href = 'https://openrouter.ai/keys'; }
+          if (hintLink) { hintLink.textContent = 'Get key'; hintLink.href = 'https://openrouter.ai/keys'; }
         }
       }
 
@@ -167,10 +167,10 @@ export const App = {
         if (hint) {
           if (provider === 'huggingface') {
             hint.childNodes[0].textContent = 'Use your Hugging Face token (hf_…) — ';
-            if (hintLink) { hintLink.textContent = 'Get token →'; hintLink.href = 'https://huggingface.co/settings/tokens'; }
+            if (hintLink) { hintLink.textContent = 'Get token'; hintLink.href = 'https://huggingface.co/settings/tokens'; }
           } else {
             hint.childNodes[0].textContent = 'Use your OpenRouter key (sk-or-…) — ';
-            if (hintLink) { hintLink.textContent = 'Get key →'; hintLink.href = 'https://openrouter.ai/keys'; }
+            if (hintLink) { hintLink.textContent = 'Get key'; hintLink.href = 'https://openrouter.ai/keys'; }
           }
         }
 
@@ -237,7 +237,7 @@ export const App = {
       const model = AppState.allModels.find(m => m.id === AppState.selectedModel);
       if (model) {
         const ctxK = model.ctx ? `${(model.ctx / 1000).toFixed(0)}k ctx` : '';
-        UI.el('modelMeta').textContent = [model.paramTier, ctxK, model.uncensored ? '🔓 uncensored' : ''].filter(Boolean).join(' · ');
+        UI.el('modelMeta').textContent = [model.paramTier, ctxK, model.uncensored ? 'Uncensored' : ''].filter(Boolean).join(' · ');
         UI.updateModelLabel(model.name);
         AppState.modelContextMap[model.id] = model.ctx || 8192;
       }
@@ -295,7 +295,7 @@ export const App = {
         UI.el('modelMeta').textContent = [
           first.paramTier,
           first.ctx ? `${(first.ctx / 1000).toFixed(0)}k ctx` : '',
-          first.uncensored ? '🔓 uncensored' : ''
+          first.uncensored ? 'Uncensored' : ''
         ].filter(Boolean).join(' · ');
       } else {
         sel.value = found.id;
@@ -303,7 +303,7 @@ export const App = {
         AppState.persistState();
         UI.updateModelLabel(found.name);
         const ctxK = found.ctx ? `${(found.ctx / 1000).toFixed(0)}k ctx` : '';
-        UI.el('modelMeta').textContent = [found.paramTier, ctxK, found.uncensored ? '🔓 uncensored' : ''].filter(Boolean).join(' · ');
+        UI.el('modelMeta').textContent = [found.paramTier, ctxK, found.uncensored ? 'Uncensored' : ''].filter(Boolean).join(' · ');
       }
       sel.classList.remove('loading', 'error');
       return true;
@@ -336,7 +336,7 @@ export const App = {
       opt.value = m.id;
       const cooldownSecs = AppState.modelCooldownSecondsLeft(m.id);
       const cooldownTag  = cooldownSecs > 0 ? ` ⏳ ${cooldownSecs}s` : '';
-      opt.textContent = m.name + (m.uncensored ? ' 🔓' : '') + cooldownTag;
+      opt.textContent = m.name + (m.uncensored ? ' · Uncensored' : '') + cooldownTag;
       if (m.id === AppState.selectedModel) opt.selected = true;
       sel.appendChild(opt);
     });
@@ -365,7 +365,7 @@ export const App = {
         if (!model) return;
         const secs = AppState.modelCooldownSecondsLeft(model.id);
         const tag  = secs > 0 ? ` ⏳ ${secs}s` : '';
-        opt.textContent = model.name + (model.uncensored ? ' 🔓' : '') + tag;
+        opt.textContent = model.name + (model.uncensored ? ' · Uncensored' : '') + tag;
       });
     }, 1000);
   },
@@ -448,8 +448,11 @@ export const App = {
         }
         userInput.value = chip.textContent.trim();
         UI.updateCharCount(userInput.value.length);
+        UI.updateWelcomeHint();
         userInput.focus();
-        this.sendMessage();
+        if (AppState.isAuthenticatedFor(AppState.currentProvider) && AppState.selectedModel && AppState.selectedModel !== 'none') {
+          this.sendMessage();
+        }
       });
     });
   },
@@ -787,7 +790,7 @@ export const App = {
     });
 
     const sidebarToggle = UI.el('sidebarToggle');
-    sidebarToggle?.setAttribute('aria-pressed', 'false');
+    UI.syncSidebarToggleState();
     sidebarToggle?.addEventListener('click', () => UI.toggleSidebar());
     UI.el('mobileOverlay')?.addEventListener('click', () => {
       if (UI.el('sidebar')?.classList.contains('open')) UI.toggleSidebar();
@@ -801,7 +804,7 @@ export const App = {
         document.body.classList.remove('sidebar-collapsed');
         try { localStorage.setItem('cwi_sidebar_collapsed', 'false'); } catch (_) {}
         sectionToggle.closest('.card')?.querySelector('input, select, textarea, button:not(.sidebar-section-toggle), [tabindex="0"]')?.focus();
-        sidebarToggle?.setAttribute('aria-pressed', 'false');
+        UI.syncSidebarToggleState();
       });
     });
 
@@ -813,13 +816,12 @@ export const App = {
         UI.el('mobileOverlay')?.classList.remove('show');
         document.body.classList.remove('sidebar-open');
         AppState.sidebarOpen = false;
-        sidebarToggle?.setAttribute('aria-expanded', 'false');
         UI.loadSidebarState();
       } else if (!wasMobile && isMobile) {
         document.body.classList.remove('sidebar-collapsed');
         document.body.classList.remove('stats-open');
         UI.el('rightPanel')?.classList.remove('open');
-        sidebarToggle?.setAttribute('aria-pressed', 'false');
+        UI.syncSidebarToggleState();
         UI.el('statsBtn')?.setAttribute('aria-expanded', 'false');
       }
       wasMobile = isMobile;
@@ -897,6 +899,14 @@ export const App = {
     // FIX R: single consolidated Escape handler — no duplicate listeners
     document.addEventListener('keydown', (e) => {
       if (e.key !== 'Escape') return;
+      const profilesPanel = UI.el('profilesPanel');
+      if (profilesPanel?.classList.contains('open')) {
+        const restoreProfilesFocus = profilesPanel.contains(document.activeElement);
+        profilesPanel.classList.remove('open');
+        UI.el('profilesToggleBtn')?.setAttribute('aria-expanded', 'false');
+        if (restoreProfilesFocus) UI.el('profilesToggleBtn')?.focus();
+        return;
+      }
       if (window.matchMedia('(max-width: 1100px)').matches && UI.el('sidebar')?.classList.contains('open')) {
         UI.toggleSidebar();
         return;
@@ -1010,7 +1020,7 @@ export const App = {
           `**${m.role === 'user' ? 'You' : 'Assistant'}:** ${m.content}`
         ).join('\n\n---\n\n');
         navigator.clipboard.writeText(md)
-          .then(() => UI.toast('📋 Copied to clipboard', 'success'))
+          .then(() => UI.toast('Copied to clipboard', 'success'))
           .catch(() => UI.toast('Clipboard copy failed', 'error'));
         AppState.chatExported = true;
         UI.hideUnsavedBanner();
@@ -1033,7 +1043,7 @@ export const App = {
           '',
         ].join('\n');
         const body = AppState.chatHistory.map(m =>
-          `### ${m.role === 'user' ? '👤 You' : '🤖 Assistant'} \`${new Date(m.timestamp).toLocaleTimeString()}\`\n\n${m.content}`
+          `### ${m.role === 'user' ? 'You' : 'Assistant'} \`${new Date(m.timestamp).toLocaleTimeString()}\`\n\n${m.content}`
         ).join('\n\n---\n\n');
         Utils.downloadAsFile(`${base}.md`, header + body, 'text/markdown');
       }
@@ -1168,10 +1178,12 @@ export const App = {
     // two buttons with the same id and neither click would work as expected.
     const hcBtn = UI.el('highContrastBtn');
     if (!hcBtn) return;
+    hcBtn.setAttribute('aria-pressed', String(Boolean(AppState.highContrast)));
 
     hcBtn.addEventListener('click', () => {
       const enabled = !AppState.highContrast;
       AppState.setHighContrast(enabled);
+      hcBtn.setAttribute('aria-pressed', String(enabled));
       UI.toast(`High contrast ${enabled ? 'enabled' : 'disabled'}`, 'info');
     });
   },
@@ -1240,7 +1252,7 @@ export const App = {
       const remove = document.createElement('button');
       remove.type = 'button';
       remove.setAttribute('aria-label', 'Remove ' + f.name);
-      remove.textContent = '×';
+      remove.innerHTML = '<svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg>';
       remove.addEventListener('click', () => {
         AppState.attachedFiles.splice(idx, 1);
         this._renderAttachments();
@@ -1256,7 +1268,7 @@ export const App = {
     const blocks = AppState.attachedFiles.map(f => {
       const ext = (f.name.split('.').pop() || 'text').toLowerCase();
       const fence = ext === 'md' ? 'markdown' : ext;
-      return '📎 **' + f.name + '**\n\n```' + fence + '\n' + f.content + '\n```';
+      return '**Attached file: ' + f.name + '**\n\n```' + fence + '\n' + f.content + '\n```';
     });
     const body = userText ? userText + '\n\n' : '';
     return body + blocks.join('\n\n');

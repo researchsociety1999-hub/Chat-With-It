@@ -102,10 +102,27 @@ export const UI = {
   },
 
   loadSidebarState() {
-    if (!window.matchMedia('(min-width: 1101px)').matches) return;
-    try {
-      document.body.classList.toggle('sidebar-collapsed', localStorage.getItem('cwi_sidebar_collapsed') === 'true');
-    } catch (_) {}
+    if (window.matchMedia('(min-width: 1101px)').matches) {
+      try {
+        document.body.classList.toggle('sidebar-collapsed', localStorage.getItem('cwi_sidebar_collapsed') === 'true');
+      } catch (_) {}
+    }
+    this.syncSidebarToggleState();
+  },
+
+  syncSidebarToggleState() {
+    const toggle = this.el('sidebarToggle');
+    if (!toggle) return;
+    const isMobile = this._isMobile();
+    const isOpen = isMobile
+      ? Boolean(this.el('sidebar')?.classList.contains('open'))
+      : !document.body.classList.contains('sidebar-collapsed');
+    const isCollapsed = !isMobile && !isOpen;
+    toggle.setAttribute('aria-expanded', String(isOpen));
+    toggle.setAttribute('aria-label', isMobile
+      ? (isOpen ? 'Close menu' : 'Open menu')
+      : (isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'));
+    toggle.title = isMobile ? 'Menu' : (isCollapsed ? 'Expand sidebar' : 'Collapse sidebar');
   },
 
   setTheme(theme) {
@@ -128,9 +145,9 @@ export const UI = {
     if (!hint) return;
     const authed = AppState.isAuthenticatedFor(AppState.currentProvider);
     const hasModel = AppState.selectedModel && AppState.selectedModel !== 'none';
-    if (!authed) hint.textContent = 'To begin, add your API key in the sidebar (☰ Menu on a phone).';
-    else if (!hasModel) hint.textContent = 'Key accepted. Choose a model in the sidebar, then start typing.';
-    else hint.textContent = 'Ready. Type below or tap a suggestion.';
+    if (!authed) hint.textContent = 'Connect a provider in the sidebar (Menu on mobile) to begin.';
+    else if (!hasModel) hint.textContent = 'Connected. Choose a model in the sidebar to start chatting.';
+    else hint.textContent = 'Ready to chat. Pick a suggestion or write your own.';
   },
 
   setChatBusy(busy) {
@@ -161,10 +178,18 @@ export const UI = {
     const banner = document.createElement('div');
     banner.id = 'unsaved-banner';
     banner.setAttribute('role', 'status');
-    banner.innerHTML = '💾 Unsaved — <button id="unsaved-export-btn" style="background:none;border:none;cursor:pointer;font-size:inherit;font-weight:800;color:inherit;text-decoration:underline;padding:0;margin-left:.2rem;">Export now</button>';
+    const marker = document.createElement('span');
+    marker.className = 'unsaved-symbol';
+    marker.setAttribute('aria-hidden', 'true');
+    marker.innerHTML = '<svg class="ui-icon" viewBox="0 0 24 24"><path d="M5 4h12l3 3v13H4V4h1Z"/><path d="M8 4v6h8V4M8 20v-6h8v6"/></svg>';
+    const exportButton = document.createElement('button');
+    exportButton.id = 'unsaved-export-btn';
+    exportButton.type = 'button';
+    exportButton.textContent = 'Export now';
+    banner.append(marker, document.createTextNode('Unsaved — '), exportButton);
     const anchor = this.el('composerWrap');
     if (anchor) anchor.parentNode.insertBefore(banner, anchor);
-    this.el('unsaved-export-btn')?.addEventListener('click', () => { if (typeof onExport === 'function') onExport(); });
+    exportButton.addEventListener('click', () => { if (typeof onExport === 'function') onExport(); });
   },
 
   hideUnsavedBanner() {
@@ -285,7 +310,7 @@ export const UI = {
     const avatar = document.createElement('div');
     avatar.className = 'msg-avatar';
     avatar.setAttribute('aria-hidden', 'true');
-    avatar.textContent = role === 'user' ? '👤' : '🤖';
+    avatar.textContent = role === 'user' ? 'Y' : 'AI';
 
     const col = document.createElement('div');
     col.className = 'msg-col';
@@ -311,11 +336,24 @@ export const UI = {
     copyBtn.className = 'msg-action-btn';
     copyBtn.title = 'Copy';
     copyBtn.setAttribute('aria-label', 'Copy message');
-    copyBtn.textContent = '📋';
+    const copyIcon = '<svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg>';
+    const copiedIcon = '<svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></svg>';
+    copyBtn.innerHTML = copyIcon;
     copyBtn.addEventListener('click', () => {
       const text = bubble._rawText || bubble.textContent;
       Utils.copyToClipboard(text).then(ok => {
-        if (ok) { copyBtn.textContent = '✅'; setTimeout(() => { copyBtn.textContent = '📋'; }, 1500); }
+        if (ok) {
+          copyBtn.innerHTML = copiedIcon;
+          copyBtn.setAttribute('aria-label', 'Message copied');
+          copyBtn.title = 'Copied';
+          this.announce('Message copied to clipboard');
+          setTimeout(() => {
+            if (!copyBtn.isConnected) return;
+            copyBtn.innerHTML = copyIcon;
+            copyBtn.setAttribute('aria-label', 'Copy message');
+            copyBtn.title = 'Copy';
+          }, 1500);
+        }
       });
     });
 
@@ -407,11 +445,14 @@ export const UI = {
     const avatar = document.createElement('div');
     avatar.className = 'msg-avatar';
     avatar.setAttribute('aria-hidden', 'true');
-    avatar.textContent = '🤖';
+    avatar.textContent = 'AI';
 
     const typing = document.createElement('div');
     typing.className = 'typing-indicator';
-    typing.innerHTML = '<span></span><span></span><span></span>';
+    const label = document.createElement('span');
+    label.className = 'typing-label';
+    label.textContent = 'Thinking';
+    typing.appendChild(label);
 
     wrap.appendChild(avatar);
     wrap.appendChild(typing);
@@ -672,6 +713,8 @@ export const UI = {
   setPersonaLabel(name) {
     const el = this.el('personaLabel');
     if (el) el.textContent = name ? `Active: ${name}` : '';
+    const summary = this.el('personaSummaryName');
+    if (summary) summary.textContent = name || 'Assistant';
   },
 
   updateModelCount(current, total) {
@@ -727,8 +770,7 @@ export const UI = {
       if (overlay) overlay.classList.remove('show');
       document.body.classList.remove('sidebar-open');
       if (toggle) {
-        toggle.setAttribute('aria-expanded', 'false');
-        toggle.setAttribute('aria-pressed', String(document.body.classList.contains('sidebar-collapsed')));
+        this.syncSidebarToggleState();
       }
       AppState.sidebarOpen = false;
       return;
@@ -738,7 +780,7 @@ export const UI = {
     const isOpen = sidebar.classList.toggle('open');
     AppState.sidebarOpen = isOpen;
     if (overlay) overlay.classList.toggle('show', isOpen);
-    if (toggle)  toggle.setAttribute('aria-expanded', String(isOpen));
+    if (toggle) this.syncSidebarToggleState();
     document.body.classList.toggle('sidebar-open', isOpen);
     if (isOpen) {
       this.closeStats();
@@ -754,10 +796,7 @@ export const UI = {
     const collapsed = document.body.classList.toggle('sidebar-collapsed');
     try { localStorage.setItem('cwi_sidebar_collapsed', String(collapsed)); } catch (_) {}
     const toggle = this.el('sidebarToggle');
-    if (toggle) {
-      toggle.setAttribute('aria-pressed', String(collapsed));
-      toggle.setAttribute('aria-expanded', 'false');
-    }
+    this.syncSidebarToggleState();
   },
 
   // Retry button

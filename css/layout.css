@@ -16,6 +16,7 @@ body {
   margin: 0; 
   overflow: hidden; 
   height: 100dvh; 
+  font-size: var(--text-body);
   font-family: 'Satoshi', system-ui, sans-serif; 
   background-color: var(--bg); 
   color: var(--fg); 
@@ -88,8 +89,8 @@ body {
 
 #composerWrap { 
   flex-shrink: 0; 
-  padding: clamp(0.65rem, 2vw, 0.75rem) clamp(0.85rem, 3vw, 1.25rem); 
-  padding-bottom: calc(clamp(0.65rem, 2vw, 0.75rem) + env(safe-area-inset-bottom, 0px) + var(--keyboard-inset, 0px)); 
+  padding: 12px 1.25rem;
+  padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px) + var(--keyboard-inset, 0px));
   background: var(--panel); 
   -webkit-backdrop-filter: var(--blur); 
   backdrop-filter: var(--blur); 
@@ -132,13 +133,15 @@ body {
   body.sidebar-collapsed .app { grid-template-columns: var(--sidebar-collapsed-w) 1fr 0; }
   body.sidebar-collapsed.stats-open .app { grid-template-columns: var(--sidebar-collapsed-w) 1fr var(--rp-w); }
   body.sidebar-collapsed .sidebar { padding-inline: 0.5rem; overflow-y: auto; gap: 0.5rem; }
-  body.sidebar-collapsed .sidebar .card { padding: 0.65rem 0.4rem; align-items: center; }
+  body.sidebar-collapsed .sidebar .card { padding: 0.75rem 0.65rem; align-items: center; }
   body.sidebar-collapsed .sidebar .card > :not(.card-title):not(.sidebar-card-heading),
   body.sidebar-collapsed .brand-label,
   body.sidebar-collapsed .brand-badge,
   body.sidebar-collapsed #lockBtn { display: none; }
   body.sidebar-collapsed .sidebar .card-title { display: block; width: 100%; margin: 0; text-align: center; font-size: 0; }
   body.sidebar-collapsed .sidebar .card-title::before { content: attr(data-icon); display: block; font-size: 1rem; line-height: 1.2; }
+  body.sidebar-collapsed .settings-disclosure > summary::after,
+  body.sidebar-collapsed .settings-disclosure .disclosure-value { display: none; }
   body.sidebar-collapsed .sidebar-card-heading { display: block !important; width: 100%; }
   body.sidebar-collapsed .sidebar-card-heading .btn { display: none; }
   body.sidebar-collapsed .brand { justify-content: center; }
@@ -217,7 +220,7 @@ body {
   .msg-col { max-width: min(88%, 620px); }
   .chat-body { padding: 1rem 0.85rem; }
   .chat-header { padding: 0.7rem 0.85rem; }
-  #composerWrap { padding: 0.65rem 0.85rem; padding-bottom: calc(0.65rem + env(safe-area-inset-bottom,0px) + var(--keyboard-inset, 0px)); }
+  #composerWrap { padding: 12px 0.85rem; padding-bottom: calc(12px + env(safe-area-inset-bottom,0px) + var(--keyboard-inset, 0px)); }
 }
 
 @media (max-width: 640px) {
@@ -231,11 +234,11 @@ body {
   .welcome p { font-size: 0.84rem; line-height: 1.55; }
   .chips { grid-template-columns: 1fr; width: min(100%, 360px); gap: 0.45rem; }
   .chip { padding: 0.55rem 0.7rem; }
-  #composerWrap { padding: 0.5rem 0.65rem; padding-bottom: calc(0.5rem + env(safe-area-inset-bottom,0px) + var(--keyboard-inset, 0px)); }
-  .composer-box { padding: 0.6rem 0.7rem; gap: 0.35rem; }
+  #composerWrap { padding: 12px 0.8rem; padding-bottom: calc(12px + env(safe-area-inset-bottom,0px) + var(--keyboard-inset, 0px)); }
+  .composer-box { padding: 12px; gap: 0.35rem; }
   .composer-textarea { min-height: 36px; }
   .privacy-panel { margin-top: 0.25rem !important; }
-  .privacy-body { font-size: 0.7rem; line-height: 1.45; }
+  .privacy-body { font-size: var(--text-label); line-height: 1.55; }
 }
 
 @keyframes slideIn { from{transform:translateX(-100%)} to{transform:translateX(0)} }

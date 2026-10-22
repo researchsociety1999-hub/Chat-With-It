@@ -5,12 +5,12 @@
   align-items: center;
   gap: 6px;
   padding: 6px 12px;
-  font-size: 0.82rem;
+  font-size: var(--text-label);
   font-weight: 600;
   border-radius: 6px;
   cursor: pointer;
   background: var(--panel-solid);
-  color: var(--fg-muted);
+  color: var(--fg);
   border: 1px solid var(--border-2);
   transition: color 0.15s, border-color 0.15s;
 }
@@ -91,8 +91,8 @@
 }
 
 .profiles-empty {
-  font-size: 0.8rem;
-  color: var(--fg-muted);
+  font-size: var(--text-label);
+  color: var(--fg);
   text-align: center;
   padding: 12px 0;
   margin: 0;
@@ -115,18 +115,18 @@
 
 .profile-badge {
   flex-shrink: 0;
-  font-size: 0.65rem;
+  font-size: var(--text-label);
   font-weight: 700;
   padding: 2px 5px;
   border-radius: 4px;
   letter-spacing: 0.04em;
 }
-.badge-or  { background: #0ea5e922; color: #38bdf8; border: 1px solid #0ea5e955; }
-.badge-hf  { background: #06b6d422; color: #22d3ee; border: 1px solid #06b6d455; }
+.badge-or  { background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--fg); border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent); }
+.badge-hf  { background: color-mix(in srgb, var(--accent-2) 12%, transparent); color: var(--fg); border: 1px solid color-mix(in srgb, var(--accent-2) 45%, transparent); }
 
 .profile-name {
   flex: 1;
-  font-size: 0.83rem;
+  font-size: var(--text-label);
   color: var(--fg);
   white-space: nowrap;
   overflow: hidden;
@@ -140,7 +140,7 @@
 }
 
 .profile-btn {
-  font-size: 0.73rem;
+  font-size: var(--text-label);
   padding: 3px 8px;
   border-radius: 5px;
   cursor: pointer;
@@ -148,22 +148,23 @@
   background: transparent;
   transition: background 0.12s, color 0.12s;
   /* Increase tap target on touch devices */
-  min-height: 28px;
-  min-width: 36px;
+  min-height: 40px;
+  min-width: 44px;
+  color: var(--fg);
 }
 .profile-use {
-  color: var(--accent);
+  color: var(--fg);
 }
 .profile-use:hover {
   background: color-mix(in srgb, var(--accent) 15%, transparent);
 }
 .profile-del {
-  color: var(--fg-muted);
+  color: var(--fg);
 }
 .profile-del:hover {
-  background: rgba(239,68,68,0.15);
-  color: #f87171;
-  border-color: #f8717155;
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 55%, transparent);
 }
 
 .profiles-add {
@@ -178,21 +179,21 @@
 .profiles-add input {
   flex: 1;
   min-width: 0; /* prevents flex child from overflowing */
-  font-size: 0.82rem;
+  font-size: var(--text-label);
   padding: 6px 9px;
   border-radius: 6px;
   border: 1px solid var(--border-2);
   background: var(--bg);
   color: var(--fg);
-  outline: none;
   box-sizing: border-box;
 }
 .profiles-add input:focus {
   border-color: var(--accent);
 }
+.profiles-add input:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 
 .profiles-add .btn-secondary {
-  font-size: 0.78rem;
+  font-size: var(--text-label);
   padding: 6px 10px;
   border-radius: 6px;
   cursor: pointer;
@@ -205,6 +206,20 @@
 }
 .profiles-add .btn-secondary:hover {
   background: color-mix(in srgb, var(--accent) 22%, transparent);
+}
+.profiles-add .btn-secondary:focus-visible,
+.profile-btn:focus-visible,
+#profilesToggleBtn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+.profile-btn .ui-icon { width: 16px; height: 16px; }
+
+@media (max-width: 768px), (pointer: coarse) {
+  .profile-btn, .profiles-add .btn-secondary, .profiles-add input { min-height: 44px; }
+  .profile-del { min-width: 44px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #profilesPanel, .profile-row, .profile-btn, .profiles-add .btn-secondary { animation: none; transition: none; }
 }
 
 /* ── High Contrast Mode additions ────────────────────────────────────────── */

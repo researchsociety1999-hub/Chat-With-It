@@ -108,12 +108,12 @@ export const Profiles = (() => {
     const isActive      = p => p.token === activeToken && p.provider === AppState.currentProvider;
 
     const rows = profiles.map(p => `
-      <div class="profile-row${isActive(p) ? ' profile-active' : ''}" data-id="${p.id}">
+      <div class="profile-row${isActive(p) ? ' profile-active' : ''}" data-id="${escHtml(p.id)}">
         <span class="profile-badge ${providerClass(p)}">${providerLabel(p)}</span>
         <span class="profile-name" title="${escHtml(p.name)}">${escHtml(p.name)}</span>
         <div class="profile-actions">
-          <button class="profile-btn profile-use" data-id="${p.id}" title="Activate">${isActive(p) ? '✓ Active' : 'Use'}</button>
-          <button class="profile-btn profile-del" data-id="${p.id}" title="Delete">✕</button>
+          <button class="profile-btn profile-use" type="button" data-id="${escHtml(p.id)}" title="Activate profile" aria-label="${isActive(p) ? 'Active profile: ' : 'Use profile: '}${escHtml(p.name)}">${isActive(p) ? 'Active' : 'Use'}</button>
+          <button class="profile-btn profile-del" type="button" data-id="${escHtml(p.id)}" title="Delete profile" aria-label="Delete profile: ${escHtml(p.name)}"><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
         </div>
       </div>
     `).join('');
@@ -123,8 +123,8 @@ export const Profiles = (() => {
         ${profiles.length ? rows : '<p class="profiles-empty">No saved profiles yet.</p>'}
       </div>
       <div class="profiles-add">
-        <input id="profileNameInput" type="text" placeholder="Profile name…" maxlength="40" />
-        <button id="profileSaveBtn" class="btn-secondary">Save current key</button>
+        <input id="profileNameInput" type="text" placeholder="Profile name…" maxlength="40" aria-label="Profile name" autocomplete="off" />
+        <button id="profileSaveBtn" class="btn-secondary" type="button">Save current key</button>
       </div>
     `;
 
@@ -203,6 +203,13 @@ export const Profiles = (() => {
       const open = panel.classList.toggle('open');
       toggleBtn.setAttribute('aria-expanded', String(open));
       if (open) renderProfilesPanel();
+    });
+
+    document.addEventListener('keydown', e => {
+      if (e.key !== 'Escape' || !panel.classList.contains('open')) return;
+      panel.classList.remove('open');
+      toggleBtn.setAttribute('aria-expanded', 'false');
+      if (panel.contains(document.activeElement)) toggleBtn.focus();
     });
 
     // Close panel when clicking outside

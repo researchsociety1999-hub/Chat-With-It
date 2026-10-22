@@ -1,4 +1,9 @@
 :root {
+  --text-display: clamp(2.5rem, 5vw, 4rem);
+  --text-title: clamp(1.35rem, 2.2vw, 1.7rem);
+  --text-body: 1rem;
+  --text-label: 0.875rem;
+  --text-caption: 0.75rem;
   --bg: #0d0f1a;
   --bg2: #111425;
   --panel: rgba(18, 22, 42, 0.85);

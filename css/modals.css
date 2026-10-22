@@ -52,9 +52,9 @@
 
 @keyframes menuIn { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:translateY(0)} }
 
-.menu-item { padding: .55rem .8rem; border-radius: .6rem; border: none; background: transparent; color: var(--fg-muted); font-size: .83rem; font-weight: 600; cursor: pointer; text-align: left; transition: all var(--transition); display: flex; align-items: center; gap: .5rem; }
+.menu-item { padding: .55rem .8rem; border-radius: .6rem; border: none; background: transparent; color: var(--fg-muted); font-size: var(--text-label); font-weight: 600; cursor: pointer; text-align: left; transition: all var(--transition); display: flex; align-items: center; gap: .5rem; }
 .menu-item:hover { background: var(--panel-2); color: var(--fg); }
-.theme-opt[aria-pressed="true"] { background: var(--accent-glow); color: var(--fg); box-shadow: inset 3px 0 0 var(--accent); }
+.theme-opt[aria-pressed="true"] { background: var(--accent-glow); color: var(--fg); font-weight: 700; border: 1px solid color-mix(in srgb, var(--accent) 38%, transparent); }
 .menu-sep { height: 1px; background: var(--border); margin: .2rem 0; }
 
 /* Dialog Modals */
@@ -91,7 +91,7 @@ dialog[open]::backdrop {
 .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
 .modal-header strong { font-size: 1rem; font-weight: 800; }
 
-.shortcut-grid { display: grid; grid-template-columns: auto 1fr; gap: .5rem .9rem; font-size: .85rem; }
+.shortcut-grid { display: grid; grid-template-columns: auto 1fr; gap: .5rem .9rem; font-size: var(--text-label); }
 .shortcut-key { font-family: monospace; background: var(--panel-2); border: 1px solid var(--border-2); border-radius: .4rem; padding: .2rem .5rem; font-size: .78rem; white-space: nowrap; color: var(--fg); }
 .shortcut-desc { color: var(--fg-muted); align-self: center; }
 
@@ -100,12 +100,12 @@ dialog.confirm-box { max-width: 380px; }
 dialog.confirm-box[open] { display: flex; flex-direction: column; gap: 1.1rem; }
 .confirm-msg { font-size: .95rem; font-weight: 600; color: var(--fg); line-height: 1.5; margin: 0; }
 .confirm-actions { display: flex; gap: .6rem; justify-content: flex-end; }
-.confirm-cancel { padding: .5rem 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border-2); background: var(--panel-2); color: var(--fg-muted); font-size: .85rem; font-weight: 600; cursor: pointer; transition: all var(--transition); }
+.confirm-cancel { padding: .5rem 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border-2); background: var(--panel-2); color: var(--fg-muted); font-size: var(--text-label); font-weight: 600; cursor: pointer; transition: all var(--transition); }
 .confirm-cancel:hover { background: var(--border); color: var(--fg); }
-.confirm-confirm { padding: .5rem 1.1rem; border-radius: var(--radius-sm); border: 1px solid var(--accent); background: var(--accent); color: var(--on-accent); font-size: .85rem; font-weight: 700; cursor: pointer; box-shadow: 0 2px 12px var(--accent-glow); transition: all var(--transition); }
-.confirm-confirm:hover { background: color-mix(in srgb, var(--accent) 78%, #000); }
+.confirm-confirm { padding: .5rem 1.1rem; border-radius: var(--radius-sm); border: 1px solid var(--accent); background: var(--accent); color: var(--on-accent); font-size: var(--text-label); font-weight: 700; cursor: pointer; transition: all var(--transition); }
+.confirm-confirm:hover { background: var(--accent); color: var(--on-accent); }
 .confirm-cancel:focus-visible, .confirm-confirm:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 
 @media (prefers-reduced-motion: reduce) {
-  dialog[open], dialog[open]::backdrop { animation: none; }
+  dialog[open], dialog[open]::backdrop, [popover]:popover-open { animation: none; transition: none; }
 }

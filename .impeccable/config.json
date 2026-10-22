@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "low-contrast",
+        "value": "*",
+        "files": [
+          "index.html"
+        ],
+        "createdAt": "2026-10-22T10:54:51.227Z",
+        "reason": "False positive: the light palette pairs #334155 with its white surface, while the dark palette pairs #9aadd4 with #12162a; the detector combines values from different themes."
+      }
+    ]
+  }
+}
