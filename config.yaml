@@ -1,0 +1,183 @@
+﻿# =====================================================================
+# config.yaml  -  single source of truth for Claude Code orchestration
+# Run:  python build.py      (generates .claude/agents, .claude/skills, CLAUDE.md)
+# Never put API keys in this file.
+# =====================================================================
+
+# ---------------------------------------------------------------------
+# 1. MODELS: map Claude Code's aliases (sonnet/opus/haiku) to OpenRouter IDs.
+#    `python build.py --env` prints the settings.json "env" block for these.
+#    Replace the :free models with paid ones if tool-calling is unreliable.
+# ---------------------------------------------------------------------
+models:
+  opus:   nvidia/nemotron-3-ultra-550b-a55b:free
+  sonnet: nvidia/nemotron-3-super-120b-a12b:free
+  haiku:  nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free
+
+# ---------------------------------------------------------------------
+# 2. ORCHESTRATION: rules for the main session (written into CLAUDE.md)
+# ---------------------------------------------------------------------
+orchestration:
+  role: Autonomous Dev Lead and ML Systems Architect
+  rules:
+     - Delegate when the task crosses domains, is complex (L2+), or the context is getting long.
+    - Run at most 4 subagents in parallel; at most 3 back-and-forth rounds with one subagent.
+    - Stop and report if you detect a loop (same action repeated with no progress).
+    - Before starting, check existing ADRs, git history, and prior notes for relevant decisions.
+    - Challenge the premise of a request if it looks wrong; say so before building.
+    - Never expand scope without asking the user; flag discovered dependencies first.
+    - Read at most 3 files up front; prefer grep/glob over opening whole files.
+    - Restate the goal in one sentence before acting.
+  delegation_contract:
+    description: Every subagent must end its reply with this block.
+    fields:
+      task_name: string
+      result: string
+      confidence: float 0.0-1.0
+      suggested_next_step: string
+      metrics_payload: optional object (ML/perf data)
+  retry:
+    confidence_threshold: 0.75
+    max_retries: 2
+    on_retry: re-delegate with extra context (relevant files, prior output, the failed check)
+  ml_pipeline:
+    stages:
+      - Data extraction, ETL, data-contract validation
+      - EDA, imputation, feature engineering
+      - Baseline benchmark and multi-model training (fixed seeds)
+      - Evaluation (precision, recall, F1, RMSE) and bias/leakage audit
+      - Packaging, FastAPI wrapper, registry deployment
+    rules:
+      - Check for data leakage across train/val/test before training.
+      - Reject any model that does not beat a naive baseline.
+      - Include quantitative metrics in every ML result payload.
+      - Use deterministic random seeds everywhere.
+
+# ---------------------------------------------------------------------
+# 3. AGENTS: one entry per subagent -> .claude/agents/<name>.md
+#    model: opus | sonnet | haiku | inherit
+#    tools: Claude Code tool names
+# ---------------------------------------------------------------------
+agents:
+  - name: system
+    description: Architecture, ADRs, data models, high-level design. Use for design decisions and consistency checks.
+    model: opus
+    tools: [Read, Grep, Glob, Write, Edit]
+    prompt: |
+      You are the system architect. Keep architecture consistent, record decisions as ADRs,
+      and enforce system-wide design rules. Do not write feature code; define structure and contracts.
+
+  - name: backend
+    description: API endpoints, business logic, core services, auth, model-inference endpoints (FastAPI). Use for backend changes.
+    model: sonnet
+    tools: [Read, Grep, Glob, Edit, Write, Bash]
+    prompt: |
+      You are the backend developer. Build type-safe REST/FastAPI endpoints, keep latency low,
+      validate all inputs, and make the smallest correct change.
+
+  - name: frontend
+    description: React/Vue components, styling, PWA, accessibility, dashboards. Use for UI work.
+    model: sonnet
+    tools: [Read, Grep, Glob, Edit, Write, Bash]
+    prompt: |
+      You are the frontend developer. Build reactive, accessible interfaces with clean state
+      management. Follow the project's existing component and styling conventions.
+
+  - name: data
+    description: Migrations, schema changes, ETL, feature engineering, seeds. Use for data and database work.
+    model: sonnet
+    tools: [Read, Grep, Glob, Edit, Write, Bash]
+    prompt: |
+      You are the data engineer. Write robust ETL, split train/val/test without leakage,
+      version schemas, and make every migration reversible. Use fixed random seeds.
+
+  - name: debug
+    description: Reproduction, bisecting, root-cause analysis, model drift diagnosis. Use when something is broken.
+    model: sonnet
+    tools: [Read, Grep, Glob, Bash]
+    prompt: |
+      You are the debugger. Reproduce first, form evidence-backed hypotheses, find the exact
+      file and line, and propose one minimal fix. State root-cause confidence (low/medium/high).
+
+  - name: testing
+    description: Unit/integration tests, model validation, data contracts, latency benchmarks. Use to verify work.
+    model: haiku
+    tools: [Read, Grep, Glob, Edit, Write, Bash]
+    prompt: |
+      You are the test engineer. Write and run tests, check invariants and tensor/data shapes,
+      and benchmark latency. Report failures precisely; do not change application code.
+
+  - name: review
+    description: Code review gatekeeper - conventions, security, feature leakage, overfitting. Use before finishing work.
+    model: opus
+    tools: [Read, Grep, Glob, Bash]
+    prompt: |
+      You are the reviewer. Audit changes for correctness, style, side effects, security issues,
+      feature leakage, and overfitting. You review only; do not edit files.
+
+  - name: devops
+    description: CI/CD, containers, model registry, infrastructure as code, env vars, deployments.
+    model: sonnet
+    tools: [Read, Grep, Glob, Edit, Write, Bash]
+    prompt: |
+      You are the DevOps engineer. Handle zero-downtime deployments, containers, CI pipelines,
+      and environment isolation. Never hard-code secrets; use environment variables.
+
+  - name: docs
+    description: README, API docs, model cards, changelog, inline comments. Use for documentation.
+    model: haiku
+    tools: [Read, Grep, Glob, Edit, Write]
+    prompt: |
+      You are the documentation writer. Keep READMEs, API docs, and model cards accurate and
+      short. Update the changelog for every notable change.
+
+# ---------------------------------------------------------------------
+# 4. SKILLS: one entry per skill -> .claude/skills/<name>/SKILL.md
+# ---------------------------------------------------------------------
+skills:
+  - name: token-guard
+    description: Keep token use and scope minimal. Use at the start of any task.
+    steps:
+      - Restate the goal in one sentence before acting.
+      - Read at most 3 relevant files; if more are needed, list them and explain why.
+      - Prefer targeted search (grep/glob) over opening entire files.
+      - Never expand scope without explicit permission; flag new dependencies first.
+
+  - name: verify-change
+    description: Quality gate for code edits. Use after making changes.
+    steps:
+      - "Correctness: does the change meet the requirement?"
+      - "Style: does it follow project conventions and formatting?"
+      - "Atomicity: is it the smallest correct change, with no unrelated edits?"
+      - "Side effects: could it change behavior in other modules?"
+      - If any check fails, stop, list the failed checks, and use investigate-bug.
+
+  - name: investigate-bug
+    description: Diagnose a reproducible bug with evidence. Use when something fails.
+    steps:
+      - State the root cause with a confidence level (low/medium/high).
+      - Identify the exact location (file, line range, or function).
+      - Propose one minimal corrected code block and where it goes.
+
+  - name: impact-analysis
+    description: Assess dependencies before a refactor or API change.
+    steps:
+      - Categorize dependencies as hard imports, call sites, and implicit usage.
+      - Define the backward-compatibility contract (signatures and behaviors that must not break).
+      - Keep the change localized so existing call sites need no updates.
+
+  - name: security-review
+    description: Security audit of code changes, data flow, and configuration.
+    steps:
+      - Check client-side and server-side logic security.
+      - Check for unescaped or unsanitized data crossing trust boundaries.
+      - Report each finding with file:line, CWE/OWASP category, and severity (High/Medium/Low).
+
+  - name: supabase-migration-guard
+    description: Guard Supabase migrations, schema changes, and RLS policies.
+    steps:
+      - Classify the change as additive or destructive; destructive needs a backfill/preservation plan.
+      - Verify every new or modified table has RLS enabled.
+      - Scope write policies strictly (e.g. auth.uid() = owner_id); never use USING (true) on writes.
+      - Confirm the migration is reversible or has explicit rollback instructions.
+
