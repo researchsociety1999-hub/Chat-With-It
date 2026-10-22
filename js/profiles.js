@@ -112,8 +112,8 @@ export const Profiles = (() => {
         <span class="profile-badge ${providerClass(p)}">${providerLabel(p)}</span>
         <span class="profile-name" title="${escHtml(p.name)}">${escHtml(p.name)}</span>
         <div class="profile-actions">
-          <button class="profile-btn profile-use" data-id="${p.id}" title="Activate">${isActive(p) ? '✓ Active' : 'Use'}</button>
-          <button class="profile-btn profile-del" data-id="${p.id}" title="Delete">✕</button>
+          <button type="button" class="profile-btn profile-use" data-id="${p.id}" title="Activate" aria-label="${isActive(p) ? 'Active profile' : 'Use profile'} ${escHtml(p.name)}">${isActive(p) ? '✓ Active' : 'Use'}</button>
+          <button type="button" class="profile-btn profile-del" data-id="${p.id}" title="Delete" aria-label="Delete profile ${escHtml(p.name)}">✕</button>
         </div>
       </div>
     `).join('');
@@ -123,8 +123,8 @@ export const Profiles = (() => {
         ${profiles.length ? rows : '<p class="profiles-empty">No saved profiles yet.</p>'}
       </div>
       <div class="profiles-add">
-        <input id="profileNameInput" type="text" placeholder="Profile name…" maxlength="40" />
-        <button id="profileSaveBtn" class="btn-secondary">Save current key</button>
+        <input id="profileNameInput" type="text" placeholder="Profile name…" maxlength="40" aria-label="Profile name" />
+        <button type="button" id="profileSaveBtn" class="btn-secondary">Save current key</button>
       </div>
     `;
 
@@ -203,6 +203,15 @@ export const Profiles = (() => {
       const open = panel.classList.toggle('open');
       toggleBtn.setAttribute('aria-expanded', String(open));
       if (open) renderProfilesPanel();
+    });
+
+    // Escape closes the panel and returns focus to its button
+    panel.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && panel.classList.contains('open')) {
+        panel.classList.remove('open');
+        toggleBtn.setAttribute('aria-expanded', 'false');
+        toggleBtn.focus();
+      }
     });
 
     // Close panel when clicking outside

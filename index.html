@@ -51,8 +51,8 @@
         <button id="authBtn" class="btn btn-primary" type="button" style="width:100%">Authenticate</button>
         <div id="authHint" class="muted" style="font-size:.73rem">OpenRouter key (sk-or-…) — <a id="authHintLink" href="https://openrouter.ai/keys" target="_blank" rel="noreferrer" style="color:var(--accent-2)">Get key →</a></div>
         <div class="profiles-wrapper" style="margin-top:.25rem">
-          <button id="profilesToggleBtn" class="btn btn-sm btn-ghost" aria-expanded="false" aria-haspopup="true">🔑 Profiles</button>
-          <div id="profilesPanel" role="menu" aria-label="API key profiles"></div>
+          <button id="profilesToggleBtn" class="btn btn-sm btn-ghost" aria-expanded="false" aria-controls="profilesPanel">🔑 Profiles</button>
+          <div id="profilesPanel" role="region" aria-label="API key profiles"></div>
         </div>
       </div>
       <div class="card">

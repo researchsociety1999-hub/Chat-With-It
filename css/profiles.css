@@ -121,23 +121,8 @@
   border-radius: 4px;
   letter-spacing: 0.04em;
 }
-.badge-or  { background: #0ea5e922; color: #38bdf8; border: 1px solid #0ea5e955; }
-.badge-hf  { background: #06b6d422; color: #22d3ee; border: 1px solid #06b6d455; }
-
-.profile-name {
-  flex: 1;
-  font-size: 0.83rem;
-  color: var(--fg);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.profile-actions {
-  display: flex;
-  gap: 4px;
-  flex-shrink: 0;
-}
+.badge-or  { background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); }
+.badge-hf  { background: color-mix(in srgb, var(--fg) 8%, transparent); color: var(--fg); border: 1px solid color-mix(in srgb, var(--fg) 30%, transparent); }
 
 .profile-btn {
   font-size: 0.73rem;

@@ -77,11 +77,11 @@ input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; border-radius
 .msg { display: flex; gap: .75rem; align-items: flex-end; animation: msgIn .22s ease; max-width: 100%; }
 .msg.user { flex-direction: row-reverse; }
 @keyframes msgIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
-.msg-avatar { width: 34px; height: 34px; border-radius: .7rem; display: grid; place-items: center; flex-shrink: 0; font-size: .95rem; border: 1px solid var(--border); background: var(--panel-2); -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur); }
+.msg-avatar { width: 34px; height: 34px; border-radius: .7rem; display: grid; place-items: center; flex-shrink: 0; font-size: .95rem; border: 1px solid var(--border); background: var(--panel-2); }
 .msg.user .msg-avatar { background: var(--accent-glow); border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
 .msg-col { display: flex; flex-direction: column; gap: .3rem; max-width: min(75%, 620px); min-width: 0; }
 .msg.user .msg-col { align-items: flex-end; }
-.msg-bubble { padding: clamp(0.75rem, 2vw, 0.85rem) clamp(1rem, 2vw, 1.1rem); border-radius: 1.2rem 1.2rem 1.2rem .3rem; border: 1px solid var(--border); background: var(--ai-bubble); -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur); line-height: 1.65; overflow-wrap: anywhere; word-break: break-word; position: relative; }
+.msg-bubble { padding: clamp(0.75rem, 2vw, 0.85rem) clamp(1rem, 2vw, 1.1rem); border-radius: 1.2rem 1.2rem 1.2rem .3rem; border: 1px solid var(--border); background: var(--ai-bubble); line-height: 1.65; overflow-wrap: anywhere; word-break: break-word; position: relative; }
 .msg.user .msg-bubble { background: var(--user-bubble); border-color: transparent; border-radius: 1.2rem 1.2rem .3rem 1.2rem; color: #fff; box-shadow: 0 4px 20px var(--accent-glow); }
 .msg-bubble.streaming { opacity: .9; border-color: color-mix(in srgb, var(--accent) 40%, transparent); }
 .msg-bubble.is-error { border-color: color-mix(in srgb, var(--danger) 50%, transparent); background: color-mix(in srgb, var(--danger) 9%, transparent); }
@@ -114,7 +114,7 @@ input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; border-radius
 .msg-bubble th,.msg-bubble td { border:1px solid var(--border); padding:.45rem .65rem; text-align:left; }
 .msg-bubble th { background:var(--panel-2); font-weight:700; }
 
-.typing-indicator { display: inline-flex; gap: .4rem; padding: .85rem 1.1rem; background: var(--ai-bubble); border: 1px solid var(--border); border-radius: 1.2rem 1.2rem 1.2rem .3rem; -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur); }
+.typing-indicator { display: inline-flex; gap: .4rem; padding: .85rem 1.1rem; background: var(--ai-bubble); border: 1px solid var(--border); border-radius: 1.2rem 1.2rem 1.2rem .3rem; }
 .typing-indicator span { width: 7px; height: 7px; border-radius: 50%; background: var(--fg-muted); animation: typingPulse 1.4s infinite ease-in-out; }
 .typing-indicator span:nth-child(2) { animation-delay: .2s; }
 .typing-indicator span:nth-child(3) { animation-delay: .4s; }
@@ -263,3 +263,17 @@ html[data-theme="light"] .header-actions > .dropdown > .btn:hover { background: 
 .send-error { align-self: center; max-width: min(36rem, 100%); display: flex; flex-direction: column; align-items: center; gap: .6rem; padding: .8rem 1rem; border: 1px solid var(--danger); border-radius: 1rem; background: var(--panel-2); }
 .send-error-text { margin: 0; color: var(--fg); font-size: .85rem; line-height: 1.45; text-align: center; overflow-wrap: anywhere; }
 .send-error-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: .5rem; }
+
+
+/* Larger touch targets for small controls on coarse pointers */
+@media (pointer: coarse) {
+  .profile-btn { min-height: 44px; min-width: 44px; }
+  #scrollToBottom { width: 44px; height: 44px; }
+}
+
+/* Reduced motion: stop the remaining looping and entry animations */
+@media (prefers-reduced-motion: reduce) {
+  .chat-body { scroll-behavior: auto; }
+  .typing-indicator span, .msg-bubble.streaming::after, #stopBtn.streaming-visible, .ctx-fill.over,
+  .sidebar.open, .mobile-overlay.show, #profilesPanel { animation: none; }
+}

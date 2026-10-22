@@ -172,3 +172,51 @@ describe('css wiring guards', () => {
     expect(readFileSync('css/components.css', 'utf8')).toMatch(/@keyframes pulse-danger/);
   });
 });
+
+describe('profile panel semantics, touch targets and motion', () => {
+  const html = readFileSync('index.html', 'utf8');
+  const comp = readFileSync('css/components.css', 'utf8');
+  it('profiles panel is a labeled region, not an ARIA menu', () => {
+    expect(html).not.toMatch(/id="profilesPanel"[^>]*role="menu"/);
+    expect(html).toMatch(/id="profilesPanel"[^>]*role="region"/);
+    expect(html).toMatch(/id="profilesToggleBtn"[^>]*aria-controls="profilesPanel"/);
+    expect(html).not.toMatch(/id="profilesToggleBtn"[^>]*aria-haspopup/);
+  });
+  it('profile badges use theme tokens, not fixed pale colors', () => {
+    const pc = readFileSync('css/profiles.css', 'utf8');
+    expect(pc).not.toMatch(/#38bdf8|#22d3ee/);
+    expect(pc).toMatch(/\.badge-or[^}]*var\(--accent\)/);
+  });
+  it('profile row buttons have real names and button types', () => {
+    const js = readFileSync('js/profiles.js', 'utf8');
+    expect(js).toMatch(/profile-use[^>]*aria-label=/);
+    expect(js).toMatch(/profile-del[^>]*aria-label="Delete profile/);
+    expect(js).not.toMatch(/<button class="profile-btn/);
+  });
+  it('message bubbles, avatars and typing indicator no longer use backdrop blur', () => {
+    for (const sel of ['.msg-avatar', '.msg-bubble {', '.typing-indicator {']) {
+      const line = comp.split('\n').find(l => l.startsWith(sel));
+      expect(line, sel).toBeTruthy();
+      expect(line).not.toMatch(/backdrop-filter/);
+    }
+  });
+  it('coarse-pointer rule enlarges profile buttons and scroll-to-bottom', () => {
+    expect(comp).toMatch(/pointer: coarse\)\s*\{[^}]*\.profile-btn[^}]*44px[\s\S]*?#scrollToBottom[^}]*44px/);
+  });
+  it('reduced motion stops the typing, cursor, stop pulse, sidebar and profile animations', () => {
+    const block = comp.slice(comp.lastIndexOf('prefers-reduced-motion'));
+    for (const sel of ['.typing-indicator span', '.msg-bubble.streaming::after', '#stopBtn.streaming-visible', '.sidebar.open', '#profilesPanel']) {
+      expect(block).toContain(sel);
+    }
+    expect(block).toMatch(/scroll-behavior:\s*auto/);
+  });
+  for (const t of ['dark', 'light', 'violet', 'ember', 'forest', 'aurora']) {
+    it(`${t}: OR and HF profile badges keep 4.5:1 on their tinted background`, () => {
+      const block = css.match(new RegExp(`\\[data-theme="${t}"\\]\\s*\\{([^}]*)\\}`))[1];
+      const v = { ...base, ...vars(block) };
+      const [ar, ag, ab] = hexToRgb(v.accent), [fr, fg, fb] = hexToRgb(v.fg);
+      expect(ratio(v.accent, blend([ar, ag, ab, 0.12], v['panel-solid']))).toBeGreaterThanOrEqual(4.5);
+      expect(ratio(v.fg, blend([fr, fg, fb, 0.08], v['panel-solid']))).toBeGreaterThanOrEqual(4.5);
+    });
+  }
+});
