@@ -1,0 +1,437 @@
+diff --git a/PRIVACY.md b/PRIVACY.md
+index f7a3dc7..c307a8b 100644
+--- a/PRIVACY.md
++++ b/PRIVACY.md
+@@ -5,7 +5,7 @@ ChatWithIt is designed to keep as much data as possible under your control.
+ ## What ChatWithIt does
+ 
+ - **No ChatWithIt backend** — this app has no server that receives your messages or API keys.
+-- **API keys stay in memory** — keys are held only in JavaScript memory for the current browser session. They are never written to `localStorage`, IndexedDB, or cookies. Keys are cleared after 30 minutes of inactivity.
++- **API keys stay in memory by default** — keys are held only in JavaScript memory for the current browser session and are cleared after 30 minutes of inactivity. The one exception is the optional Profiles feature: if you tap "Save current key", that key is stored **unencrypted** in this browser's `localStorage` (`cwiProfiles`) until you delete the profile. Nothing else writes keys to `localStorage`, IndexedDB, or cookies.
+ - **Direct provider calls** — when you chat, your browser talks directly to OpenRouter or Hugging Face over HTTPS.
+ - **No ChatWithIt telemetry** — the app itself does not run analytics, tracking pixels, or third-party identity services.
+ 
+@@ -13,7 +13,7 @@ ChatWithIt is designed to keep as much data as possible under your control.
+ 
+ | Data | Where | Retention |
+ |------|-------|-----------|
+-| API keys | Browser memory only | Cleared on idle timeout or tab close |
++| API keys | Browser memory (plus `localStorage` only if you save a Profile) | Memory: cleared on idle timeout or tab close. Saved profiles: until you delete them |
+ | Theme, generation settings, selected model | `localStorage` (`cwiState`) | Until you clear site data |
+ | Chat history (always saved in this version) | `localStorage` (`cwiChatHistory`) | 7-day TTL; you can clear anytime |
+ 
+diff --git a/README.md b/README.md
+index 169d6a5..eab3b80 100644
+--- a/README.md
++++ b/README.md
+@@ -22,11 +22,11 @@ Most AI chat apps require you to trust their servers with your API keys and conv
+ 
+ ChatWithIt is different.
+ 
+-> **Your API key lives only in browser memory for this session. It is never written to localStorage, cookies, or any intermediate server — only sent directly to OpenRouter or Hugging Face over HTTPS.**
++> **By default your API key lives only in browser memory for this session. The optional Profiles feature can save a key unencrypted in this browser's localStorage if you tap "Save current key". Keys are never sent to any server other than OpenRouter or Hugging Face, over HTTPS.**
+ 
+ That is not a claim. [You can read the source.](./js/api.js) and [PRIVACY.md](./PRIVACY.md).
+ 
+-> **Note:** Keys are never stored. Non-sensitive preferences and chat history (7-day TTL, currently always saved; see docs/decisions/history-persistence.md) stay local to your device.
++> **Note:** Keys are not stored unless you save a Profile. Non-sensitive preferences and chat history (7-day TTL, currently always saved; see docs/decisions/history-persistence.md) stay local to your device.
+ 
+ The app is **framework-free modular JavaScript** (no React, no TypeScript, no component library). State lives in a single `AppState` object; the UI is plain DOM + CSS.
+ 
+@@ -62,7 +62,7 @@ Or use the live site: https://chat-with-it.vercel.app (`npm run build` runs on V
+ 
+ 1. Open the app
+ 2. Choose OpenRouter or Hugging Face
+-3. Paste your API key (session memory only)
++3. Paste your API key (kept in session memory unless you save a Profile)
+ 4. Pick a free model and chat
+ 
+ ---
+diff --git a/audit-followups.patch b/audit-followups.patch
+deleted file mode 100644
+index 8117011..0000000
+--- a/audit-followups.patch
++++ /dev/null
+@@ -1,188 +0,0 @@
+-diff --git a/css/components.css b/css/components.css
+-index fca0099..1517a80 100644
+---- a/css/components.css
+-+++ b/css/components.css
+-@@ -77,11 +77,11 @@ input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; border-radius
+- .msg { display: flex; gap: .75rem; align-items: flex-end; animation: msgIn .22s ease; max-width: 100%; }
+- .msg.user { flex-direction: row-reverse; }
+- @keyframes msgIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+--.msg-avatar { width: 34px; height: 34px; border-radius: .7rem; display: grid; place-items: center; flex-shrink: 0; font-size: .95rem; border: 1px solid var(--border); background: var(--panel-2); -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur); }
+-+.msg-avatar { width: 34px; height: 34px; border-radius: .7rem; display: grid; place-items: center; flex-shrink: 0; font-size: .95rem; border: 1px solid var(--border); background: var(--panel-2); }
+- .msg.user .msg-avatar { background: var(--accent-glow); border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
+- .msg-col { display: flex; flex-direction: column; gap: .3rem; max-width: min(75%, 620px); min-width: 0; }
+- .msg.user .msg-col { align-items: flex-end; }
+--.msg-bubble { padding: clamp(0.75rem, 2vw, 0.85rem) clamp(1rem, 2vw, 1.1rem); border-radius: 1.2rem 1.2rem 1.2rem .3rem; border: 1px solid var(--border); background: var(--ai-bubble); -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur); line-height: 1.65; overflow-wrap: anywhere; word-break: break-word; position: relative; }
+-+.msg-bubble { padding: clamp(0.75rem, 2vw, 0.85rem) clamp(1rem, 2vw, 1.1rem); border-radius: 1.2rem 1.2rem 1.2rem .3rem; border: 1px solid var(--border); background: var(--ai-bubble); line-height: 1.65; overflow-wrap: anywhere; word-break: break-word; position: relative; }
+- .msg.user .msg-bubble { background: var(--user-bubble); border-color: transparent; border-radius: 1.2rem 1.2rem .3rem 1.2rem; color: #fff; box-shadow: 0 4px 20px var(--accent-glow); }
+- .msg-bubble.streaming { opacity: .9; border-color: color-mix(in srgb, var(--accent) 40%, transparent); }
+- .msg-bubble.is-error { border-color: color-mix(in srgb, var(--danger) 50%, transparent); background: color-mix(in srgb, var(--danger) 9%, transparent); }
+-@@ -114,7 +114,7 @@ input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; border-radius
+- .msg-bubble th,.msg-bubble td { border:1px solid var(--border); padding:.45rem .65rem; text-align:left; }
+- .msg-bubble th { background:var(--panel-2); font-weight:700; }
+- 
+--.typing-indicator { display: inline-flex; gap: .4rem; padding: .85rem 1.1rem; background: var(--ai-bubble); border: 1px solid var(--border); border-radius: 1.2rem 1.2rem 1.2rem .3rem; -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur); }
+-+.typing-indicator { display: inline-flex; gap: .4rem; padding: .85rem 1.1rem; background: var(--ai-bubble); border: 1px solid var(--border); border-radius: 1.2rem 1.2rem 1.2rem .3rem; }
+- .typing-indicator span { width: 7px; height: 7px; border-radius: 50%; background: var(--fg-muted); animation: typingPulse 1.4s infinite ease-in-out; }
+- .typing-indicator span:nth-child(2) { animation-delay: .2s; }
+- .typing-indicator span:nth-child(3) { animation-delay: .4s; }
+-@@ -263,3 +263,17 @@ html[data-theme="light"] .header-actions > .dropdown > .btn:hover { background:
+- .send-error { align-self: center; max-width: min(36rem, 100%); display: flex; flex-direction: column; align-items: center; gap: .6rem; padding: .8rem 1rem; border: 1px solid var(--danger); border-radius: 1rem; background: var(--panel-2); }
+- .send-error-text { margin: 0; color: var(--fg); font-size: .85rem; line-height: 1.45; text-align: center; overflow-wrap: anywhere; }
+- .send-error-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: .5rem; }
+-+
+-+
+-+/* Larger touch targets for small controls on coarse pointers */
+-+@media (pointer: coarse) {
+-+  .profile-btn { min-height: 44px; min-width: 44px; }
+-+  #scrollToBottom { width: 44px; height: 44px; }
+-+}
+-+
+-+/* Reduced motion: stop the remaining looping and entry animations */
+-+@media (prefers-reduced-motion: reduce) {
+-+  .chat-body { scroll-behavior: auto; }
+-+  .typing-indicator span, .msg-bubble.streaming::after, #stopBtn.streaming-visible, .ctx-fill.over,
+-+  .sidebar.open, .mobile-overlay.show, #profilesPanel { animation: none; }
+-+}
+-diff --git a/css/profiles.css b/css/profiles.css
+-index 7ead07a..5969def 100644
+---- a/css/profiles.css
+-+++ b/css/profiles.css
+-@@ -121,23 +121,8 @@
+-   border-radius: 4px;
+-   letter-spacing: 0.04em;
+- }
+--.badge-or  { background: #0ea5e922; color: #38bdf8; border: 1px solid #0ea5e955; }
+--.badge-hf  { background: #06b6d422; color: #22d3ee; border: 1px solid #06b6d455; }
+--
+--.profile-name {
+--  flex: 1;
+--  font-size: 0.83rem;
+--  color: var(--fg);
+--  white-space: nowrap;
+--  overflow: hidden;
+--  text-overflow: ellipsis;
+--}
+--
+--.profile-actions {
+--  display: flex;
+--  gap: 4px;
+--  flex-shrink: 0;
+--}
+-+.badge-or  { background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); }
+-+.badge-hf  { background: color-mix(in srgb, var(--fg) 8%, transparent); color: var(--fg); border: 1px solid color-mix(in srgb, var(--fg) 30%, transparent); }
+- 
+- .profile-btn {
+-   font-size: 0.73rem;
+-diff --git a/index.html b/index.html
+-index 5e38888..5075feb 100644
+---- a/index.html
+-+++ b/index.html
+-@@ -51,8 +51,8 @@
+-         <button id="authBtn" class="btn btn-primary" type="button" style="width:100%">Authenticate</button>
+-         <div id="authHint" class="muted" style="font-size:.73rem">OpenRouter key (sk-or-…) — <a id="authHintLink" href="https://openrouter.ai/keys" target="_blank" rel="noreferrer" style="color:var(--accent-2)">Get key →</a></div>
+-         <div class="profiles-wrapper" style="margin-top:.25rem">
+--          <button id="profilesToggleBtn" class="btn btn-sm btn-ghost" aria-expanded="false" aria-haspopup="true">🔑 Profiles</button>
+--          <div id="profilesPanel" role="menu" aria-label="API key profiles"></div>
+-+          <button id="profilesToggleBtn" class="btn btn-sm btn-ghost" aria-expanded="false" aria-controls="profilesPanel">🔑 Profiles</button>
+-+          <div id="profilesPanel" role="region" aria-label="API key profiles"></div>
+-         </div>
+-       </div>
+-       <div class="card">
+-diff --git a/js/profiles.js b/js/profiles.js
+-index 15aba88..1898033 100644
+---- a/js/profiles.js
+-+++ b/js/profiles.js
+-@@ -112,8 +112,8 @@ export const Profiles = (() => {
+-         <span class="profile-badge ${providerClass(p)}">${providerLabel(p)}</span>
+-         <span class="profile-name" title="${escHtml(p.name)}">${escHtml(p.name)}</span>
+-         <div class="profile-actions">
+--          <button class="profile-btn profile-use" data-id="${p.id}" title="Activate">${isActive(p) ? '✓ Active' : 'Use'}</button>
+--          <button class="profile-btn profile-del" data-id="${p.id}" title="Delete">✕</button>
+-+          <button type="button" class="profile-btn profile-use" data-id="${p.id}" title="Activate" aria-label="${isActive(p) ? 'Active profile' : 'Use profile'} ${escHtml(p.name)}">${isActive(p) ? '✓ Active' : 'Use'}</button>
+-+          <button type="button" class="profile-btn profile-del" data-id="${p.id}" title="Delete" aria-label="Delete profile ${escHtml(p.name)}">✕</button>
+-         </div>
+-       </div>
+-     `).join('');
+-@@ -123,8 +123,8 @@ export const Profiles = (() => {
+-         ${profiles.length ? rows : '<p class="profiles-empty">No saved profiles yet.</p>'}
+-       </div>
+-       <div class="profiles-add">
+--        <input id="profileNameInput" type="text" placeholder="Profile name…" maxlength="40" />
+--        <button id="profileSaveBtn" class="btn-secondary">Save current key</button>
+-+        <input id="profileNameInput" type="text" placeholder="Profile name…" maxlength="40" aria-label="Profile name" />
+-+        <button type="button" id="profileSaveBtn" class="btn-secondary">Save current key</button>
+-       </div>
+-     `;
+- 
+-@@ -205,6 +205,15 @@ export const Profiles = (() => {
+-       if (open) renderProfilesPanel();
+-     });
+- 
+-+    // Escape closes the panel and returns focus to its button
+-+    panel.addEventListener('keydown', e => {
+-+      if (e.key === 'Escape' && panel.classList.contains('open')) {
+-+        panel.classList.remove('open');
+-+        toggleBtn.setAttribute('aria-expanded', 'false');
+-+        toggleBtn.focus();
+-+      }
+-+    });
+-+
+-     // Close panel when clicking outside
+-     document.addEventListener('click', e => {
+-       if (!panel.contains(e.target) && e.target !== toggleBtn) {
+-diff --git a/tests/ui-a11y.test.js b/tests/ui-a11y.test.js
+-index bd36a3f..3fa3163 100644
+---- a/tests/ui-a11y.test.js
+-+++ b/tests/ui-a11y.test.js
+-@@ -172,3 +172,51 @@ describe('css wiring guards', () => {
+-     expect(readFileSync('css/components.css', 'utf8')).toMatch(/@keyframes pulse-danger/);
+-   });
+- });
+-+
+-+describe('profile panel semantics, touch targets and motion', () => {
+-+  const html = readFileSync('index.html', 'utf8');
+-+  const comp = readFileSync('css/components.css', 'utf8');
+-+  it('profiles panel is a labeled region, not an ARIA menu', () => {
+-+    expect(html).not.toMatch(/id="profilesPanel"[^>]*role="menu"/);
+-+    expect(html).toMatch(/id="profilesPanel"[^>]*role="region"/);
+-+    expect(html).toMatch(/id="profilesToggleBtn"[^>]*aria-controls="profilesPanel"/);
+-+    expect(html).not.toMatch(/id="profilesToggleBtn"[^>]*aria-haspopup/);
+-+  });
+-+  it('profile badges use theme tokens, not fixed pale colors', () => {
+-+    const pc = readFileSync('css/profiles.css', 'utf8');
+-+    expect(pc).not.toMatch(/#38bdf8|#22d3ee/);
+-+    expect(pc).toMatch(/\.badge-or[^}]*var\(--accent\)/);
+-+  });
+-+  it('profile row buttons have real names and button types', () => {
+-+    const js = readFileSync('js/profiles.js', 'utf8');
+-+    expect(js).toMatch(/profile-use[^>]*aria-label=/);
+-+    expect(js).toMatch(/profile-del[^>]*aria-label="Delete profile/);
+-+    expect(js).not.toMatch(/<button class="profile-btn/);
+-+  });
+-+  it('message bubbles, avatars and typing indicator no longer use backdrop blur', () => {
+-+    for (const sel of ['.msg-avatar', '.msg-bubble {', '.typing-indicator {']) {
+-+      const line = comp.split('\n').find(l => l.startsWith(sel));
+-+      expect(line, sel).toBeTruthy();
+-+      expect(line).not.toMatch(/backdrop-filter/);
+-+    }
+-+  });
+-+  it('coarse-pointer rule enlarges profile buttons and scroll-to-bottom', () => {
+-+    expect(comp).toMatch(/pointer: coarse\)\s*\{[^}]*\.profile-btn[^}]*44px[\s\S]*?#scrollToBottom[^}]*44px/);
+-+  });
+-+  it('reduced motion stops the typing, cursor, stop pulse, sidebar and profile animations', () => {
+-+    const block = comp.slice(comp.lastIndexOf('prefers-reduced-motion'));
+-+    for (const sel of ['.typing-indicator span', '.msg-bubble.streaming::after', '#stopBtn.streaming-visible', '.sidebar.open', '#profilesPanel']) {
+-+      expect(block).toContain(sel);
+-+    }
+-+    expect(block).toMatch(/scroll-behavior:\s*auto/);
+-+  });
+-+  for (const t of ['dark', 'light', 'violet', 'ember', 'forest', 'aurora']) {
+-+    it(`${t}: OR and HF profile badges keep 4.5:1 on their tinted background`, () => {
+-+      const block = css.match(new RegExp(`\\[data-theme="${t}"\\]\\s*\\{([^}]*)\\}`))[1];
+-+      const v = { ...base, ...vars(block) };
+-+      const [ar, ag, ab] = hexToRgb(v.accent), [fr, fg, fb] = hexToRgb(v.fg);
+-+      expect(ratio(v.accent, blend([ar, ag, ab, 0.12], v['panel-solid']))).toBeGreaterThanOrEqual(4.5);
+-+      expect(ratio(v.fg, blend([fr, fg, fb, 0.08], v['panel-solid']))).toBeGreaterThanOrEqual(4.5);
+-+    });
+-+  }
+-+});
+diff --git a/css/profiles.css b/css/profiles.css
+index 5969def..4f2c0f9 100644
+--- a/css/profiles.css
++++ b/css/profiles.css
+@@ -124,6 +124,30 @@
+ .badge-or  { background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); }
+ .badge-hf  { background: color-mix(in srgb, var(--fg) 8%, transparent); color: var(--fg); border: 1px solid color-mix(in srgb, var(--fg) 30%, transparent); }
+ 
++/* (restored: these two rules were removed by mistake in the previous follow-up) */
++.profile-name {
++  flex: 1;
++  min-width: 0;
++  font-size: 0.83rem;
++  color: var(--fg);
++  white-space: nowrap;
++  overflow: hidden;
++  text-overflow: ellipsis;
++}
++
++.profile-actions {
++  display: flex;
++  gap: 4px;
++  flex-shrink: 0;
++}
++
++.profiles-note {
++  margin: 0.5rem 0 0;
++  font-size: 0.75rem;
++  line-height: 1.4;
++  color: var(--fg-muted);
++}
++
+ .profile-btn {
+   font-size: 0.73rem;
+   padding: 3px 8px;
+diff --git a/index.html b/index.html
+index 5075feb..c29d2f4 100644
+--- a/index.html
++++ b/index.html
+@@ -148,7 +148,7 @@
+           <div id="welcome" class="welcome">
+             <div class="welcome-logo"><svg aria-label="ChatWithIt logo" width="48" height="48" viewBox="0 0 48 48" fill="none"><rect width="48" height="48" rx="12" fill="var(--accent)"/><path d="M12 16h24M12 24h18M12 32h12" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/></svg></div>
+             <h2>Start a conversation</h2>
+-            <p>Choose a model, pick a persona, and send a message. Your API key stays in memory only — never logged or stored.</p>
++            <p>Choose a model, pick a persona, and send a message. Your API key stays in memory unless you save it as a Profile, and is never logged.</p>
+             <p id="welcomeHint" class="welcome-hint">To begin, add your API key in the sidebar (☰ Menu on a phone).</p>
+             <div class="chips">
+               <button class="chip" type="button" data-persona="default">Explain quantum entanglement simply</button>
+@@ -174,7 +174,7 @@
+           </div>
+         </div>
+         <div id="attachList" class="attach-list" aria-live="polite"></div>
+-        <details class="privacy-panel" style="margin-top:.45rem"><summary>Key stays in memory only</summary><div class="privacy-body">No backend server. Your API key and messages travel directly from your browser to the provider over HTTPS. Nothing is logged or stored on any server.</div></details>
++        <details class="privacy-panel" style="margin-top:.45rem"><summary>Key stays in memory by default</summary><div class="privacy-body">No backend server. Your API key and messages travel directly from your browser to the provider over HTTPS. Nothing is logged or stored on any server. If you save a Profile, that key is stored unencrypted in this browser until you delete it.</div></details>
+       </div>
+     </main>
+     <aside id="rightPanel" class="right-panel">
+diff --git a/js/api.js b/js/api.js
+index fd32337..55dc1a9 100644
+--- a/js/api.js
++++ b/js/api.js
+@@ -4,7 +4,8 @@
+  *
+  * DATA FLOW & PRIVACY NOTE (shown in UI privacy panel):
+  *  - Your API key is held ONLY in JavaScript memory (AppState) for this session.
+- *  - It is NEVER written to localStorage, IndexedDB, cookies, or any server.
++ *  - By default it is held in memory only. The optional Profiles feature (js/profiles.js) can store it
++ *    unencrypted in localStorage if the user opts in. It is never sent to any server except the provider.
+  *  - Every chat message travels directly from your browser to the provider
+  *    (openrouter.ai or router.huggingface.co) over HTTPS/TLS 1.3.
+  *  - This app has NO backend server — there is no middleman that logs, stores,
+diff --git a/js/app.js b/js/app.js
+index e666d97..fb4d92e 100644
+--- a/js/app.js
++++ b/js/app.js
+@@ -98,6 +98,8 @@ export const App = {
+ 
+       // state.js is not allowed to import the UI (and a bare `UI` is not a global in a module),
+       // so it emits events and the app layer turns them into UI.
++      document.addEventListener('cwi:profile-activated', () => this.refreshModels());
++
+       document.addEventListener('cwi:idle-timeout', () => {
+         UI.setAuthState(false, 'Session expired — please re-authenticate');
+         UI.toast('⏱ Session timed out. Please re-authenticate.', 'warning', 6000);
+diff --git a/js/profiles.js b/js/profiles.js
+index 1898033..7f8a144 100644
+--- a/js/profiles.js
++++ b/js/profiles.js
+@@ -1,8 +1,9 @@
+ /**
+  * API Key Profiles
+  * Lets the user save, switch, and delete named credential profiles.
+- * Profiles are stored in localStorage (key names only — never the raw tokens).
+- * Raw tokens are held ONLY in AppState memory, exactly like single-key mode.
++ * Profiles are stored in localStorage, INCLUDING the raw token, UNENCRYPTED. This is an
++ * explicit opt-in: nothing is saved until the user taps "Save current key", and the panel says so.
++ * Outside this feature, keys are held only in AppState memory.
+  *
+  * Shape of localStorage entry "cwiProfiles":
+  *   [
+@@ -122,6 +123,7 @@ export const Profiles = (() => {
+       <div class="profiles-list">
+         ${profiles.length ? rows : '<p class="profiles-empty">No saved profiles yet.</p>'}
+       </div>
++      <p class="profiles-note">Saving stores this key unencrypted in this browser until you delete the profile.</p>
+       <div class="profiles-add">
+         <input id="profileNameInput" type="text" placeholder="Profile name…" maxlength="40" aria-label="Profile name" />
+         <button type="button" id="profileSaveBtn" class="btn-secondary">Save current key</button>
+@@ -140,7 +142,8 @@ export const Profiles = (() => {
+           UI.toast('Profile activated — reloading models…', 'success', 3000);
+         }
+         // FIX: was App.loadModels() which does not exist — correct method is App.refreshModels()
+-        if (typeof App !== 'undefined') App.refreshModels();
++        // App is a module export, not a global: ask it to reload models via an event.
++        document.dispatchEvent(new CustomEvent('cwi:profile-activated'));
+       });
+     });
+ 
+diff --git a/sw.js b/sw.js
+index 0f7e606..19f0b73 100644
+--- a/sw.js
++++ b/sw.js
+@@ -11,7 +11,7 @@
+  * cache-first. Offline, everything falls back to the cache.
+  */
+ 
+-const CACHE_NAME = 'chatwithit-v24';
++const CACHE_NAME = 'chatwithit-v25';
+ 
+ const PRECACHE_URLS = [
+   './',
+diff --git a/tests/readiness-regressions.test.js b/tests/readiness-regressions.test.js
+new file mode 100644
+index 0000000..af12645
+--- /dev/null
++++ b/tests/readiness-regressions.test.js
+@@ -0,0 +1,57 @@
++import { describe, expect, it } from 'vitest';
++import { readFileSync, existsSync } from 'node:fs';
++
++const read = (p) => readFileSync(p, 'utf8');
++
++describe('profile panel styles are intact', () => {
++  const css = read('css/profiles.css');
++  // Every class the profile panel markup uses must have a rule in the loaded stylesheet.
++  const js = read('js/profiles.js');
++  const used = [...js.matchAll(/class="([^"$]+)/g)].flatMap(m => m[1].split(/\s+/)).filter(c => c.startsWith('profile'));
++  for (const cls of [...new Set(used)].filter(c => !['profile-active'].includes(c) && !c.startsWith('badge'))) {
++    it(`.${cls} has a rule in profiles.css`, () => {
++      expect(css).toMatch(new RegExp(`\\.${cls}[\\s{,:.]`));
++    });
++  }
++  it('profile names truncate and actions stay aligned', () => {
++    expect(css).toMatch(/\.profile-name\s*\{[^}]*text-overflow:\s*ellipsis/);
++    expect(css).toMatch(/\.profile-actions\s*\{[^}]*display:\s*flex/);
++  });
++});
++
++describe('saved profiles', () => {
++  const js = read('js/profiles.js');
++  it('activation asks the app to reload models via an event, not an undefined global', () => {
++    expect(js).not.toMatch(/typeof App\b/);
++    expect(js).toContain("'cwi:profile-activated'");
++    expect(read('js/app.js')).toContain("'cwi:profile-activated'");
++  });
++  it('the panel tells the user a saved key is stored unencrypted', () => {
++    expect(js).toMatch(/unencrypted in this browser/i);
++  });
++});
++
++describe('privacy claims match the code', () => {
++  const claims = ['PRIVACY.md', 'README.md', 'index.html', 'js/api.js'].map(read).join('\n');
++  it('profiles really do store tokens in localStorage (so absolute "never stored" claims must not return)', () => {
++    expect(read('js/profiles.js')).toMatch(/localStorage\.setItem/);
++    expect(claims).not.toMatch(/never written to `?localStorage/i);
++    expect(claims).not.toMatch(/Keys are never stored\./);
++    expect(claims).not.toMatch(/never logged or stored/i);
++    expect(claims).not.toMatch(/NEVER written to localStorage/);
++  });
++  it('the exception for saved profiles is disclosed in PRIVACY.md', () => {
++    expect(read('PRIVACY.md')).toMatch(/Save current key[\s\S]*unencrypted/);
++  });
++});
++
++describe('repo hygiene and cache version', () => {
++  it('no stray patch files at the repo root', () => {
++    expect(existsSync('audit-followups.patch')).toBe(false);
++    expect(existsSync('chat-with-it-all-in-one.patch')).toBe(false);
++  });
++  it('service worker cache was bumped after the CSS/JS changes', () => {
++    const n = Number(read('sw.js').match(/chatwithit-v(\d+)/)[1]);
++    expect(n).toBeGreaterThanOrEqual(25);
++  });
++});
