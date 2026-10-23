@@ -124,6 +124,30 @@
 .badge-or  { background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); }
 .badge-hf  { background: color-mix(in srgb, var(--fg) 8%, transparent); color: var(--fg); border: 1px solid color-mix(in srgb, var(--fg) 30%, transparent); }
 
+/* (restored: these two rules were removed by mistake in the previous follow-up) */
+.profile-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.83rem;
+  color: var(--fg);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.profile-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.profiles-note {
+  margin: 0.5rem 0 0;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--fg-muted);
+}
+
 .profile-btn {
   font-size: 0.73rem;
   padding: 3px 8px;

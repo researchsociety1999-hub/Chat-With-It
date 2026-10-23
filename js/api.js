@@ -4,7 +4,8 @@
  *
  * DATA FLOW & PRIVACY NOTE (shown in UI privacy panel):
  *  - Your API key is held ONLY in JavaScript memory (AppState) for this session.
- *  - It is NEVER written to localStorage, IndexedDB, cookies, or any server.
+ *  - By default it is held in memory only. The optional Profiles feature (js/profiles.js) can store it
+ *    unencrypted in localStorage if the user opts in. It is never sent to any server except the provider.
  *  - Every chat message travels directly from your browser to the provider
  *    (openrouter.ai or router.huggingface.co) over HTTPS/TLS 1.3.
  *  - This app has NO backend server — there is no middleman that logs, stores,

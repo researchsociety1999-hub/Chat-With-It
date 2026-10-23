@@ -98,6 +98,8 @@ export const App = {
 
       // state.js is not allowed to import the UI (and a bare `UI` is not a global in a module),
       // so it emits events and the app layer turns them into UI.
+      document.addEventListener('cwi:profile-activated', () => this.refreshModels());
+
       document.addEventListener('cwi:idle-timeout', () => {
         UI.setAuthState(false, 'Session expired — please re-authenticate');
         UI.toast('⏱ Session timed out. Please re-authenticate.', 'warning', 6000);

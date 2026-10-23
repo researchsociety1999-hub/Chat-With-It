@@ -5,7 +5,7 @@ ChatWithIt is designed to keep as much data as possible under your control.
 ## What ChatWithIt does
 
 - **No ChatWithIt backend** — this app has no server that receives your messages or API keys.
-- **API keys stay in memory** — keys are held only in JavaScript memory for the current browser session. They are never written to `localStorage`, IndexedDB, or cookies. Keys are cleared after 30 minutes of inactivity.
+- **API keys stay in memory by default** — keys are held only in JavaScript memory for the current browser session and are cleared after 30 minutes of inactivity. The one exception is the optional Profiles feature: if you tap "Save current key", that key is stored **unencrypted** in this browser's `localStorage` (`cwiProfiles`) until you delete the profile. Nothing else writes keys to `localStorage`, IndexedDB, or cookies.
 - **Direct provider calls** — when you chat, your browser talks directly to OpenRouter or Hugging Face over HTTPS.
 - **No ChatWithIt telemetry** — the app itself does not run analytics, tracking pixels, or third-party identity services.
 
@@ -13,7 +13,7 @@ ChatWithIt is designed to keep as much data as possible under your control.
 
 | Data | Where | Retention |
 |------|-------|-----------|
-| API keys | Browser memory only | Cleared on idle timeout or tab close |
+| API keys | Browser memory (plus `localStorage` only if you save a Profile) | Memory: cleared on idle timeout or tab close. Saved profiles: until you delete them |
 | Theme, generation settings, selected model | `localStorage` (`cwiState`) | Until you clear site data |
 | Chat history (always saved in this version) | `localStorage` (`cwiChatHistory`) | 7-day TTL; you can clear anytime |
 
