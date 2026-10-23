@@ -22,11 +22,11 @@ Most AI chat apps require you to trust their servers with your API keys and conv
 
 ChatWithIt is different.
 
-> **Your API key lives only in browser memory for this session. It is never written to localStorage, cookies, or any intermediate server — only sent directly to OpenRouter or Hugging Face over HTTPS.**
+> **By default your API key lives only in browser memory for this session. The optional Profiles feature can save a key unencrypted in this browser's localStorage if you tap "Save current key". Keys are never sent to any server other than OpenRouter or Hugging Face, over HTTPS.**
 
 That is not a claim. [You can read the source.](./js/api.js) and [PRIVACY.md](./PRIVACY.md).
 
-> **Note:** Keys are never stored. Non-sensitive preferences and chat history (7-day TTL, currently always saved; see docs/decisions/history-persistence.md) stay local to your device.
+> **Note:** Keys are not stored unless you save a Profile. Non-sensitive preferences and chat history (7-day TTL, currently always saved; see docs/decisions/history-persistence.md) stay local to your device.
 
 The app is **framework-free modular JavaScript** (no React, no TypeScript, no component library). State lives in a single `AppState` object; the UI is plain DOM + CSS.
 
@@ -62,7 +62,7 @@ Or use the live site: https://chat-with-it.vercel.app (`npm run build` runs on V
 
 1. Open the app
 2. Choose OpenRouter or Hugging Face
-3. Paste your API key (session memory only)
+3. Paste your API key (kept in session memory unless you save a Profile)
 4. Pick a free model and chat
 
 ---

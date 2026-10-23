@@ -11,7 +11,7 @@
  * cache-first. Offline, everything falls back to the cache.
  */
 
-const CACHE_NAME = 'chatwithit-v24';
+const CACHE_NAME = 'chatwithit-v25';
 
 const PRECACHE_URLS = [
   './',

@@ -1,8 +1,9 @@
 /**
  * API Key Profiles
  * Lets the user save, switch, and delete named credential profiles.
- * Profiles are stored in localStorage (key names only — never the raw tokens).
- * Raw tokens are held ONLY in AppState memory, exactly like single-key mode.
+ * Profiles are stored in localStorage, INCLUDING the raw token, UNENCRYPTED. This is an
+ * explicit opt-in: nothing is saved until the user taps "Save current key", and the panel says so.
+ * Outside this feature, keys are held only in AppState memory.
  *
  * Shape of localStorage entry "cwiProfiles":
  *   [
@@ -122,6 +123,7 @@ export const Profiles = (() => {
       <div class="profiles-list">
         ${profiles.length ? rows : '<p class="profiles-empty">No saved profiles yet.</p>'}
       </div>
+      <p class="profiles-note">Saving stores this key unencrypted in this browser until you delete the profile.</p>
       <div class="profiles-add">
         <input id="profileNameInput" type="text" placeholder="Profile name…" maxlength="40" aria-label="Profile name" />
         <button type="button" id="profileSaveBtn" class="btn-secondary">Save current key</button>
@@ -140,7 +142,8 @@ export const Profiles = (() => {
           UI.toast('Profile activated — reloading models…', 'success', 3000);
         }
         // FIX: was App.loadModels() which does not exist — correct method is App.refreshModels()
-        if (typeof App !== 'undefined') App.refreshModels();
+        // App is a module export, not a global: ask it to reload models via an event.
+        document.dispatchEvent(new CustomEvent('cwi:profile-activated'));
       });
     });
 

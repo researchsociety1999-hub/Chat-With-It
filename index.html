@@ -148,7 +148,7 @@
           <div id="welcome" class="welcome">
             <div class="welcome-logo"><svg aria-label="ChatWithIt logo" width="48" height="48" viewBox="0 0 48 48" fill="none"><rect width="48" height="48" rx="12" fill="var(--accent)"/><path d="M12 16h24M12 24h18M12 32h12" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/></svg></div>
             <h2>Start a conversation</h2>
-            <p>Choose a model, pick a persona, and send a message. Your API key stays in memory only — never logged or stored.</p>
+            <p>Choose a model, pick a persona, and send a message. Your API key stays in memory unless you save it as a Profile, and is never logged.</p>
             <p id="welcomeHint" class="welcome-hint">To begin, add your API key in the sidebar (☰ Menu on a phone).</p>
             <div class="chips">
               <button class="chip" type="button" data-persona="default">Explain quantum entanglement simply</button>
@@ -174,7 +174,7 @@
           </div>
         </div>
         <div id="attachList" class="attach-list" aria-live="polite"></div>
-        <details class="privacy-panel" style="margin-top:.45rem"><summary>Key stays in memory only</summary><div class="privacy-body">No backend server. Your API key and messages travel directly from your browser to the provider over HTTPS. Nothing is logged or stored on any server.</div></details>
+        <details class="privacy-panel" style="margin-top:.45rem"><summary>Key stays in memory by default</summary><div class="privacy-body">No backend server. Your API key and messages travel directly from your browser to the provider over HTTPS. Nothing is logged or stored on any server. If you save a Profile, that key is stored unencrypted in this browser until you delete it.</div></details>
       </div>
     </main>
     <aside id="rightPanel" class="right-panel">
