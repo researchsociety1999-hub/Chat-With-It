@@ -1,87 +1,282 @@
-# ChatWithIt: Privacy-First Multi-Model AI Chat
+# Chat-With-It: Browser-Direct Multi-Model AI Chat
 
-**Live demo:** https://chat-with-it.vercel.app | **Code:** https://github.com/researchsociety1999-hub/Chat-With-It | **Role:** Solo builder (design, build, deploy)
+Live demo: https://chat-with-it.vercel.app  
+Source code: https://github.com/researchsociety1999-hub/Chat-With-It  
+Role: Solo builder — design, implementation, and deployment
+
+## Overview
+
+Chat-With-It is a static, framework-free Progressive Web App for interacting with models through OpenRouter or Hugging Face using user-supplied API credentials.
+
+The application is designed around browser-direct provider requests rather than an application-operated intermediary backend. It combines model discovery, streaming chat, file attachments, local preferences, and conversation export in a single interface.
+
+The project demonstrates front-end application architecture, third-party AI integration, and explicit trade-offs between user control, onboarding convenience, and browser-local data storage.
+
+It is a multi-model chat application, not an autonomous agent-orchestration platform.
 
 ## The problem
 
-Most AI chat apps ask users to trust a server with their API keys and conversations. ChatWithIt removes that trust requirement: the app has no backend, and the browser talks directly to the model provider.
+An AI chat interface can introduce another application server between the user and the model provider. That adds an additional party to the request path and creates backend infrastructure to operate.
+
+Chat-With-It explores a different approach:
+
+- Let users choose a supported provider and supply their own credentials.
+- Send provider requests directly from the browser.
+- Keep application preferences and optional saved data in the browser.
+- Avoid an application-operated backend for chat processing.
+
+This approach removes an application-controlled intermediary, not every external dependency. The selected model provider still receives the requests sent to it, including the credentials and conversation content needed to process them.
 
 ## What I built
 
-A static, framework-free Progressive Web App for chatting with models through OpenRouter or Hugging Face.
+The application includes:
 
-- Free-model discovery (`:free` suffix and zero pricing)
-- Streaming responses with a stop control
-- Five personas: Assistant, Tutor, Creative Writer, Code Reviewer, Debate Coach
-- Text file attachments (.txt, .md, .json, .csv, code files)
-- Live token and context usage
-- Export to Markdown, JSON, TXT, PDF, or clipboard
-- Optional local chat history with a 7-day TTL
-- Six named themes plus system preference, high-contrast mode, reduced-motion support, and a mobile drawer
+- OpenRouter and Hugging Face provider integration.
+- Free-model discovery using model identifiers and pricing information.
+- Streaming responses with a stop control.
+- Five personas: Assistant, Tutor, Creative Writer, Code Reviewer, and Debate Coach.
+- Text-file attachments, including `.txt`, `.md`, `.json`, `.csv`, and code files.
+- Token and context-usage displays.
+- Conversation export to Markdown, JSON, TXT, PDF, or clipboard.
+- Optional local chat history with a documented seven-day expiration policy.
+- Named credential profiles for explicitly saving and switching provider keys.
+- Six named themes, system-theme preference, high-contrast mode, reduced-motion support, and a mobile drawer.
+
+Feature availability should be distinguished from measured reliability. This case study does not claim that every provider, model, or browser combination has been independently validated.
 
 ## Stack and architecture
 
-- Vanilla JavaScript modules (no React, no TypeScript, no component library) and plain CSS
-- A single `AppState` object in `js/state.js` is the source of truth
-- `js/api.js` handles provider requests; `js/app.js` handles orchestration and event wiring
-- esbuild bundles to `dist/app.js`
-- Service worker (`sw.js`) precaches the app shell; PWA manifest included
-- Tests run with Vitest; CI runs on GitHub Actions
+| Layer | Implementation |
+|---|---|
+| Interface | Plain HTML, CSS, and vanilla JavaScript modules |
+| Shared state | `AppState` in `js/state.js` |
+| Provider requests | `js/api.js` |
+| Application coordination | `js/app.js` |
+| Credential profiles | `js/profiles.js` |
+| Build | esbuild, producing `dist/app.js` |
+| PWA support | Service worker and web-app manifest |
+| Tests | Vitest |
+| CI | GitHub Actions |
+| Hosting | Vercel |
 
-## Model/API integration
+### Request flow
 
-- The user chooses OpenRouter or Hugging Face and pastes their own API key.
-- Requests go from the browser straight to the provider over HTTPS. There is no intermediate server.
-- Temperature and max-tokens can be toggled off. When off, those parameters are omitted so provider defaults apply.
+    User
+      |
+      v
+    Browser application
+      |
+      | Provider request using the user's credential
+      v
+    OpenRouter or Hugging Face
+      |
+      | Model response
+      v
+    Browser chat interface
 
-## Privacy and security decisions
+The application does not operate an intermediary backend for these provider requests. Hosting infrastructure serves the application assets; the selected provider handles model requests.
 
-- API keys live only in browser memory (`AppState`), are never written to localStorage or cookies, and are cleared on a 30-minute idle timeout or page reload.
-- Only non-sensitive preferences are persisted (localStorage key `cwiState`).
-- The service worker never caches provider API calls.
-- `vercel.json` sets security headers: X-Frame-Options, Referrer-Policy, X-Content-Type-Options, Permissions-Policy, HSTS, COOP, and CORP.
-- A client-side token-bucket rate limit (default 20 requests per minute) and API-key format validation are in place.
+### Browser-local storage
 
-## Key trade-offs
+    Browser application
+      |
+      +-- Application memory
+      |     Active state and credentials during use
+      |
+      +-- localStorage
+            Preferences
+            Optional local chat history
+            Explicitly saved credential profiles
 
-| Decision | Benefit | Cost |
+Saved credential profiles are a separate persistence path from ordinary in-memory credential use.
+
+## Model and API integration
+
+Users select OpenRouter or Hugging Face and provide their own API key.
+
+The application handles provider requests in the browser. This avoids an application-operated proxy but makes compatibility dependent on provider interfaces, browser access policies, model availability, and rate limits.
+
+Temperature and maximum-token controls can be disabled. When disabled, those parameters are omitted so that provider defaults apply.
+
+## Privacy and credential handling
+
+The privacy model is based on a limited application data path and explicit browser-local storage choices—not a guarantee that credentials and conversations never leave the device.
+
+### In-memory credentials
+
+Outside the saved-profile feature, credentials are intended to remain in application memory.
+
+Memory-only handling must not be confused with the behavior of explicitly saved profiles.
+
+### Optional saved credential profiles
+
+Users can choose “Save current key” to create a named provider profile.
+
+The implementation in `js/profiles.js`:
+
+- Saves profiles under the localStorage key `cwiProfiles`.
+- Stores the provider and raw API token.
+- Does not encrypt the saved token.
+- Allows users to activate and delete profiles.
+- Displays an explicit storage warning.
+
+The interface states:
+
+> Saving stores this key unencrypted in this browser until you delete the profile.
+
+A page reload does not remove these saved profiles. The application must therefore not be described as storing all credentials exclusively in memory.
+
+Saved profiles are a convenience feature with a persistent-credential trade-off, not a secure credential vault.
+
+### Provider visibility
+
+Direct browser requests still transmit information to the selected provider. “No application-operated intermediary backend” does not mean “no server sees the data.”
+
+Users should evaluate their selected provider's data-handling policies separately.
+
+### Local conversation history
+
+The application offers optional browser-local chat history with a documented seven-day expiration policy.
+
+This is a convenience mechanism, not a claim of encrypted storage or independently verified secure erasure.
+
+## Engineering trade-offs
+
+| Decision | Benefit | Cost or limitation |
 |---|---|---|
-| No backend | No server ever sees keys or chats | No cross-device sync, no server-side usage data |
-| Keys in memory only | No persistent credential exposure | Users re-enter their key each session and after the 30-minute idle timeout |
-| Vanilla JS, no framework | Small, auditable surface area | More manual DOM and state handling |
-| Browser-direct provider calls | No intermediary to trust | Provider CORS and rate limits apply, so the app depends on them |
-| Optional local history (7-day TTL) | Convenience without a database | Data is device-bound and expires |
+| No application-operated intermediary backend | Removes an additional application-server hop and backend operating burden | Provider dependencies remain; the architecture does not provide server-managed synchronization or centralized application analytics |
+| User-supplied provider credentials | Users choose and manage their own provider access | Credential setup adds onboarding friction |
+| In-memory credential use | Avoids persisting credentials through that path | Users need to supply credentials again when the in-memory session is lost |
+| Optional saved credential profiles | Convenient reuse and switching | Raw credentials persist unencrypted in localStorage until the profiles are deleted |
+| Vanilla JavaScript | Avoids a front-end framework dependency | Requires manual DOM and state coordination |
+| Browser-direct provider integration | Avoids an application-operated proxy | Compatibility depends on provider APIs, browser policies, and rate limits |
+| Optional local history | Offers continuity without an application database | History is browser-local and is not presented as encrypted or synchronized storage |
+
+## Validation and audit boundaries
+
+The repository includes tests, CI configuration, and an audit document. These provide implementation evidence, but their existence alone does not establish current test coverage, production reliability, or security assurance.
+
+The earlier case study described audit findings involving:
+
+- Analytics and performance-monitoring scripts.
+- HTML sanitization.
+- Content Security Policy configuration.
+
+Those findings should be attributed to the audit artifact and checked against current source before being presented as resolved.
+
+In particular:
+
+- A source-code change does not prove the same change is deployed.
+- A configured security header does not prove it is present on every live response.
+- A test suite does not establish a pass rate without a recorded run.
+- An audit document is not an independent security certification.
+
+This case study does not claim an independent security assessment, comprehensive browser testing, or verified production security.
 
 ## Success metric
 
-**North-star metric (proposed, not yet instrumented): activation rate** — the share of sessions where a user adds a key, picks a model, and sends at least one message.
+### Proposed north-star metric: activation rate
 
-Why this metric: the app's main friction is the bring-your-own-key step, so activation shows whether the privacy model is usable.
+Activation rate is the share of measured sessions in which a user:
 
-How to measure without breaking the privacy promise: a manual usability test with 5 users, or an opt-in, content-free counter. Current value: N/A.
+1. Adds or activates a provider credential.
+2. Selects a model.
+3. Sends at least one message.
 
-## Self-audit (AUDIT.md, 2026-07-15)
+The bring-your-own-key step is a central onboarding requirement. Activation would help determine whether users can successfully move from opening the application to making their first request.
 
-I audited my own project against its README claims. The audit found Google Analytics and Vercel Speed Insights scripts in `index.html` that contradicted the "no telemetry" claim, and I removed them. It also found unsanitized `innerHTML` assignments in `js/ui.js`, which I wrapped with DOMPurify. One known gap remains open: the CSP still allows `'unsafe-inline'` scripts, and the fix is nonce-based CSP.
+The metric is proposed, not yet reported as instrumented.
+
+### Measurement approach
+
+A first validation step would be a small, consent-based usability study observing completion of the activation flow.
+
+Record:
+
+- Whether participants complete the flow.
+- Where they encounter friction.
+- Whether they understand which provider receives their data.
+- Whether they understand the difference between temporary credential use and saved profiles.
+
+Any later telemetry proposal should document its consent model and data collection before implementation.
+
+### Current results
+
+| Metric | Verified result |
+|---|---|
+| Activation rate | N/A |
+| Active users | N/A |
+| Retention | N/A |
+| Usability-study completion rate | N/A |
+| Measured productivity improvement | N/A |
+| Production uptime | N/A |
+| Current test pass rate | N/A |
+
+No adoption, revenue, reliability, or productivity figures are claimed without supporting measurement.
 
 ## Deployment
 
-- Hosted on Vercel; `npm run build` runs through `vercel.json`.
-- GitHub Actions checks production after every push to `main` and once daily: `health.json`, the app shell, the bundle, and the stylesheet.
+The project is configured for Vercel hosting, with a build step producing the application bundle.
+
+The repository documentation also describes GitHub Actions checks for production assets.
+
+Deployment configuration and documented checks are not substitutes for current operational evidence. Live deployment parity, recent workflow outcomes, and production reliability should be verified separately.
 
 ## Honest limitations
 
-- No backend, so there is no cross-device sync and no server-side usage data.
-- Real-user adoption metrics: N/A. I do not claim a user count.
-- CSP `'unsafe-inline'` remains until scripts are externalized or nonced.
+- Users must obtain and manage credentials for a supported provider.
+- Provider availability, model behavior, and rate limits are outside the application's control.
+- Explicitly saved credential profiles contain unencrypted tokens in localStorage.
+- Browser-local persistence does not provide cross-device synchronization.
+- Local history is not presented as encrypted storage.
+- Security findings require current source and deployment verification.
+- Real-user adoption and business-impact metrics are unavailable.
+- The project demonstrates a multi-model chat workflow, not autonomous task execution or multi-agent orchestration.
 
-## Next technical improvements (from the roadmap)
+## Next milestones
 
-1. Provider interface abstraction to add more providers
-2. Side-by-side model comparison
-3. Encrypted local history with a passphrase
-4. Cost estimation when provider pricing is available
+### Documentation and validation
+
+1. Keep credential-storage descriptions consistent across the README, case study, and interface.
+2. Verify audit findings against current code and the live deployment.
+3. Record a reproducible build and test result.
+4. Add screenshots from the current application.
+5. Run a consent-based activation usability study.
+6. Publish observed results with the sample size, method, and limitations.
+
+### Technical roadmap
+
+The following are proposed improvements, not completed outcomes:
+
+1. A provider abstraction for adding integrations.
+2. Side-by-side model comparison.
+3. Passphrase-based encryption for local conversation history.
+4. Cost estimation where provider pricing is available.
+5. Review of persistent credential handling and safer convenience options.
 
 ## Screenshots
 
-TODO: add chat with model picker, file attachment, token usage panel, and exported Markdown.
+To be added from the current application:
+
+- Chat interface and model picker.
+- File attachment workflow.
+- Token and context-usage panel.
+- Credential-profile storage warning.
+- Exported Markdown example.
+
+## Evidence and scope
+
+Primary repository references:
+
+- `CASE_STUDY.md` — existing project narrative.
+- `js/profiles.js` — credential-profile persistence and user-facing storage warning.
+
+The credential-storage correction in this revision is grounded in the retrieved implementation of `js/profiles.js`.
+
+Other architectural and feature descriptions are carried forward from the repository case study. They should not be interpreted as a fresh, exhaustive code audit or live-deployment certification.
+
+## Takeaway
+
+Chat-With-It demonstrates a browser-direct approach to multi-model AI chat with explicit choices about provider access, local persistence, and front-end complexity.
+
+Its strongest portfolio value is the combination of a usable application, understandable architecture, and clearly disclosed engineering trade-offs. Measured user outcomes remain the next evidence gap to close.
