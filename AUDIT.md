@@ -91,6 +91,8 @@ This audit identified several trust inconsistencies and security gaps in the Cha
 
 **Status:** Verified correct. Keys are cleared on idle timeout (30 min) and page reload.
 
+> **Update (2026-10-24):** this finding predates the Profiles feature. If a user taps "Save current key", that key is stored unencrypted in `localStorage` (`cwiProfiles`); see PRIVACY.md. Chat history is also persisted unconditionally (7-day TTL).
+
 ---
 
 ### 8. Service Worker Security (VERIFIED)
@@ -125,7 +127,7 @@ This audit identified several trust inconsistencies and security gaps in the Cha
 
 - [x] No undisclosed analytics
 - [x] Security headers present
-- [x] API keys never stored in localStorage
+- [x] API keys never stored in localStorage (except opt-in saved Profiles, added later; see the update note above)
 - [x] Rate limiting enforced
 - [x] XSS protection via DOMPurify
 - [x] CSP enforced

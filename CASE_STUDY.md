@@ -38,7 +38,7 @@ The application includes:
 - Text-file attachments, including `.txt`, `.md`, `.json`, `.csv`, and code files.
 - Token and context-usage displays.
 - Conversation export to Markdown, JSON, TXT, PDF, or clipboard.
-- Optional local chat history with a documented seven-day expiration policy.
+- Local chat history with a documented seven-day expiration policy (currently always saved; there is no setting to turn it off).
 - Named credential profiles for explicitly saving and switching provider keys.
 - Six named themes, system-theme preference, high-contrast mode, reduced-motion support, and a mobile drawer.
 
@@ -85,7 +85,7 @@ The application does not operate an intermediary backend for these provider requ
       |
       +-- localStorage
             Preferences
-            Optional local chat history
+            Local chat history (always saved today)
             Explicitly saved credential profiles
 
 Saved credential profiles are a separate persistence path from ordinary in-memory credential use.
@@ -136,7 +136,7 @@ Users should evaluate their selected provider's data-handling policies separatel
 
 ### Local conversation history
 
-The application offers optional browser-local chat history with a documented seven-day expiration policy.
+The application saves chat history in the browser (localStorage) with a documented seven-day expiration policy. There is currently no setting to turn this off.
 
 This is a convenience mechanism, not a claim of encrypted storage or independently verified secure erasure.
 
@@ -150,7 +150,7 @@ This is a convenience mechanism, not a claim of encrypted storage or independent
 | Optional saved credential profiles | Convenient reuse and switching | Raw credentials persist unencrypted in localStorage until the profiles are deleted |
 | Vanilla JavaScript | Avoids a front-end framework dependency | Requires manual DOM and state coordination |
 | Browser-direct provider integration | Avoids an application-operated proxy | Compatibility depends on provider APIs, browser policies, and rate limits |
-| Optional local history | Offers continuity without an application database | History is browser-local and is not presented as encrypted or synchronized storage |
+| Local history (always saved today) | Offers continuity without an application database | History is browser-local and is not presented as encrypted or synchronized storage |
 
 ## Validation and audit boundaries
 

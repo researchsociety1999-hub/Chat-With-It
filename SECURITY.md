@@ -5,7 +5,7 @@
 ChatWithIt is designed with privacy and security as core principles:
 
 - **No backend** — there is no ChatWithIt server that receives your data
-- **Keys in browser memory only** — API keys are held in JavaScript memory for the current session only. They are **never** written to `localStorage`, IndexedDB, cookies, or any server. Keys are cleared after 30 minutes of inactivity.
+- **Keys in browser memory by default** — API keys are held in JavaScript memory for the current session and are cleared after 30 minutes of inactivity. The exception is the optional Profiles feature: if you tap "Save current key", that key is stored **unencrypted** in this browser's `localStorage` (`cwiProfiles`) until you delete the profile. Keys are never written to IndexedDB, cookies, or any server.
 - **Direct provider calls** — messages travel from your browser directly to OpenRouter or Hugging Face over HTTPS
 - **No telemetry** — zero analytics, tracking, or third-party cookies from ChatWithIt itself
 - **CSP enforced** — Content Security Policy and related security headers are set in `vercel.json`
@@ -15,7 +15,7 @@ ChatWithIt is designed with privacy and security as core principles:
 
 | Data | Storage | Notes |
 |------|---------|-------|
-| API keys | Memory only | Cleared on idle timeout or page unload |
+| API keys | Memory (plus `localStorage` only if you save a Profile) | Memory: cleared on idle timeout or page unload. Saved profiles: until you delete them |
 | Theme / UI prefs | `localStorage` (`cwiState`, `cwi_theme`) | Non-sensitive |
 | Chat history | `localStorage` (`cwiChatHistory`) | 7-day TTL, user-clearable |
 
