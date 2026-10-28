@@ -8,6 +8,22 @@
 .card:hover { border-color: var(--border-2); }
 .card-title { font-size: .7rem; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--fg-subtle); margin-bottom: .1rem; }
 
+/* Progressive disclosure: Generation / Persona stay collapsed until needed */
+details.sidebar-advanced.card { gap: 0.55rem; }
+details.sidebar-advanced > summary.sidebar-summary {
+  list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: .5rem;
+}
+details.sidebar-advanced > summary.sidebar-summary::-webkit-details-marker { display: none; }
+details.sidebar-advanced > summary.sidebar-summary::after {
+  content: '▸'; color: var(--fg-subtle); font-size: .75rem; transition: transform var(--transition);
+}
+details.sidebar-advanced[open] > summary.sidebar-summary::after { transform: rotate(90deg); }
+details.sidebar-advanced > summary.sidebar-summary:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: .35rem; }
+details.sidebar-advanced:not([open]) > :not(summary) { display: none; }
+details.sidebar-advanced[open] { gap: 0.6rem; }
+
+.free-tier-hint { margin: .35rem 0 0; font-size: .72rem; line-height: 1.4; text-align: center; }
+
 .sidebar-section-toggle { border: 0; padding: 0; background: transparent; color: var(--fg-subtle); font: inherit; text-align: left; cursor: pointer; }
 .sidebar-section-toggle:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: .35rem; }
 
@@ -90,11 +106,11 @@ input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; border-radius
 
 .msg-meta { display: flex; align-items: center; gap: .5rem; padding: 0 .25rem; }
 .msg-time { font-size: .68rem; color: var(--fg-subtle); }
-.msg-actions { display: flex; gap: .2rem; opacity: 0; transition: opacity var(--transition); }
+.msg-actions { display: flex; gap: .2rem; opacity: .45; transition: opacity var(--transition); }
 .msg:hover .msg-actions, .msg:focus-within .msg-actions { opacity: 1; }
-/* No hover on touch devices: keep the actions visible, but quiet, instead of unreachable. */
-@media (hover: none) { .msg-actions { opacity: .75; } }
-.msg-action-btn { background: none; border: none; cursor: pointer; font-size: .75rem; min-width: 32px; min-height: 32px; display: inline-flex; align-items: center; justify-content: center; padding: .2rem .35rem; border-radius: .5rem; color: var(--fg-muted); transition: all var(--transition); line-height: 1; }
+/* No hover on touch devices: keep the actions visible instead of unreachable. */
+@media (hover: none) { .msg-actions { opacity: .9; } }
+.msg-action-btn { background: none; border: none; cursor: pointer; font-size: .75rem; min-width: 36px; min-height: 36px; display: inline-flex; align-items: center; justify-content: center; padding: .2rem .35rem; border-radius: .5rem; color: var(--fg-muted); transition: all var(--transition); line-height: 1; }
 .msg-action-btn:hover { background: var(--panel-2); color: var(--fg); }
 .msg.user .msg-meta { flex-direction: row-reverse; }
 .msg-bubble h1,.msg-bubble h2,.msg-bubble h3 { margin:.75rem 0 .3rem; line-height:1.3; }

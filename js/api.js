@@ -279,7 +279,7 @@ export const API = {
 
       return {
         code: 'RATE_LIMIT',
-        userMessage: 'Rate limited — OpenRouter free-tier allows 20 req/min and 50 req/day. Please wait or add credits.',
+        userMessage: 'OpenRouter free-tier rate limit hit (about 20 req/min and 50 req/day without credits). Wait a minute, switch to another free model, or add credits on OpenRouter — this app only lists free models.',
         raw: providerMsg,
       };
     }
@@ -548,6 +548,23 @@ export const API = {
   },
 
   getParamTiers() { return PARAM_TIERS; },
+
+  /**
+   * Free-model cost reporting. Never invents prices.
+   * @returns {{ available: false, label: string } | { available: true, prompt: number, completion: number }}
+   */
+  estimateCost(model) {
+    const p = model?.pricing?.prompt;
+    const c = model?.pricing?.completion;
+    if (Number.isFinite(p) && Number.isFinite(c) && (p > 0 || c > 0)) {
+      return { available: true, prompt: p, completion: c };
+    }
+    // Free / unknown pricing — be honest
+    if (model?.id && (String(model.id).endsWith(':free') || (p === 0 && c === 0))) {
+      return { available: false, label: 'Free (provider may still rate-limit)' };
+    }
+    return { available: false, label: 'Cost unavailable' };
+  },
 };
 
 export default API;

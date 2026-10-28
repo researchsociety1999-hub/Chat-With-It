@@ -22,6 +22,8 @@ Keeps chat from being sent to a model that OpenRouter no longer serves for free.
 
 `js/app.js` calls `gatedStream()` from `js/model-gate.js` instead of `API.sendMessageStream`. Hugging Face passes straight through unchanged.
 
+After each successful OpenRouter `refreshModels()`, `syncGateFromModels()` seeds the gate from the same free list the UI shows. Explicit Retry calls `ModelGate.clearUnavailable()` so a user retry is not blocked by the 15‑minute negative cache. Rule-based free alternatives live in `js/providers/routing.mjs` (ask-first only).
+
 Defaults, chosen to keep the user in control:
 
 - **Ask first.** The gate never switches models on its own (`autoFallback` is off). When a model is unavailable the chat shows a persistent inline error. If a replacement from the current free list exists, a "Use <model>" button appears, and only that click switches the model and resends.

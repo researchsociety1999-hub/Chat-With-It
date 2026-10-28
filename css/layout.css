@@ -133,14 +133,19 @@ body {
   body.sidebar-collapsed.stats-open .app { grid-template-columns: var(--sidebar-collapsed-w) 1fr var(--rp-w); }
   body.sidebar-collapsed .sidebar { padding-inline: 0.5rem; overflow-y: auto; gap: 0.5rem; }
   body.sidebar-collapsed .sidebar .card { padding: 0.65rem 0.4rem; align-items: center; }
-  body.sidebar-collapsed .sidebar .card > :not(.card-title):not(.sidebar-card-heading),
+  body.sidebar-collapsed .sidebar .card > :not(.card-title):not(.sidebar-card-heading):not(summary),
+  body.sidebar-collapsed .sidebar details.card > :not(summary),
   body.sidebar-collapsed .brand-label,
   body.sidebar-collapsed .brand-badge,
   body.sidebar-collapsed #lockBtn { display: none; }
   body.sidebar-collapsed .sidebar .card-title { display: block; width: 100%; margin: 0; text-align: center; font-size: 0; }
   body.sidebar-collapsed .sidebar .card-title::before { content: attr(data-icon); display: block; font-size: 1rem; line-height: 1.2; }
-  body.sidebar-collapsed .sidebar-card-heading { display: block !important; width: 100%; }
-  body.sidebar-collapsed .sidebar-card-heading .btn { display: none; }
+  body.sidebar-collapsed .sidebar-card-heading,
+  body.sidebar-collapsed .sidebar summary.sidebar-summary { display: flex !important; width: 100%; justify-content: center; }
+  body.sidebar-collapsed .sidebar-card-heading .btn,
+  body.sidebar-collapsed .sidebar summary .btn,
+  body.sidebar-collapsed .sidebar summary .gen-toggle,
+  body.sidebar-collapsed .sidebar summary::after { display: none; }
   body.sidebar-collapsed .brand { justify-content: center; }
 }
 

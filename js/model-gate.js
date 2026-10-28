@@ -16,6 +16,19 @@ import {
 
 export const ModelGate = createAvailabilityGate({ curated: CURATED_FREE.openrouter });
 
+/** Keep the gate's live free index in sync with the app model list (OpenRouter only). */
+export function syncGateFromModels(models) {
+  if (!Array.isArray(models) || !models.length) return { ok: false };
+  // App models are already free-filtered; map to catalog-shaped entries.
+  return ModelGate.ingestCatalog(models.map((m) => ({
+    id: m.id,
+    name: m.name,
+    context_length: m.ctx,
+    pricing: m.pricing || { prompt: '0', completion: '0' },
+    type: m.type,
+  })));
+}
+
 /**
  * Drop-in replacement for API.sendMessageStream with the availability gate in front.
  * Resolves to the same response object, plus `modelUsed` (the model that answered).

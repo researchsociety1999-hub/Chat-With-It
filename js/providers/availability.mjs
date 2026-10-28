@@ -261,12 +261,34 @@ export function createAvailabilityGate({
     blocked.set(modelId, now() + ms);
   }
 
+  /** Clear a negative-cache entry (e.g. after the user explicitly retries). */
+  function clearUnavailable(modelId) {
+    if (modelId) blocked.delete(modelId);
+  }
+
+  /**
+   * Seed / replace the live free index from an already-fetched model list
+   * (e.g. the app's authenticated /models response). Ignores empty lists so
+   * a bad response never wipes a good catalog.
+   */
+  function ingestCatalog(rawModels) {
+    const next = buildIndex(rawModels, now());
+    if (next.free.size === 0) {
+      return { ok: false, error: fetchError(ErrorKind.SERVER, 'Ingested catalog contained no free models; ignoring it') };
+    }
+    index = next;
+    fetchedAt = now();
+    return { ok: true, free: next.free.size };
+  }
+
   return {
     refresh,
     ensureFresh,
+    ingestCatalog,
     check,
     pickFallback,
     markUnavailable,
+    clearUnavailable,
     get hasLiveCatalog() { return Boolean(index); },
     get lastRefreshed() { return fetchedAt; },
     listFree() { return index ? [...index.free.values()] : []; },

@@ -6,7 +6,8 @@
 import { AppState } from './state.js';
 import { UI } from './ui.js';
 import { API, PROVIDERS, PARAM_TIERS } from './api.js';
-import { gatedStream } from './model-gate.js';
+import { gatedStream, syncGateFromModels, ModelGate } from './model-gate.js';
+import { suggestFreeAlternative, inferIntent } from './providers/routing.mjs';
 import { Utils } from './utils.js';
 import { Profiles } from './profiles.js';
 import DOMPurify from 'dompurify';
@@ -271,12 +272,13 @@ export const App = {
       AppState.allModels = models;
       AppState.modelContextMap = {};
       models.forEach(m => { AppState.modelContextMap[m.id] = m.ctx || 8192; });
+      if (AppState.currentProvider === 'openrouter') syncGateFromModels(models);
 
       sel.innerHTML = '';
       if (!models.length) {
         sel.classList.remove('loading');
         sel.classList.add('error');
-        sel.innerHTML = '<option value="none" disabled selected>No models for this filter</option>';
+        sel.innerHTML = '<option value="none" disabled selected>No free models for this filter</option>';
         UI.updateModelCount(0, 0);
         return false;
       }
@@ -285,28 +287,26 @@ export const App = {
       this._renderModelOptions(models, sel);
 
       const preferred = restoreModelId || AppState.selectedModel;
-      const found = preferred !== 'none' && models.find(m => m.id === preferred);
+      const found = preferred !== 'none' && models.find(m => m.id === preferred && !AppState.isModelOnCooldown(m.id));
+      const preferredAny = preferred !== 'none' && models.find(m => m.id === preferred);
+      const pick = found
+        || models.find(m => !AppState.isModelOnCooldown(m.id))
+        || preferredAny
+        || models[0];
 
-      if (!found) {
-        const first = models[0];
-        sel.value = first.id;
-        AppState.selectedModel = first.id;
-        AppState.persistState();
-        UI.updateModelLabel(first.name);
-        AppState.modelContextMap[first.id] = first.ctx || 8192;
-        UI.el('modelMeta').textContent = [
-          first.paramTier,
-          first.ctx ? `${(first.ctx / 1000).toFixed(0)}k ctx` : '',
-          first.uncensored ? '🔓 uncensored' : ''
-        ].filter(Boolean).join(' · ');
-      } else {
-        sel.value = found.id;
-        AppState.selectedModel = found.id;
-        AppState.persistState();
-        UI.updateModelLabel(found.name);
-        const ctxK = found.ctx ? `${(found.ctx / 1000).toFixed(0)}k ctx` : '';
-        UI.el('modelMeta').textContent = [found.paramTier, ctxK, found.uncensored ? '🔓 uncensored' : ''].filter(Boolean).join(' · ');
-      }
+      sel.value = pick.id;
+      AppState.selectedModel = pick.id;
+      AppState.persistState();
+      UI.updateModelLabel(pick.name);
+      AppState.modelContextMap[pick.id] = pick.ctx || 8192;
+      const ctxK = pick.ctx ? `${(pick.ctx / 1000).toFixed(0)}k ctx` : '';
+      UI.el('modelMeta').textContent = [
+        pick.paramTier,
+        ctxK,
+        pick.uncensored ? '🔓 uncensored' : '',
+        AppState.currentProvider === 'openrouter' ? 'free only' : '',
+      ].filter(Boolean).join(' · ');
+      UI.updateCostInfo(API.estimateCost(pick));
       sel.classList.remove('loading', 'error');
       return true;
     } catch (error) {
@@ -400,9 +400,12 @@ export const App = {
       UI.setSendButtonState(true);
       UI.setChatBusy(false);
       UI.removeTyping();
-      // Existing contract, now stated: stopping discards the partial answer and it is not saved to history.
+      // Discard in-flight stream bubbles immediately (abort catch also cleans up).
+      document.querySelectorAll('.msg-bubble.streaming').forEach((el) => UI.removeStreamBubble(el));
+      // Product contract: Stop discards the partial answer; it is not saved to history.
       UI.toast('Generation stopped. Any partial response was discarded.', 'info');
-      userInput.focus(); // the Stop button just vanished; keep keyboard focus somewhere useful
+      UI.announce('Generation stopped. Partial response discarded.');
+      userInput.focus();
     });
 
     document.querySelectorAll('.persona-card').forEach(card => {
@@ -534,13 +537,19 @@ export const App = {
 
     // FIX S: retries bypass the rate-limit bucket — they are re-attempts,
     // not new requests, and should not consume an additional slot.
+    // Record only after a successful stream so a failed first send does not
+    // burn the local UX bucket (OpenRouter's own limits still apply).
     if (!isRetry) {
       const rateCheck = AppState.canMakeRequest();
       if (!rateCheck.allowed) {
-        UI.toast(`Rate limited — try again in ${Math.ceil(rateCheck.retryAfterMs / 1000)}s`, 'warning');
+        UI.toast(`Local send throttle — try again in ${Math.ceil(rateCheck.retryAfterMs / 1000)}s`, 'warning');
         return;
       }
-      AppState.recordRequest();
+    }
+
+    // Explicit retry clears the gate negative-cache for this model.
+    if (isRetry && AppState.selectedModel) {
+      ModelGate.clearUnavailable(AppState.selectedModel);
     }
 
     // Retrying a FAILED send re-uses the user message already in history/UI instead of duplicating it.
@@ -630,12 +639,16 @@ export const App = {
 
       const finalContent = fullContent || response?.choices?.[0]?.message?.content || '';
       if (finalContent) {
+        if (!isRetry) AppState.recordRequest();
         AppState.addMessage('assistant', finalContent);
         const { promptTokens, completionTokens, estimated } = API.extractTokenUsage(response);
         AppState.updateTokens(promptTokens, completionTokens);
         UI.updateStats(AppState.totalPromptTokens, AppState.totalCompletionTokens);
         UI.updateLiveUsage({ promptTokens, completionTokens, estimated });
         UI.updateContextBar();
+        UI.updateCostInfo(API.estimateCost(
+          AppState.allModels.find(m => m.id === AppState.selectedModel)
+        ));
         if (sentContextUsage > 0.9) {
           UI.toast('⚠️ Context nearly full (>90%). Consider exporting and starting a new chat.', 'warning', 7000);
         }
@@ -654,26 +667,32 @@ export const App = {
       } else if (error.code === 'UPSTREAM_RATE_LIMIT') {
         AppState.setModelCooldown(AppState.selectedModel, 60000);
         this._renderModelOptions(AppState.allModels, UI.el('modelSelect'));
-        const curModel = AppState.allModels.find(m => m.id === AppState.selectedModel);
-        const alt = AppState.allModels.find(m =>
-          m.id !== AppState.selectedModel &&
-          !AppState.isModelOnCooldown(m.id) &&
-          (!curModel || m.paramTier === curModel.paramTier)
-        ) || AppState.allModels.find(m =>
-          m.id !== AppState.selectedModel && !AppState.isModelOnCooldown(m.id)
-        );
-        const altHint = alt ? ` Try: ${alt.name}` : '';
-        UI.toast((error.message || 'Model temporarily overloaded — try another') + altHint, 'warning', 8000);
+        const intent = inferIntent(text);
+        const alt = suggestFreeAlternative(AppState.allModels, AppState.selectedModel, {
+          intent,
+          isUsable: (id) => !AppState.isModelOnCooldown(id),
+        });
+        const altHint = alt ? ` Try another free model: ${alt.name}` : ' Wait ~60s or pick another free model.';
+        const msg = (error.message || 'This free model is temporarily overloaded.') + altHint;
+        UI.toast(msg, 'warning', 8000);
         if (isCurrent()) this._failedSend = true;
         if (isCurrent()) UI.showSendError({
-          message: (error.message || 'Model temporarily overloaded — try another') + altHint,
+          message: msg,
           onRetry: () => this._retryLastMessage(),
           suggestion: alt ? { label: alt.name, onUse: () => this._useModel(alt.id) } : null,
         });
       } else if (error.code === 'RATE_LIMIT') {
-        UI.toast(error.message || 'Rate limited — please wait', 'warning', 6000);
+        const msg = error.message || 'OpenRouter free-tier rate limit — wait and retry, or try another free model.';
+        const alt = suggestFreeAlternative(AppState.allModels, AppState.selectedModel, {
+          isUsable: (id) => !AppState.isModelOnCooldown(id),
+        });
+        UI.toast(msg, 'warning', 8000);
         if (isCurrent()) this._failedSend = true;
-        if (isCurrent()) UI.showSendError({ message: error.message || 'Rate limited — please wait', onRetry: () => this._retryLastMessage() });
+        if (isCurrent()) UI.showSendError({
+          message: msg,
+          onRetry: () => this._retryLastMessage(),
+          suggestion: alt ? { label: alt.name, onUse: () => this._useModel(alt.id) } : null,
+        });
       } else if (error.code === 'AUTH') {
         AppState.apiKey  = '';
         AppState.hfToken = '';
@@ -688,7 +707,13 @@ export const App = {
           ? (error.code === 'MODEL_UNAVAILABLE' ? error.message : 'OpenRouter blocked this free model because of your OpenRouter privacy settings. In OpenRouter, open Settings → Privacy and allow free models, or choose a paid model.')
           : 'This free model is not available right now.';
         // Ask first: only a model that is in the current free list can be suggested, and only a click switches.
-        const alt = blocked ? null : AppState.allModels.find(m => m.id === error.replacement && m.id !== AppState.selectedModel);
+        let alt = blocked ? null : AppState.allModels.find(m => m.id === error.replacement && m.id !== AppState.selectedModel);
+        if (!blocked && !alt) {
+          alt = suggestFreeAlternative(AppState.allModels, AppState.selectedModel, {
+            intent: inferIntent(text),
+            isUsable: (id) => !AppState.isModelOnCooldown(id),
+          });
+        }
         if (isCurrent()) this._failedSend = true;
         UI.toast(msg, 'error', 6000);
         if (isCurrent()) UI.showSendError({
@@ -778,8 +803,14 @@ export const App = {
       });
     }
 
-    UI.el('shortcutsBtn').addEventListener('click', () => {
+    UI.el('shortcutsBtn')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
       if (modal && !modal.open) modal.showModal();
+    });
+    // Keep gen toggle from expanding/collapsing the <details> card.
+    UI.el('genControlsToggle')?.closest('.gen-toggle')?.addEventListener('click', (e) => {
+      e.stopPropagation();
     });
     UI.el('shortcutsClose')?.addEventListener('click', () => {
       if (modal) modal.close();

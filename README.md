@@ -76,7 +76,7 @@ Production is checked automatically after every push to `main` (and once daily):
 | Health JSON | https://chat-with-it.vercel.app/health.json |
 | App shell | https://chat-with-it.vercel.app/ |
 | Bundle | https://chat-with-it.vercel.app/dist/app.js |
-| Styles | https://chat-with-it.vercel.app/css/app.css |
+| Styles | https://chat-with-it.vercel.app/css/components.css |
 
 Workflow: [Deploy status](https://github.com/researchsociety1999-hub/Chat-With-It/actions/workflows/deploy-status.yml)
 
@@ -86,8 +86,9 @@ Workflow: [Deploy status](https://github.com/researchsociety1999-hub/Chat-With-I
 
 ### Chat
 - OpenRouter + Hugging Face providers
-- Free-model discovery (`:free` suffix and zero pricing)
-- Streaming responses with stop control
+- Free-model discovery only on OpenRouter (`:free` suffix and zero pricing) — paid models are not listed
+- Availability gate + ask-first free-model suggestions on failure
+- Streaming responses with stop control (Stop discards partial output)
 - Personas: Assistant, Tutor, Creative Writer, Code Reviewer, Debate Coach
 - Text file attachments (.txt, .md, .json, .csv, code files)
 - Keyboard shortcuts (Enter send, Shift+Enter newline, Ctrl/Cmd+K model search)
@@ -99,6 +100,7 @@ Workflow: [Deploy status](https://github.com/researchsociety1999-hub/Chat-With-I
 
 ### Session tools
 - Live token / context usage and session stats
+- Honest cost label for free models (`Cost unavailable` / free — never invents prices)
 - Export Markdown / JSON / TXT / PDF / clipboard
 - Local chat history (7-day TTL). Note: the code currently persists history unconditionally; an opt-out is tracked as an open decision (audit N5).
 
@@ -106,7 +108,8 @@ Workflow: [Deploy status](https://github.com/researchsociety1999-hub/Chat-With-I
 - Themes: Dark, Light, Violet, Ember, Forest, Aurora + system preference
 - High-contrast mode
 - Reduced-motion support
-- Collapsible desktop sidebar; mobile drawer
+- Conversation-first sidebar: Provider + Model primary; Generation / Persona collapsed by default
+- Collapsible desktop sidebar; mobile drawer; stats panel secondary
 - PWA safe-area (iOS / notched devices) styles
 
 ### Deploy
@@ -128,17 +131,19 @@ ChatWithIt/
 │   ├── themes.css          # Theme definitions
 │   ├── layout.css          # Responsive layout
 │   ├── components.css
-│   ├── app.css
+│   ├── app.css             # Legacy orphan — not linked by index.html
 │   ├── modals.css
 │   ├── profiles.css
 │   └── pwa-safe-area.css
 ├── js/
 │   ├── app.js              # Orchestration, event wiring
 │   ├── api.js              # Provider requests (OpenRouter + HF)
+│   ├── model-gate.js       # Free-model availability bridge
 │   ├── state.js            # AppState (keys memory-only)
 │   ├── ui.js
 │   ├── profiles.js
-│   └── utils.js
+│   ├── utils.js
+│   └── providers/          # Adapters, availability gate, free routing
 ├── dist/app.js             # Bundled output
 ├── sw.js                   # Service worker (bump CACHE_NAME on asset changes)
 ├── manifest.json
@@ -166,16 +171,19 @@ Tests: `npm test` (vitest). Bundle: `npm run build`.
 
 ---
 
-## Roadmap (planned — not yet implemented)
+## Roadmap
+
+See **[docs/ROADMAP.md](./docs/ROADMAP.md)** for IMPLEMENTED vs PLANNED (no blurred claims).
+
+Still planned (not shipped):
 
 - Image / drag-and-drop multimodal attach
-- Encrypted local history passphrase
+- Encrypted local history passphrase (see `docs/decisions/app-lock.md`)
 - Custom saved personas
 - Side-by-side model compare
 - Message search across history
-- Provider interface abstraction + additional providers
-- Intelligent model routing
-- Cost estimation when pricing is available
+- Additional providers beyond OpenRouter / Hugging Face
+- Learned model routing (rule-based free routing helpers exist today)
 - Optional SaaS / multi-tenant mode (future)
 
 ---

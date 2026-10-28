@@ -67,15 +67,15 @@
         <div id="modelMeta" class="muted" style="font-size:.72rem"></div>
         <div id="modelCount" class="muted" style="font-size:.72rem">0 models</div>
       </div>
-      <div class="card">
-        <div class="sidebar-card-heading" style="display:flex;align-items:center;justify-content:space-between;gap:.5rem">
-          <button class="card-title sidebar-section-toggle" data-icon="⚙️" title="Generation" aria-label="Open Generation settings" type="button" style="margin:0">Generation</button>
+      <details class="card sidebar-advanced" id="generationCard">
+        <summary class="sidebar-card-heading sidebar-summary">
+          <span class="card-title" data-icon="⚙️" style="margin:0">Generation</span>
           <label class="gen-toggle" title="Use temperature and max tokens">
             <input type="checkbox" id="genControlsToggle" checked aria-label="Enable generation controls">
             <span class="gen-toggle-track" aria-hidden="true"></span>
             <span class="gen-toggle-label">On</span>
           </label>
-        </div>
+        </summary>
         <div id="genControlsPanel">
           <div class="row" style="justify-content:space-between;font-size:.8rem"><label for="tempSlider">Temperature</label><span id="tempVal" style="font-weight:700">0.7</span></div>
           <input id="tempSlider" type="range" min="0" max="2" step="0.1" value="0.7" aria-label="Temperature">
@@ -91,9 +91,12 @@
             <span class="gen-toggle-label" id="lowPowerLabel">Off</span>
           </label>
         </div>
-      </div>
-      <div class="card">
-        <div class="sidebar-card-heading" style="display:flex;align-items:center;justify-content:space-between"><button class="card-title sidebar-section-toggle" data-icon="👤" title="Persona" aria-label="Open Persona settings" type="button" style="margin:0">Persona</button><button id="shortcutsBtn" class="btn btn-sm btn-ghost" type="button">⌨ Shortcuts</button></div>
+      </details>
+      <details class="card sidebar-advanced" id="personaCard">
+        <summary class="sidebar-card-heading sidebar-summary">
+          <span class="card-title" data-icon="👤" style="margin:0">Persona</span>
+          <button id="shortcutsBtn" class="btn btn-sm btn-ghost" type="button">⌨ Shortcuts</button>
+        </summary>
         <div id="personaLabel" class="muted" style="font-size:.76rem;font-weight:600">Active: Assistant</div>
         <div class="persona-grid">
           <button type="button" class="persona-card active" aria-pressed="true" data-prompt="You are a helpful AI assistant. Be concise, accurate, and developer-friendly. Use Markdown formatting in your responses."><span class="persona-icon" aria-hidden="true">🤖</span><span class="persona-info"><strong>Assistant</strong><span class="muted">Balanced default helper</span></span></button>
@@ -102,7 +105,7 @@
           <button type="button" class="persona-card" aria-pressed="false" data-prompt="You are a code reviewer. Find bugs, edge cases, maintainability issues, and offer practical refactors with concise examples."><span class="persona-icon" aria-hidden="true">🔍</span><span class="persona-info"><strong>Code Reviewer</strong><span class="muted">Bugs, refactors, edge cases</span></span></button>
           <button type="button" class="persona-card" aria-pressed="false" data-prompt="You are a debate coach. Help build strong arguments, steelman opposing views, and sharpen rebuttals logically and respectfully."><span class="persona-icon" aria-hidden="true">🎙️</span><span class="persona-info"><strong>Debate Coach</strong><span class="muted">Arguments and rebuttals</span></span></button>
         </div>
-      </div>
+      </details>
     </aside>
     <main class="main">
       <header class="chat-header">
@@ -174,6 +177,7 @@
           </div>
         </div>
         <div id="attachList" class="attach-list" aria-live="polite"></div>
+        <p id="freeTierHint" class="free-tier-hint muted" role="status">Free models only · OpenRouter free-tier may limit ~20 req/min and ~50 req/day without credits.</p>
         <details class="privacy-panel" style="margin-top:.45rem"><summary>Key stays in memory by default</summary><div class="privacy-body">No backend server. Your API key and messages travel directly from your browser to the provider over HTTPS. Nothing is logged or stored on any server. If you save a Profile, that key is stored unencrypted in this browser until you delete it.</div></details>
       </div>
     </main>
@@ -187,6 +191,7 @@
         <div class="stat-row"><span>Total</span><span id="stat-total">0</span></div>
         <div class="stat-row"><span>Turns</span><span id="stat-turns">0</span></div>
         <div class="stat-row"><span>Req / min left</span><span id="stat-rl">—</span></div>
+        <div class="stat-row"><span>Cost</span><span id="stat-cost">Cost unavailable</span></div>
       </div>
       <div class="card"><div class="card-title">Token history</div><div id="stat-chart" class="chart"></div></div>
       <div class="card"><div class="card-title">Diagnostics</div><div id="stat-diag" class="muted" style="font-size:.76rem;line-height:1.6">Provider: OpenRouter<br>Model: none</div></div>

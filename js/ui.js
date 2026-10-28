@@ -490,13 +490,33 @@ export const UI = {
   updateRateLimitInfo(remaining) {
     const el = this.el('stat-rl');
     if (el) el.textContent = String(remaining);
+    const banner = this.el('freeTierHint');
+    if (banner && AppState.currentProvider === 'openrouter') {
+      banner.textContent = `Free models only · local sends left this minute: ${remaining}. OpenRouter may also enforce ~20/min and ~50/day without credits.`;
+    }
+  },
+
+  /** Honest cost label — never invents pricing for free models. */
+  updateCostInfo(estimate) {
+    const el = this.el('stat-cost');
+    if (!el) return;
+    if (!estimate) {
+      el.textContent = 'Cost unavailable';
+      return;
+    }
+    if (estimate.available) {
+      el.textContent = `~$${estimate.prompt}/tok in · ~$${estimate.completion}/tok out`;
+      return;
+    }
+    el.textContent = estimate.label || 'Cost unavailable';
   },
 
   updateDiagnostics(provider, modelId) {
     const el = this.el('stat-diag');
     if (!el) return;
     const name = provider === 'huggingface' ? 'Hugging Face' : 'OpenRouter';
-    el.innerHTML = `Provider: ${name}<br>Model: ${modelId === 'none' ? 'none' : modelId}`;
+    const freeNote = provider === 'openrouter' ? '<br>Catalog: free models only' : '';
+    el.innerHTML = `Provider: ${name}<br>Model: ${modelId === 'none' ? 'none' : modelId}${freeNote}`;
   },
 
   _isMobile() { return window.matchMedia('(max-width: 1100px)').matches; },

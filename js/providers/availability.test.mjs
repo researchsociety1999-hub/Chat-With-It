@@ -108,6 +108,18 @@ describe('gate', () => {
     t = 2000;
     expect(gate.check('a/one:free').ok).toBe(true);
   });
+
+  it('ingestCatalog seeds the free index and clearUnavailable lifts a block', () => {
+    const gate = createAvailabilityGate({ curated });
+    const r = gate.ingestCatalog([model('a/live:free', '0', '0'), model('a/paid', '1', '1')]);
+    expect(r.ok).toBe(true);
+    expect(gate.check('a/live:free').ok).toBe(true);
+    expect(gate.check('a/paid').ok).toBe(false);
+    gate.markUnavailable('a/live:free', 60_000);
+    expect(gate.check('a/live:free').reason).toBe('RECENTLY_FAILED');
+    gate.clearUnavailable('a/live:free');
+    expect(gate.check('a/live:free').ok).toBe(true);
+  });
 });
 
 describe('dispatchWithGate', () => {
