@@ -73,103 +73,33 @@ function isEmbeddingModel(model) {
  */
 export const CURATED_FREE = {
   openrouter: [
-    // ── DeepSeek ────────────────────────────────────────────────────────────────
-    { id:'deepseek/deepseek-r1:free',             name:'DeepSeek R1 (671B · Reasoning)',    ctx:65536,  paramTier:'671B' },
-    { id:'deepseek/deepseek-r1-0528:free',        name:'DeepSeek R1 0528 (671B)',           ctx:65536,  paramTier:'671B' },
-    { id:'deepseek/deepseek-chat-v3-0324:free',   name:'DeepSeek Chat v3 (671B · 64k)',     ctx:65536,  paramTier:'671B' },
-    { id:'deepseek/deepseek-r1-distill-llama-70b:free',  name:'DeepSeek R1 Distill Llama 70B', ctx:65536, paramTier:'70B' },
-    { id:'deepseek/deepseek-r1-distill-qwen-32b:free',   name:'DeepSeek R1 Distill Qwen 32B',  ctx:32768, paramTier:'32B' },
-    { id:'deepseek/deepseek-r1-distill-qwen-14b:free',   name:'DeepSeek R1 Distill Qwen 14B',  ctx:65536, paramTier:'14B' },
-    { id:'deepseek/deepseek-r1-distill-qwen-7b:free',    name:'DeepSeek R1 Distill Qwen 7B',   ctx:32768, paramTier:'7B'  },
-    { id:'deepseek/deepseek-r1-distill-qwen-1.5b:free',  name:'DeepSeek R1 Distill Qwen 1.5B', ctx:32768, paramTier:'1B', uncensored:true },
-    { id:'deepseek/deepseek-prover-v2:free',      name:'DeepSeek Prover V2 (671B · Math)',  ctx:65536,  paramTier:'671B' },
-    // ── Meta Llama ──────────────────────────────────────────────────────────────
-    { id:'meta-llama/llama-4-maverick:free',      name:'Llama 4 Maverick (1M ctx)',         ctx:1048576, paramTier:'?' },
-    { id:'meta-llama/llama-4-scout:free',         name:'Llama 4 Scout (512k ctx)',           ctx:524288,  paramTier:'?' },
-    { id:'meta-llama/llama-3.3-70b-instruct:free',name:'Llama 3.3 70B Instruct',            ctx:131072,  paramTier:'70B' },
-    { id:'meta-llama/llama-3.1-70b-instruct:free',name:'Llama 3.1 70B Instruct',            ctx:131072,  paramTier:'70B' },
-    { id:'meta-llama/llama-3.1-8b-instruct:free', name:'Llama 3.1 8B Instruct',             ctx:131072,  paramTier:'8B' },
-    { id:'meta-llama/llama-3-70b-instruct:free',  name:'Llama 3 70B Instruct',              ctx:8192,    paramTier:'70B' },
-    { id:'meta-llama/llama-3-8b-instruct:free',   name:'Llama 3 8B Instruct',               ctx:8192,    paramTier:'8B' },
-    // ── Qwen ────────────────────────────────────────────────────────────────────
-    { id:'qwen/qwen3-235b-a22b:free',             name:'Qwen3 235B A22B (MoE · 40k)',       ctx:40960,  paramTier:'236B' },
-    { id:'qwen/qwen3-30b-a3b:free',               name:'Qwen3 30B A3B (MoE · 128k)',        ctx:131072, paramTier:'30B' },
-    { id:'qwen/qwen3-14b:free',                   name:'Qwen3 14B (128k)',                   ctx:131072, paramTier:'14B' },
-    { id:'qwen/qwen3-8b:free',                    name:'Qwen3 8B (128k)',                    ctx:131072, paramTier:'8B' },
-    { id:'qwen/qwen3-4b:free',                    name:'Qwen3 4B (128k)',                    ctx:131072, paramTier:'3B' },
-    { id:'qwen/qwen3-1.7b:free',                  name:'Qwen3 1.7B (128k)',                  ctx:131072, paramTier:'1B', uncensored:true },
-    { id:'qwen/qwen3-0.6b:free',                  name:'Qwen3 0.6B (128k)',                  ctx:131072, paramTier:'1B', uncensored:true },
-    { id:'qwen/qwen-2.5-72b-instruct:free',       name:'Qwen 2.5 72B Instruct',             ctx:131072, paramTier:'70B' },
-    { id:'qwen/qwen-2.5-7b-instruct:free',        name:'Qwen 2.5 7B Instruct',              ctx:131072, paramTier:'7B' },
-    { id:'qwen/qwen-2.5-coder-32b-instruct:free', name:'Qwen 2.5 Coder 32B Instruct',       ctx:32768,  paramTier:'32B' },
-    { id:'qwen/qwen2-7b-instruct:free',           name:'Qwen2 7B Instruct',                 ctx:32768,  paramTier:'7B' },
-    { id:'qwen/qwq-32b:free',                     name:'QwQ 32B (Reasoning)',                ctx:131072, paramTier:'32B' },
-    // ── Google Gemma ────────────────────────────────────────────────────────────
-    { id:'google/gemma-3-27b-it:free',            name:'Gemma 3 27B IT',                    ctx:131072, paramTier:'30B' },
-    { id:'google/gemma-3-12b-it:free',            name:'Gemma 3 12B IT',                    ctx:131072, paramTier:'13B' },
-    { id:'google/gemma-3-4b-it:free',             name:'Gemma 3 4B IT',                     ctx:131072, paramTier:'3B' },
-    { id:'google/gemma-3-1b-it:free',             name:'Gemma 3 1B IT',                     ctx:32768,  paramTier:'1B', uncensored:true },
-    { id:'google/gemma-2-9b-it:free',             name:'Gemma 2 9B IT',                     ctx:8192,   paramTier:'8B' },
-    // ── Mistral ─────────────────────────────────────────────────────────────────
-    { id:'mistralai/mistral-7b-instruct:free',    name:'Mistral 7B Instruct v0.3',          ctx:32768,  paramTier:'7B' },
-    { id:'mistralai/devstral-small:free',         name:'Devstral Small (Code · 32k)',        ctx:32768,  paramTier:'22B' },
-    { id:'mistralai/mistral-small-3.1-24b-instruct:free', name:'Mistral Small 3.1 24B',     ctx:131072, paramTier:'24B' },
-    { id:'mistralai/mistral-nemo:free',           name:'Mistral NeMo 12B (128k)',            ctx:131072, paramTier:'13B' },
-    // ── Microsoft Phi ───────────────────────────────────────────────────────────
-    { id:'microsoft/phi-4-reasoning-plus:free',   name:'Phi-4 Reasoning Plus (14B)',         ctx:16384,  paramTier:'14B' },
-    { id:'microsoft/phi-4-reasoning:free',        name:'Phi-4 Reasoning (14B)',              ctx:16384,  paramTier:'14B' },
-    { id:'microsoft/phi-4-multimodal-instruct:free', name:'Phi-4 Multimodal 14B',           ctx:131072, paramTier:'14B' },
-    { id:'microsoft/phi-4:free',                  name:'Phi-4 (14B)',                        ctx:16384,  paramTier:'14B' },
-    { id:'microsoft/phi-3-medium-128k-instruct:free', name:'Phi-3 Medium 14B (128k)',        ctx:131072, paramTier:'14B' },
-    { id:'microsoft/phi-3-mini-128k-instruct:free',   name:'Phi-3 Mini 3.8B (128k)',         ctx:131072, paramTier:'3B' },
-    // ── Nous Research ───────────────────────────────────────────────────────────
-    { id:'nousresearch/hermes-3-llama-3.1-70b:free',  name:'Hermes 3 Llama 3.1 70B',        ctx:131072, paramTier:'70B', uncensored:true },
-    { id:'nousresearch/hermes-3-llama-3.1-405b:free', name:'Hermes 3 Llama 3.1 405B',       ctx:131072, paramTier:'?',   uncensored:true },
-    { id:'nousresearch/hermes-2-pro-llama-3-8b:free', name:'Hermes 2 Pro Llama 3 8B',       ctx:8192,   paramTier:'8B',  uncensored:true },
-    { id:'nousresearch/nous-hermes-2-mixtral-8x7b-dpo:free', name:'Nous Hermes 2 Mixtral 8x7B DPO', ctx:32768, paramTier:'?', uncensored:true },
-    { id:'nousresearch/nous-capybara-7b:free',    name:'Nous Capybara 7B',                   ctx:4096,   paramTier:'7B',  uncensored:true },
-    // ── OpenChat ────────────────────────────────────────────────────────────────
-    { id:'openchat/openchat-7b:free',             name:'OpenChat 3.5 7B (8k)',               ctx:8192,   paramTier:'7B', uncensored:true },
-    // ── 01.AI Yi ────────────────────────────────────────────────────────────────
-    { id:'01-ai/yi-1.5-34b-chat:free',            name:'Yi 1.5 34B Chat',                   ctx:4096,   paramTier:'32B' },
-    // ── Cohere ──────────────────────────────────────────────────────────────────
-    { id:'cohere/command-r7b-12-2024:free',       name:'Cohere Command R7B (128k)',          ctx:131072, paramTier:'7B' },
-    // ── NVIDIA ──────────────────────────────────────────────────────────────────
-    { id:'nvidia/llama-3.1-nemotron-70b-instruct:free', name:'Nemotron 70B Instruct',        ctx:131072, paramTier:'70B' },
-    { id:'nvidia/llama-3.3-nemotron-super-49b-v1:free',  name:'Nemotron Super 49B',          ctx:131072, paramTier:'?' },
-    { id:'nvidia/llama-3.1-nemotron-nano-8b-v1:free',    name:'Nemotron Nano 8B',            ctx:131072, paramTier:'8B' },
-    // ── TNG ─────────────────────────────────────────────────────────────────────
-    { id:'tng-tech/llama-3.3-70b-instruct-fp8-mrl:free', name:'Llama 3.3 70B FP8 MRL',      ctx:131072, paramTier:'70B' },
-    // ── Featherless / community ──────────────────────────────────────────────────
-    { id:'featherless/qwerky-72b:free',           name:'Qwerky 72B (uncensored)',            ctx:32768,  paramTier:'70B', uncensored:true },
-    { id:'cognitivecomputations/dolphin3.0-r1-mistral-nemo-12b:free', name:'Dolphin 3.0 R1 Mistral NeMo 12B', ctx:131072, paramTier:'13B', uncensored:true },
-    { id:'cognitivecomputations/dolphin3.0-mistral-24b:free',         name:'Dolphin 3.0 Mistral 24B',         ctx:131072, paramTier:'24B', uncensored:true },
-    // ── Alibaba ──────────────────────────────────────────────────────────────────
-    { id:'thudm/glm-4-9b-chat:free',              name:'GLM-4 9B Chat',                     ctx:131072, paramTier:'8B' },
-    // ── Gemini flash free ────────────────────────────────────────────────────────
-    { id:'google/gemini-2.0-flash-exp:free',      name:'Gemini 2.0 Flash (Exp · 1M)',       ctx:1048576, paramTier:'?' },
-    { id:'google/gemini-2.0-flash-thinking-exp:free', name:'Gemini 2.0 Flash Thinking (Exp)', ctx:1048576, paramTier:'?' },
-    { id:'google/gemma-3n-e4b-it:free',           name:'Gemma 3n E4B IT (multimodal)',      ctx:8192,   paramTier:'3B' },
-    // ── Moonshot ─────────────────────────────────────────────────────────────────
-    { id:'moonshotai/moonlight-16a-a3b-instruct:free', name:'Moonlight 16A A3B (MoE)',       ctx:8192,   paramTier:'3B' },
-    // ── Snowflake ────────────────────────────────────────────────────────────────
-    // FIX Q: marked type:'embedding' so it is excluded from the chat model list
-    { id:'snowflake/snowflake-arctic-embed-l-v2.0:free', name:'Snowflake Arctic Embed L v2', ctx:8192, paramTier:'?', type:'embedding' },
-    // ── Sarvamai ─────────────────────────────────────────────────────────────────
-    { id:'sarvamai/sarvam-m:free',                name:'Sarvam M (multilingual)',            ctx:32768,  paramTier:'?' },
-    // ── Creative / RP ─────────────────────────────────────────────────────────────
-    { id:'sao10k/l3.3-euryale-70b:free',          name:'Euryale 70B (creative/RP)',          ctx:131072, paramTier:'70B', uncensored:true },
-    { id:'sao10k/l3.1-euryale-70b:free',          name:'Euryale 3.1 70B (creative/RP)',      ctx:131072, paramTier:'70B', uncensored:true },
-    // ── Reka ─────────────────────────────────────────────────────────────────────
-    { id:'rekaai/reka-flash-3:free',              name:'Reka Flash 3 (21B)',                 ctx:32768,  paramTier:'22B' },
-    // ── Inflection ───────────────────────────────────────────────────────────────
-    { id:'inflection/inflection-3-productivity:free', name:'Inflection 3 Productivity',     ctx:8192,   paramTier:'?' },
-    { id:'inflection/inflection-3-pi:free',       name:'Inflection 3 Pi',                   ctx:8192,   paramTier:'?' },
+    // Live free models from OpenRouter catalog (synced via scripts/validate-models.mjs).
+    // Keep this list in sync with the live free catalog; retire models here into
+    // DEPRECATED_IDS when they leave the free tier.
+    { id:'recursive/flint-v1.0:free',           name:'Recursive Flint',                    ctx:262144, paramTier:'?' },
+    { id:'xingchen-agi/xing4.0-29b-a4b:free',   name:'Xing4.0 29B A4B',                     ctx:262144, paramTier:'?' },
+    { id:'nvidia/nemotron-3.5-super-vl:free',   name:'Nemotron 3.5 Super VL',               ctx:1000000, paramTier:'?' },
+    { id:'dots-studio/dots-3-note-preview:free', name:'Dots3-Note Preview',                ctx:512000,  paramTier:'?' },
+    { id:'liquid/lfm-2.5-2.6b:free',            name:'Liquid LFM2.5 2.6B',                  ctx:65536,  paramTier:'?' },
+    { id:'nvidia/nemotron-3.5-lightning:free',  name:'Nemotron 3.5 Lightning',             ctx:1000000, paramTier:'?' },
+    { id:'thinkingmachines/inkling-small:free', name:'Inkling Small',                      ctx:1048576, paramTier:'?' },
+    { id:'thinkingmachines/inkling:free',       name:'Inkling',                            ctx:1048576, paramTier:'?' },
+    { id:'cohere/north-mini-code:free',         name:'Cohere North Mini Code',             ctx:256000,  paramTier:'?' },
+    { id:'nvidia/nemotron-3.5-content-safety:free', name:'Nemotron 3.5 Content Safety',     ctx:128000, paramTier:'?' },
+    { id:'nvidia/nemotron-3-ultra-550b-a55b:free', name:'Nemotron 3 Ultra 550B',            ctx:1000000, paramTier:'?' },
+    { id:'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free', name:'Nemotron 3 Nano Omni 30B A3B', ctx:256000, paramTier:'?' },
+    { id:'google/gemma-4-26b-a4b-it:free',      name:'Gemma 4 26B A4B IT',                  ctx:262144, paramTier:'?' },
+    { id:'google/gemma-4-31b-it:free',          name:'Gemma 4 31B IT',                     ctx:262144, paramTier:'?' },
+    { id:'google/lyria-3-pro-preview',          name:'Lyria 3 Pro Preview',                ctx:1048576, paramTier:'?' },
+    { id:'google/lyria-3-clip-preview',         name:'Lyria 3 Clip Preview',               ctx:1048576, paramTier:'?' },
+    { id:'openrouter/free',                     name:'Free Models Router',                 ctx:200000, paramTier:'?' },
   ],
 
   huggingface: [
-    // ── Meta Llama ──────────────────────────────────────────────────────────────
-    { id:'meta-llama/Llama-3.3-70B-Instruct',         name:'Llama 3.3 70B Instruct',       ctx:131072, paramTier:'70B' },
+    // Live models in Hugging Face Router catalog (synced via scripts/validate-models.mjs).
+    // HF has no free/paid split; the adapter enriches with any extra live chat models
+    // not listed here from https://router.huggingface.co/v1/models.
+    { id:'meta-llama/Llama-3.1-8B-Instruct',         name:'Llama 3.1 8B Instruct',        ctx:131072, paramTier:'8B' },
     { id:'meta-llama/Llama-3.1-70B-Instruct',         name:'Llama 3.1 70B Instruct',       ctx:131072, paramTier:'70B' },
     { id:'meta-llama/Llama-3.1-8B-Instruct',          name:'Llama 3.1 8B Instruct',        ctx:131072, paramTier:'8B' },
     { id:'meta-llama/Llama-3.2-3B-Instruct',          name:'Llama 3.2 3B Instruct',        ctx:131072, paramTier:'3B' },
