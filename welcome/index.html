@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="violet">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ChatWithIt — The most private way to chat with frontier AI models</title>
+<meta name="description" content="Browser-only, multi-provider AI chat. Free models via OpenRouter and Hugging Face. No backend, no tracking, MIT licensed, installable as a PWA.">
+<meta name="theme-color" content="#0a0a0f">
+<meta property="og:type" content="website">
+<meta property="og:title" content="ChatWithIt — Private AI chat, zero backend">
+<meta property="og:description" content="Free models. Your keys never leave your browser. Open source and installable.">
+<meta property="og:url" content="https://chat-with-it.vercel.app/welcome">
+<meta property="og:image" content="https://chat-with-it.vercel.app/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="canonical" href="https://chat-with-it.vercel.app/welcome">
+<style>
+/* Tokens copied from the app's css/themes.css so the page matches it */
+[data-theme="dark"]{--bg:#0d0f1a;--bg2:#111425;--panel-solid:#12162a;--panel-2:rgba(255,255,255,.04);--border:rgba(255,255,255,.08);--border-2:rgba(255,255,255,.13);--fg:#e8eeff;--fg-muted:#9aadd4;--fg-subtle:#7d8cb3;--accent:#38bdf8;--accent-glow:rgba(56,189,248,.28);--accent-2:#22d3ee;--on-accent:#0b1020;--ai-bubble:rgba(255,255,255,.05);--shadow:0 8px 32px rgba(0,0,0,.45);--hero-a:rgba(56,189,248,.12);--hero-b:rgba(34,211,238,.08)}
+[data-theme="light"]{--bg:#f4f7ff;--bg2:#e7eefc;--panel-solid:#fff;--panel-2:rgba(15,23,42,.04);--border:rgba(15,23,42,.10);--border-2:rgba(15,23,42,.18);--fg:#0f172a;--fg-muted:#334155;--fg-subtle:#475569;--accent:#0369a1;--accent-glow:rgba(3,105,161,.16);--accent-2:#0e7490;--on-accent:#fff;--ai-bubble:rgba(15,23,42,.05);--shadow:0 8px 32px rgba(15,23,42,.10);--hero-a:rgba(109,40,217,.08);--hero-b:rgba(8,145,178,.07)}
+[data-theme="violet"]{--bg:#0a0a0f;--bg2:#120f1e;--panel-solid:#14101f;--panel-2:rgba(255,255,255,.045);--border:rgba(124,92,255,.16);--border-2:rgba(124,92,255,.28);--fg:#f1eefc;--fg-muted:#c4b8e8;--fg-subtle:#8d7eb8;--accent:#a78bfa;--accent-glow:rgba(167,139,250,.32);--accent-2:#22d3ee;--on-accent:#0b1020;--ai-bubble:rgba(255,255,255,.045);--shadow:0 8px 32px rgba(0,0,0,.55);--hero-a:rgba(124,92,255,.18);--hero-b:rgba(167,139,250,.10)}
+[data-theme="ember"]{--bg:#17100e;--bg2:#211411;--panel-solid:#231512;--panel-2:rgba(255,255,255,.045);--border:rgba(255,210,190,.12);--border-2:rgba(255,210,190,.22);--fg:#fff1eb;--fg-muted:#e4bbb0;--fg-subtle:#9c7b70;--accent:#fb7185;--accent-glow:rgba(251,113,133,.28);--accent-2:#fdba74;--on-accent:#1a0a0c;--ai-bubble:rgba(255,255,255,.045);--shadow:0 8px 32px rgba(18,6,3,.52);--hero-a:rgba(251,113,133,.20);--hero-b:rgba(251,191,36,.12)}
+[data-theme="forest"]{--bg:#091511;--bg2:#0e2119;--panel-solid:#0f221a;--panel-2:rgba(220,252,231,.045);--border:rgba(167,243,208,.12);--border-2:rgba(167,243,208,.22);--fg:#ecfdf5;--fg-muted:#aed1bf;--fg-subtle:#799a89;--accent:#34d399;--accent-glow:rgba(52,211,153,.25);--accent-2:#fbbf24;--on-accent:#062016;--ai-bubble:rgba(220,252,231,.045);--shadow:0 8px 32px rgba(2,12,7,.52);--hero-a:rgba(52,211,153,.16);--hero-b:rgba(251,191,36,.09)}
+[data-theme="aurora"]{--bg:#07131b;--bg2:#0a2029;--panel-solid:#0b2029;--panel-2:rgba(207,250,254,.045);--border:rgba(165,243,252,.13);--border-2:rgba(165,243,252,.24);--fg:#ecfeff;--fg-muted:#add0d8;--fg-subtle:#759ca6;--accent:#22d3ee;--accent-glow:rgba(34,211,238,.26);--accent-2:#fb923c;--on-accent:#062018;--ai-bubble:rgba(207,250,254,.045);--shadow:0 8px 32px rgba(2,13,20,.55);--hero-a:rgba(34,211,238,.18);--hero-b:rgba(249,115,22,.12)}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;transition:background-color .35s ease,color .35s ease}
+body{background:var(--bg);color:var(--fg);font:16px/1.65 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  background-image:radial-gradient(ellipse 80% 60% at 20% -10%,var(--hero-a),transparent 60%),radial-gradient(ellipse 60% 40% at 80% 110%,var(--hero-b),transparent 60%);
+  background-attachment:fixed;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+body,.card,.btn,.panel,nav,.mock,details,.step{transition:background-color .35s ease,border-color .35s ease,color .35s ease}
+a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+code{font:.9em ui-monospace,Menlo,monospace;background:var(--panel-2);padding:.1em .35em;border-radius:5px}
+:focus-visible{outline:3px solid var(--accent);outline-offset:3px;border-radius:6px}
+.skip{position:absolute;left:-999px;top:0;background:var(--accent);color:var(--on-accent);padding:.6rem 1rem;z-index:100;border-radius:0 0 8px 0}
+.skip:focus{left:0}
+.wrap{max-width:1120px;margin:0 auto;padding:0 1.25rem}
+section{padding:6.5rem 0;scroll-margin-top:72px}
+.eyebrow{color:var(--accent);font-size:.8rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:.8rem}
+h1{font-size:clamp(2.6rem,6.5vw,4.6rem);line-height:1.04;letter-spacing:-.035em;font-weight:800}
+h2{font-size:clamp(1.9rem,4.2vw,2.8rem);line-height:1.15;letter-spacing:-.02em;font-weight:750;margin-bottom:1rem}
+h3{font-size:1.12rem;margin-bottom:.4rem}
+.lead{color:var(--fg-muted);font-size:1.18rem;max-width:660px;line-height:1.6}
+.center{text-align:center}.center .lead{margin:0 auto}
+.grad{background:linear-gradient(120deg,var(--accent),var(--accent-2));-webkit-background-clip:text;background-clip:text;color:transparent}
+
+.btn{display:inline-flex;align-items:center;gap:.5rem;padding:.9rem 1.6rem;border-radius:12px;font-weight:650;border:1px solid var(--border-2);color:var(--fg);background:var(--panel-2);cursor:pointer;font-size:1rem;text-decoration:none!important;transition:transform .15s ease,box-shadow .2s ease,background-color .35s}
+.btn:hover{transform:translateY(-2px)}
+.btn.primary{background:var(--accent);color:var(--on-accent);border-color:transparent;box-shadow:0 6px 24px var(--accent-glow)}
+.btn.primary:hover{box-shadow:0 10px 34px var(--accent-glow)}
+.btn.sm{padding:.5rem 1rem;font-size:.9rem;border-radius:10px}
+
+nav.top{position:sticky;top:0;z-index:50;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);background:color-mix(in srgb,var(--bg) 78%,transparent);border-bottom:1px solid var(--border)}
+nav.top .wrap{display:flex;align-items:center;justify-content:space-between;height:64px;gap:1rem}
+.brand{display:flex;align-items:center;gap:.6rem;font-weight:800;color:var(--fg)!important;text-decoration:none!important}
+.logo{width:30px;height:30px;border-radius:9px;background:var(--accent);display:grid;place-items:center}
+.logo svg{width:17px;height:17px}
+.links{display:flex;gap:1.4rem;align-items:center}
+.links a.l{color:var(--fg-muted);font-size:.93rem}.links a.l:hover{color:var(--fg);text-decoration:none}
+@media(max-width:860px){.links a.l{display:none}}
+
+.hero{padding:5.5rem 0 4.5rem}
+.hero .grid{display:grid;grid-template-columns:1.05fr 1fr;gap:3.5rem;align-items:center}
+@media(max-width:900px){.hero .grid{grid-template-columns:1fr}}
+.cta-row{display:flex;gap:.8rem;flex-wrap:wrap;margin:2.2rem 0 1.6rem}
+.badges{display:flex;gap:.5rem;flex-wrap:wrap}
+.badge{font-size:.78rem;padding:.25rem .7rem;border:1px solid var(--border-2);border-radius:99px;color:var(--fg-muted);background:var(--panel-2)}
+.badge b{color:var(--accent)}
+
+.mock{background:var(--panel-solid);border:1px solid var(--border-2);border-radius:20px;box-shadow:var(--shadow),0 0 70px var(--accent-glow);overflow:hidden}
+.mock-top{display:flex;align-items:center;gap:.5rem;padding:.8rem 1.1rem;border-bottom:1px solid var(--border);font-size:.82rem;color:var(--fg-subtle)}
+.dots i{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--border-2);margin-right:5px}
+.pill{margin-left:auto;font-size:.72rem;border:1px solid var(--border-2);padding:.15rem .65rem;border-radius:99px;color:var(--accent)}
+.mock-body{padding:1.2rem;min-height:310px;display:flex;flex-direction:column;gap:.7rem}
+.bubble{max-width:88%;padding:.7rem 1rem;border-radius:14px;font-size:.93rem;white-space:pre-line}
+.bubble.u{align-self:flex-end;background:var(--accent);color:var(--on-accent);border-bottom-right-radius:4px}
+.bubble.a{align-self:flex-start;background:var(--ai-bubble);border:1px solid var(--border);border-bottom-left-radius:4px;min-height:2.7em}
+.caret::after{content:"▍";color:var(--accent);animation:blink 1s steps(2) infinite}
+@keyframes blink{50%{opacity:0}}
+.mock-in{display:flex;gap:.5rem;padding:.8rem 1.1rem;border-top:1px solid var(--border);font-size:.85rem;color:var(--fg-subtle)}
+.mock-in span{flex:1;border:1px solid var(--border);border-radius:10px;padding:.55rem .8rem}
+.mock-in em{font-style:normal;background:var(--accent);color:var(--on-accent);border-radius:10px;padding:.55rem .95rem;font-weight:700}
+
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1.2rem;margin-top:2.8rem}
+.card{background:var(--panel-2);border:1px solid var(--border);border-radius:18px;padding:1.7rem;position:relative;overflow:hidden}
+.card:hover{border-color:var(--border-2);transform:translateY(-3px);transition:transform .2s ease,border-color .2s}
+.card p{color:var(--fg-muted);font-size:.95rem}
+.ico{width:48px;height:48px;border-radius:13px;background:var(--panel-2);border:1px solid var(--border-2);display:grid;place-items:center;margin-bottom:1rem;color:var(--accent)}
+.ico svg{width:25px;height:25px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tag{display:inline-block;font-size:.72rem;padding:.12rem .55rem;border-radius:6px;margin-top:.8rem;border:1px solid var(--border-2);color:var(--fg-subtle)}
+
+/* Micro animations (only on cards where they mean something) */
+.m-stream{display:flex;flex-direction:column;gap:5px;margin-top:1rem}
+.m-stream i{display:block;height:6px;width:12%;border-radius:4px;background:var(--accent);opacity:.7}
+.m-stream .b1{--w:92%}.m-stream .b2{--w:78%}.m-stream .b3{--w:55%}
+.card:hover .m-stream .b1{animation:grow 1.2s ease-out forwards}
+.card:hover .m-stream .b2{animation:grow 1.2s .25s ease-out forwards}
+.card:hover .m-stream .b3{animation:grow 1.2s .5s ease-out forwards}
+@keyframes grow{to{width:var(--w,80%)}}
+.m-exp{display:flex;gap:6px;margin-top:1rem}
+.m-exp span{font:600 .7rem ui-monospace,monospace;padding:.2rem .5rem;border-radius:6px;border:1px solid var(--border-2);color:var(--fg-subtle);transition:transform .25s,color .25s,border-color .25s}
+.card:hover .m-exp span{color:var(--accent);border-color:var(--accent)}
+.card:hover .m-exp span:nth-child(odd){transform:translateY(-4px)}
+
+.compare{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;margin-top:2.8rem}
+@media(max-width:760px){.compare{grid-template-columns:1fr}}
+.panel{background:var(--panel-2);border:1px solid var(--border);border-radius:20px;padding:1.8rem}
+.panel.good{border-color:var(--accent);box-shadow:0 0 44px var(--accent-glow)}
+.panel ul{list-style:none;margin-top:.8rem;color:var(--fg-muted);font-size:.95rem}
+.panel li{padding:.3rem 0 .3rem 1.5rem;position:relative}
+.panel li::before{content:"✕";position:absolute;left:0;color:#f87171}
+.panel.good li::before{content:"✓";color:var(--accent)}
+.diag{width:100%;height:auto;margin:.5rem 0 .6rem}
+.diag text{fill:var(--fg-muted);font:600 11px system-ui}
+.diag .box{fill:var(--panel-solid);stroke:var(--border-2)}
+.diag .hl{stroke:var(--accent)}
+.diag .ln{stroke:var(--fg-subtle);stroke-width:1.6;fill:none;stroke-dasharray:5 5}
+.diag .ln.on{stroke:var(--accent);animation:dash 1.1s linear infinite}
+@keyframes dash{to{stroke-dashoffset:-20}}
+
+.code{background:var(--panel-solid);border:1px solid var(--border-2);border-radius:16px;overflow:hidden;box-shadow:var(--shadow)}
+.code header{display:flex;justify-content:space-between;padding:.65rem 1.1rem;border-bottom:1px solid var(--border);font:.78rem ui-monospace,monospace;color:var(--fg-subtle)}
+.code pre{padding:1.2rem 1.3rem;overflow-x:auto;font:.84rem/1.75 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--fg)}
+.code .c{color:var(--fg-subtle)}.code .k{color:var(--accent)}.code .s{color:var(--accent-2)}
+.two{display:grid;grid-template-columns:1fr 1.15fr;gap:3rem;align-items:center}
+@media(max-width:900px){.two{grid-template-columns:1fr}}
+.facts{list-style:none;margin-top:1.2rem}
+.facts li{padding:.45rem 0 .45rem 1.6rem;position:relative;color:var(--fg-muted)}
+.facts li::before{content:"→";position:absolute;left:0;color:var(--accent)}
+
+/* Context meter (honest, labeled example) */
+.meter-card{max-width:680px;margin:2.8rem auto 0;background:var(--panel-2);border:1px solid var(--border-2);border-radius:20px;padding:1.8rem;text-align:left}
+.meter-top{display:flex;justify-content:space-between;font-size:.9rem;color:var(--fg-muted);margin-bottom:.7rem;gap:1rem;flex-wrap:wrap}
+.bar{height:14px;border-radius:99px;background:var(--panel-solid);border:1px solid var(--border-2);overflow:hidden}
+.bar i{display:block;height:100%;width:0;border-radius:99px;background:linear-gradient(90deg,var(--accent),var(--accent-2));transition:width 1.6s cubic-bezier(.17,.85,.44,1)}
+.meter-card.in .bar i{width:9.7%}
+.meter-rows{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:.8rem;margin-top:1.2rem}
+.meter-rows div{background:var(--panel-solid);border:1px solid var(--border);border-radius:12px;padding:.7rem .9rem;font-size:.85rem;color:var(--fg-muted)}
+.meter-rows b{display:block;color:var(--fg);font-size:.95rem}
+.note{font-size:.8rem;color:var(--fg-subtle);margin-top:1rem}
+
+.slider-card{max-width:760px;margin:2.8rem auto 0;background:var(--panel-2);border:1px solid var(--border-2);border-radius:22px;padding:2.2rem}
+.names{display:flex;justify-content:space-between;font-size:.8rem;color:var(--fg-subtle);margin-top:.7rem}
+.names button{all:unset;cursor:pointer;padding:.25rem .4rem;border-radius:6px}
+.names button:focus-visible{outline:2px solid var(--accent)}
+.names button[aria-pressed="true"]{color:var(--accent);font-weight:700}
+input[type=range]{width:100%;appearance:none;-webkit-appearance:none;height:8px;border-radius:99px;background:linear-gradient(90deg,#38bdf8,#e8eeff,#a78bfa,#fb7185,#34d399,#22d3ee);margin-top:1.4rem;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;height:26px;border-radius:50%;background:var(--accent);border:3px solid var(--bg);box-shadow:0 0 0 2px var(--accent),0 4px 16px var(--accent-glow);cursor:grab}
+input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:var(--accent);border:3px solid var(--bg);cursor:grab}
+.theme-now{text-align:center;font-weight:750;font-size:1.5rem;margin-bottom:.2rem;color:var(--accent)}
+.swatches{display:flex;gap:.5rem;justify-content:center;margin-top:1.5rem}
+.swatches i{width:38px;height:38px;border-radius:10px;border:1px solid var(--border-2)}
+
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:1.2rem;margin-top:2.8rem}
+.step{background:var(--panel-2);border:1px solid var(--border);border-radius:18px;padding:1.7rem;position:relative}
+.step .num{position:absolute;top:1.2rem;right:1.4rem;font-weight:800;font-size:2rem;color:var(--border-2)}
+.step p{color:var(--fg-muted);font-size:.95rem}
+.step small{display:block;margin-top:.8rem;color:var(--accent);font-weight:700;font-size:.76rem;letter-spacing:.05em}
+
+.flow{background:var(--panel-2);border:1px solid var(--border-2);border-radius:22px;padding:1.5rem;margin-top:2.8rem;overflow-x:auto}
+.flow svg{min-width:720px;width:100%;height:auto}
+.flow text{fill:var(--fg-muted);font:600 12px system-ui}
+.flow .t2{fill:var(--fg-subtle);font-weight:500;font-size:10.5px}
+.flow .nd{fill:var(--panel-solid);stroke:var(--border-2)}
+.flow .nd.a{stroke:var(--accent)}
+.flow .pipe{stroke:var(--accent);stroke-width:2;fill:none;stroke-dasharray:6 6;animation:dash 1.1s linear infinite}
+.flow .opt{stroke:var(--fg-subtle);stroke-width:1.6;fill:none;stroke-dasharray:3 6}
+.flow .x{stroke:#f87171;stroke-width:2.4;fill:none}
+.honest{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1.1rem;margin-top:1.3rem}
+.honest .card{padding:1.3rem}
+
+.phone{width:230px;height:440px;margin:0 auto;border-radius:36px;border:8px solid var(--border-2);background:var(--panel-solid);box-shadow:var(--shadow),0 0 50px var(--accent-glow);padding:1.5rem .8rem;display:flex;flex-direction:column;gap:.6rem;position:relative}
+.phone::before{content:"";position:absolute;top:8px;left:50%;transform:translateX(-50%);width:70px;height:6px;border-radius:9px;background:var(--border-2)}
+.phone .bubble{font-size:.74rem;padding:.45rem .7rem}
+.os{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:.9rem;margin-top:1.5rem}
+.os div{background:var(--panel-2);border:1px solid var(--border);border-radius:14px;padding:1rem}
+.os b{color:var(--accent)}.os p{font-size:.9rem;color:var(--fg-muted)}
+
+.road{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:1.2rem;margin-top:2.8rem}
+.col h3{display:flex;gap:.5rem;align-items:center;margin-bottom:.8rem}
+.col h3 span{font-size:.7rem;padding:.1rem .5rem;border-radius:6px;border:1px solid var(--border-2);color:var(--accent)}
+.col ul{list-style:none}
+.col li{padding:.7rem .95rem;margin-bottom:.5rem;background:var(--panel-2);border:1px solid var(--border);border-radius:12px;color:var(--fg-muted);font-size:.92rem}
+
+.faq{max-width:780px;margin:2.8rem auto 0;text-align:left}
+details{background:var(--panel-2);border:1px solid var(--border);border-radius:14px;margin-bottom:.7rem;padding:0 1.3rem}
+details[open]{border-color:var(--border-2)}
+summary{cursor:pointer;padding:1.05rem 0;font-weight:650;list-style:none;display:flex;justify-content:space-between;gap:1rem}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"+";color:var(--accent);font-size:1.3rem;line-height:1}
+details[open] summary::after{content:"–"}
+details p{padding:0 0 1.1rem;color:var(--fg-muted);font-size:.95rem}
+
+.final{text-align:center;background:var(--panel-2);border:1px solid var(--border-2);border-radius:30px;padding:4.5rem 1.5rem;box-shadow:0 0 90px var(--accent-glow)}
+.final .cta-row{justify-content:center}
+footer{border-top:1px solid var(--border);padding:2.5rem 0 3rem;color:var(--fg-subtle);font-size:.9rem}
+footer .wrap{display:flex;justify-content:space-between;gap:1.5rem;flex-wrap:wrap}
+.flinks{display:flex;gap:1.2rem;flex-wrap:wrap}
+
+.rv{opacity:0;transform:translateY(24px);transition:opacity .7s ease,transform .7s cubic-bezier(.17,.85,.44,1)}
+.rv.in{opacity:1;transform:none}
+.no-js .rv{opacity:1;transform:none}
+
+@media(max-width:600px){.cta-row .btn{width:100%;justify-content:center}.hero{padding-top:3.5rem}}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+  .rv{opacity:1;transform:none}
+  .bar i{width:9.7%}
+}
+html.high-contrast body{background-image:none}
+
+/* ===== WOW layer: modern CSS ===== */
+#gl{position:fixed;inset:0;width:100%;height:100%;z-index:-1;pointer-events:none;opacity:.9}
+.progress{position:fixed;top:0;left:0;right:0;height:3px;z-index:60;background:linear-gradient(90deg,var(--accent),var(--accent-2));transform-origin:0 50%;transform:scaleX(0)}
+@supports (animation-timeline:scroll()){.progress{animation:prog linear both;animation-timeline:scroll(root)}}
+@keyframes prog{to{transform:scaleX(1)}}
+.grad{background-size:220% 100%;animation:shine 7s ease-in-out infinite alternate}
+@keyframes shine{to{background-position:100% 0}}
+.card::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .3s;background:radial-gradient(320px circle at var(--mx,50%) var(--my,50%),var(--accent-glow),transparent 62%)}
+.card:hover::before{opacity:1}
+.mock{will-change:transform;transition:transform .18s ease-out,background-color .35s,border-color .35s}
+@media(prefers-reduced-motion:reduce){.grad{animation:none}.progress{animation:none;transform:scaleX(0)}}
+</style>
+</head>
+<body>
+<canvas id="gl" aria-hidden="true"></canvas><div class="progress" aria-hidden="true"></div>
+<script>document.documentElement.classList.add('js');</script>
+<noscript><style>.rv{opacity:1!important;transform:none!important}</style></noscript>
+<a class="skip" href="#main">Skip to content</a>
+
+<nav class="top" aria-label="Primary">
+  <div class="wrap">
+    <a class="brand" href="#main" aria-label="ChatWithIt home">
+      <span class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="var(--on-accent)" stroke-width="2.6" stroke-linecap="round"><path d="M5 7h14M5 12h10M5 17h6"/></svg></span>ChatWithIt
+    </a>
+    <div class="links">
+      <a class="l" href="#features">Features</a>
+      <a class="l" href="#privacy">Privacy</a>
+      <a class="l" href="#how">How it works</a>
+      <a class="l" href="#faq">FAQ</a>
+      <a class="btn sm" href="https://github.com/researchsociety1999-hub/Chat-With-It" rel="noopener">★ GitHub</a>
+      <a class="btn sm primary" href="https://chat-with-it.vercel.app/">Launch app</a>
+    </div>
+  </div>
+</nav>
+
+<main id="main">
+
+<section class="hero">
+  <div class="wrap grid">
+    <div>
+      <p class="eyebrow">Free · Open source · Installable</p>
+      <h1>The most <span class="grad">private</span> way to chat with frontier AI models.</h1>
+      <p class="lead" style="margin-top:1.3rem">Free models. Zero backend. Your keys never leave your browser. Bring an OpenRouter or Hugging Face key and start chatting in about a minute.</p>
+      <div class="cta-row">
+        <a class="btn primary" href="https://chat-with-it.vercel.app/">Launch ChatWithIt →</a>
+        <a class="btn" href="https://github.com/researchsociety1999-hub/Chat-With-It" rel="noopener">View source</a>
+      </div>
+      <div class="badges">
+        <span class="badge"><b>MIT</b> license</span>
+        <span class="badge"><b>No</b> backend</span>
+        <span class="badge"><b>No</b> tracking</span>
+        <span class="badge"><b>PWA</b> ready</span>
+      </div>
+    </div>
+    <div class="mock" aria-hidden="true">
+      <div class="mock-top"><span class="dots"><i></i><i></i><i></i></span> ChatWithIt <span class="pill">free model</span></div>
+      <div class="mock-body">
+        <div class="bubble u" id="mockU">Summarize this article in 3 bullets</div>
+        <div class="bubble a caret" id="mockA"></div>
+      </div>
+      <div class="mock-in"><span>Message…</span><em>Send</em></div>
+    </div>
+  </div>
+</section>
+
+<section id="why">
+  <div class="wrap">
+    <div class="center rv">
+      <p class="eyebrow">Why ChatWithIt</p>
+      <h2>Most AI chat apps ask you to trust their servers.</h2>
+      <p class="lead">They hold your API keys and your conversations. ChatWithIt has no server of its own, and you can read every line of the code that shows it.</p>
+    </div>
+    <div class="compare rv">
+      <div class="panel">
+        <h3>Typical AI chat app</h3>
+        <svg class="diag" viewBox="0 0 360 90" role="img" aria-label="Browser sends keys and chats to the app's server, which forwards to the AI provider">
+          <rect class="box" x="6" y="25" width="80" height="40" rx="8"/><text x="46" y="49" text-anchor="middle">Browser</text>
+          <rect class="box" x="140" y="25" width="90" height="40" rx="8"/><text x="185" y="42" text-anchor="middle">Their server</text><text x="185" y="56" text-anchor="middle">keys + chats</text>
+          <rect class="box" x="284" y="25" width="70" height="40" rx="8"/><text x="319" y="49" text-anchor="middle">AI model</text>
+          <path class="ln" d="M86 45h54M230 45h54"/>
+        </svg>
+        <ul><li>Your key sits on someone else's server</li><li>Your chats pass through a middleman</li><li>You rely on a privacy policy</li></ul>
+      </div>
+      <div class="panel good">
+        <h3>ChatWithIt</h3>
+        <svg class="diag" viewBox="0 0 360 90" role="img" aria-label="Browser talks directly to the AI provider over HTTPS">
+          <rect class="box hl" x="6" y="25" width="110" height="40" rx="8"/><text x="61" y="49" text-anchor="middle">Your browser</text>
+          <rect class="box" x="250" y="25" width="104" height="40" rx="8"/><text x="302" y="42" text-anchor="middle">OpenRouter /</text><text x="302" y="56" text-anchor="middle">Hugging Face</text>
+          <path class="ln on" d="M116 45h134"/><text x="183" y="38" text-anchor="middle">HTTPS</text>
+        </svg>
+        <ul><li>Your key stays in browser memory for the session</li><li>Chats go straight to the provider you chose</li><li>Open source, so you can verify it</li></ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="engine">
+  <div class="wrap two">
+    <div class="rv">
+      <p class="eyebrow">The engine</p>
+      <h2>Auditable by design.</h2>
+      <p class="lead">The app is framework-free modular JavaScript, with no React and no component library. The request handler is short enough to read in one sitting.</p>
+      <ul class="facts">
+        <li>State lives in a single <code>AppState</code> object</li>
+        <li>Bundled with esbuild into <code>dist/app.js</code></li>
+        <li>Tested with vitest, with CI on every push</li>
+        <li><a href="https://github.com/researchsociety1999-hub/Chat-With-It/blob/main/js/api.js" rel="noopener">Read js/api.js on GitHub →</a></li>
+      </ul>
+    </div>
+    <div class="code rv">
+      <header><span>js/api.js</span><span>excerpt from sendMessageStream</span></header>
+<pre><span class="c">// Every chat message travels directly from your browser</span>
+<span class="c">// to the provider over HTTPS. There is no backend.</span>
+<span class="k">const</span> response = <span class="k">await</span> <span class="k">this</span>.fetchWithTimeout(
+  <span class="s">`${provider.baseUrl}${provider.chatEndpoint}`</span>,
+  { method: <span class="s">'POST'</span>, headers,
+    body: JSON.stringify(payload),
+    signal: appSignal },
+  <span class="s">60000</span>
+);</pre>
+    </div>
+  </div>
+</section>
+
+<section id="features">
+  <div class="wrap">
+    <div class="center rv">
+      <p class="eyebrow">Features</p>
+      <h2>Everything you need. Nothing you don't.</h2>
+      <p class="lead">Everything below ships today.</p>
+    </div>
+    <div class="cards">
+      <article class="card rv"><div class="ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg></div>
+        <h3>Free-model discovery</h3><p>Browse free OpenRouter models, found by the <code>:free</code> suffix or zero pricing. Paid models are never listed. Hugging Face chat models are supported too.</p><span class="tag">OpenRouter + Hugging Face</span></article>
+      <article class="card rv"><div class="ico"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h11M4 18h7"/></svg></div>
+        <h3>Streaming with Stop</h3><p>Watch answers arrive token by token. Hit Stop any time; stopping discards the partial output.</p>
+        <div class="m-stream" aria-hidden="true"><i class="b1"></i><i class="b2"></i><i class="b3"></i></div></article>
+      <article class="card rv"><div class="ico"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.5 2.7-6 6-6s6 2.5 6 6"/><path d="M17 5v6M14 8h6"/></svg></div>
+        <h3>Five built-in personas</h3><p>Start from a clear job: Assistant, Tutor, Creative Writer, Code Reviewer, or Debate Coach.</p></article>
+      <article class="card rv"><div class="ico"><svg viewBox="0 0 24 24"><path d="M21 12.5l-8.5 8.5a5.5 5.5 0 01-7.8-7.8l9-9a3.7 3.7 0 015.2 5.2l-9 9a1.8 1.8 0 01-2.6-2.6L15 8"/></svg></div>
+        <h3>Text file attachments</h3><p>Attach <code>.txt</code>, <code>.md</code>, <code>.json</code>, <code>.csv</code>, and code files and chat about them. Image attach is planned.</p></article>
+      <article class="card rv"><div class="ico"><svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M4 20h16"/></svg></div>
+        <h3>Export anywhere</h3><p>Save a conversation as Markdown, JSON, TXT, or PDF, or copy it to the clipboard.</p>
+        <div class="m-exp" aria-hidden="true"><span>.md</span><span>.json</span><span>.txt</span><span>.pdf</span></div></article>
+      <article class="card rv"><div class="ico"><svg viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg></div>
+        <h3>Honest usage stats</h3><p>Live token and context usage. For free models the cost label says so, and when pricing is unknown it says "Cost unavailable". It never invents a price.</p></article>
+    </div>
+  </div>
+</section>
+
+<section id="context">
+  <div class="wrap center">
+    <div class="rv">
+      <p class="eyebrow">Know what you're using</p>
+      <h2>Token and context transparency.</h2>
+      <p class="lead">See how much of the model's context window a conversation has used, with an honest cost label instead of a guess.</p>
+    </div>
+    <div class="meter-card rv" id="meter" role="group" aria-label="Example of the context usage display">
+      <div class="meter-top"><span>Context used (example)</span><span><b>12.4k</b> / 128k tokens</span></div>
+      <div class="bar" role="img" aria-label="About 10 percent of the context window used"><i></i></div>
+      <div class="meter-rows">
+        <div>Cost label<b>Free (provider may still rate-limit)</b></div>
+        <div>Model<b>any <code>:free</code> model</b></div>
+        <div>Token counts<b>from the provider when available, else estimated</b></div>
+      </div>
+      <p class="note">Illustrative example. Real numbers appear live in the app's stats panel.</p>
+    </div>
+  </div>
+</section>
+
+<section id="themes">
+  <div class="wrap">
+    <div class="center rv">
+      <p class="eyebrow">Make it yours</p>
+      <h2>Six themes. Drag to feel the mood.</h2>
+      <p class="lead">This whole page wears the theme you pick, and the app remembers your choice.</p>
+    </div>
+    <div class="slider-card rv">
+      <div class="theme-now" id="themeName" aria-live="polite">Violet</div>
+      <input id="themeRange" type="range" min="0" max="5" step="1" value="2" aria-label="Choose theme">
+      <div class="names" id="themeNames"></div>
+      <div class="swatches" aria-hidden="true"><i style="background:var(--bg)"></i><i style="background:var(--panel-solid)"></i><i style="background:var(--accent)"></i><i style="background:var(--accent-2)"></i><i style="background:var(--fg)"></i></div>
+      <p class="center" style="margin-top:1.4rem;color:var(--fg-subtle);font-size:.88rem">Also included: system preference, high-contrast mode, and reduced-motion support.</p>
+    </div>
+  </div>
+</section>
+
+<section id="how">
+  <div class="wrap">
+    <div class="center rv">
+      <p class="eyebrow">How it works</p>
+      <h2>Three steps to your first chat.</h2>
+    </div>
+    <div class="steps">
+      <div class="step rv"><span class="num" aria-hidden="true">1</span>
+        <div class="ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg></div>
+        <h3>Pick a provider</h3><p>Choose OpenRouter or Hugging Face.</p><small>CHOOSE → UNLOCK MODELS</small></div>
+      <div class="step rv"><span class="num" aria-hidden="true">2</span>
+        <div class="ico"><svg viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg></div>
+        <h3>Paste your API key</h3><p>It stays in session memory unless you choose to save a Profile.</p><small>PASTE → STAY PRIVATE</small></div>
+      <div class="step rv"><span class="num" aria-hidden="true">3</span>
+        <div class="ico"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></div>
+        <h3>Pick a free model, chat</h3><p>Search models with Ctrl/Cmd+K, choose a persona, and start.</p><small>SELECT → START</small></div>
+    </div>
+  </div>
+</section>
+
+<section id="privacy">
+  <div class="wrap">
+    <div class="center rv">
+      <p class="eyebrow">Privacy &amp; security</p>
+      <h2>See exactly where your data goes.</h2>
+      <p class="lead">No ChatWithIt server ever sees your key or your conversations. Here is the full path, including the parts that aren't perfect.</p>
+    </div>
+    <div class="flow rv">
+      <svg viewBox="0 0 760 210" role="img" aria-label="Data flow: you type in the browser, the message goes over HTTPS directly to OpenRouter or Hugging Face, and there is no ChatWithIt server in between. History is kept in local storage.">
+        <rect class="nd" x="10" y="60" width="120" height="60" rx="12"/><text x="70" y="88" text-anchor="middle">You type</text><text class="t2" x="70" y="104" text-anchor="middle">prompt + file</text>
+        <rect class="nd a" x="210" y="60" width="140" height="60" rx="12"/><text x="280" y="88" text-anchor="middle">Your browser</text><text class="t2" x="280" y="104" text-anchor="middle">key in session memory</text>
+        <rect class="nd" x="560" y="60" width="180" height="60" rx="12"/><text x="650" y="88" text-anchor="middle">OpenRouter / HF</text><text class="t2" x="650" y="104" text-anchor="middle">then the model provider</text>
+        <path class="pipe" d="M130 90h80"/><path class="pipe" d="M350 90h210"/>
+        <text class="t2" x="455" y="80" text-anchor="middle">HTTPS / TLS</text>
+        <circle cx="455" cy="150" r="16" fill="var(--panel-solid)" stroke="#f87171"/><path class="x" d="M449 144l12 12M461 144l-12 12"/>
+        <text x="455" y="184" text-anchor="middle">No ChatWithIt server</text>
+        <path class="opt" d="M280 120v40"/><rect class="nd" x="205" y="160" width="150" height="40" rx="10"/><text x="280" y="184" text-anchor="middle">localStorage</text>
+      </svg>
+    </div>
+    <div class="honest">
+      <div class="card rv"><h3>What stays on your device</h3><p>Preferences and chat history (7-day expiry) are stored locally. API keys are not stored unless you tap "Save current key" in Profiles.</p></div>
+      <div class="card rv"><h3>What we're upfront about</h3><p>A key saved in Profiles sits unencrypted in this browser's localStorage. Providers have their own data-retention terms, so review OpenRouter's and Hugging Face's policies.</p></div>
+      <div class="card rv"><h3>Read it yourself</h3><p><a href="https://github.com/researchsociety1999-hub/Chat-With-It/blob/main/PRIVACY.md" rel="noopener">PRIVACY.md</a> · <a href="https://github.com/researchsociety1999-hub/Chat-With-It/blob/main/SECURITY.md" rel="noopener">SECURITY.md</a> · <a href="https://github.com/researchsociety1999-hub/Chat-With-It/blob/main/js/api.js" rel="noopener">js/api.js</a></p></div>
+    </div>
+  </div>
+</section>
+
+<section id="install">
+  <div class="wrap two">
+    <div class="rv">
+      <p class="eyebrow">Install</p>
+      <h2>Add it to your home screen.</h2>
+      <p class="lead">ChatWithIt is a static PWA. Install it and it opens like a native app, with safe-area support for notched phones and a drawer sidebar on mobile.</p>
+      <div class="os">
+        <div><b>iPhone / iPad</b><p>Safari → Share → Add to Home Screen</p></div>
+        <div><b>Android</b><p>Chrome → ⋮ menu → Install app</p></div>
+        <div><b>Desktop</b><p>Chrome or Edge → install icon in the address bar</p></div>
+      </div>
+    </div>
+    <div class="phone rv" aria-hidden="true">
+      <div class="bubble u" style="margin-top:.8rem">Explain closures simply</div>
+      <div class="bubble a">A closure is a function that remembers the variables around it, even after the outer code has finished.</div>
+      <div class="bubble u">Nice. Quiz me.</div>
+      <div class="bubble a caret"></div>
+    </div>
+  </div>
+</section>
+
+<section id="open">
+  <div class="wrap two">
+    <div class="rv">
+      <p class="eyebrow">Open source</p>
+      <h2>MIT licensed. Fork it, host it, change it.</h2>
+      <p class="lead">Vanilla JS, plain CSS, and no backend to run. Deploy your own copy to Vercel in a click.</p>
+      <div class="cta-row">
+        <a class="btn primary" href="https://vercel.com/new/clone?repository-url=https://github.com/researchsociety1999-hub/Chat-With-It" rel="noopener">Deploy with Vercel</a>
+        <a class="btn" href="https://github.com/researchsociety1999-hub/Chat-With-It" rel="noopener">★ Star on GitHub</a>
+      </div>
+    </div>
+    <div class="code rv">
+      <header><span>terminal</span><span>60 seconds</span></header>
+<pre><span class="c"># clone, build, run</span>
+git clone https://github.com/researchsociety1999-hub/Chat-With-It.git
+cd Chat-With-It
+npm install
+npm run build
+npm start
+<span class="c"># open http://localhost:3000</span></pre>
+    </div>
+  </div>
+</section>
+
+<section id="roadmap">
+  <div class="wrap">
+    <div class="center rv">
+      <p class="eyebrow">Roadmap</p>
+      <h2>What's shipped and what's planned.</h2>
+      <p class="lead">No blurred claims. Planned items have no promised dates.</p>
+    </div>
+    <div class="road">
+      <div class="col rv"><h3>Shipped <span>live</span></h3><ul>
+        <li>OpenRouter + Hugging Face</li><li>Streaming with Stop</li><li>5 built-in personas</li><li>Text file attachments</li><li>6 themes + high contrast</li><li>5 export formats</li><li>Installable PWA</li></ul></div>
+      <div class="col rv"><h3>Planned <span>next</span></h3><ul>
+        <li>Image / drag-and-drop attach</li><li>Custom saved personas</li><li>Message search across history</li><li>Side-by-side model compare</li></ul></div>
+      <div class="col rv"><h3>Exploring <span>later</span></h3><ul>
+        <li>Encrypted local history passphrase</li><li>More providers</li><li>Learned model routing</li><li>Optional SaaS / multi-tenant mode</li></ul></div>
+    </div>
+  </div>
+</section>
+
+<section id="faq">
+  <div class="wrap">
+    <div class="center rv"><p class="eyebrow">FAQ</p><h2>Quick answers.</h2></div>
+    <div class="faq rv">
+      <details><summary>Is it free?</summary><p>ChatWithIt is free and MIT licensed, and it lists only free models. You bring your own OpenRouter or Hugging Face key, and the provider's own limits apply.</p></details>
+      <details><summary>Do I need an account?</summary><p>There is no ChatWithIt account because there is no backend. You do need an API key from OpenRouter or Hugging Face.</p></details>
+      <details><summary>Where is my API key stored?</summary><p>In browser memory for the current session. If you use the optional Profiles feature and tap "Save current key", it is saved unencrypted in this browser's localStorage.</p></details>
+      <details><summary>Where does my chat history go?</summary><p>History stays on your device in local storage and expires after 7 days. Messages themselves are sent only to the provider you selected.</p></details>
+      <details><summary>Why am I seeing rate-limit errors?</summary><p>OpenRouter's free tier is limited to roughly 20 requests per minute and 50 per day without credits. Wait a minute, switch to another free model, or add credits on OpenRouter.</p></details>
+      <details><summary>Does it work offline?</summary><p>The installed app shell is cached by a service worker, so the interface loads offline. Chatting still needs an internet connection to reach the model provider.</p></details>
+      <details><summary>Which models can I use?</summary><p>Free models from OpenRouter, plus chat models available through the Hugging Face router. The list refreshes when you add your key.</p></details>
+    </div>
+  </div>
+</section>
+
+<section style="padding-top:2rem">
+  <div class="wrap">
+    <div class="final rv">
+      <h2>Chat with frontier models, privately.</h2>
+      <p class="lead" style="margin:0 auto">No sign-up. No server in the middle. Just your browser and the model.</p>
+      <div class="cta-row">
+        <a class="btn primary" href="https://chat-with-it.vercel.app/">Launch ChatWithIt →</a>
+        <a class="btn" href="#main">Back to top</a>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div>© 2026 ChatWithIt · MIT License<br>Built by <a href="https://www.linkedin.com/in/hrushikesh-singh-revops" rel="noopener">Rishi</a>, AI product &amp; operations builder.</div>
+    <div class="flinks">
+      <a href="https://github.com/researchsociety1999-hub/Chat-With-It" rel="noopener">GitHub</a>
+      <a href="https://github.com/researchsociety1999-hub/Chat-With-It/blob/main/PRIVACY.md" rel="noopener">Privacy</a>
+      <a href="https://github.com/researchsociety1999-hub/Chat-With-It/blob/main/SECURITY.md" rel="noopener">Security</a>
+      <a href="https://github.com/researchsociety1999-hub/Chat-With-It/blob/main/SUPPORT.md" rel="noopener">Support</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function(){
+  var THEMES=[["dark","Dark"],["light","Light"],["violet","Violet"],["ember","Ember"],["forest","Forest"],["aurora","Aurora"]];
+  var root=document.documentElement, range=document.getElementById('themeRange');
+  var nameEl=document.getElementById('themeName'), namesEl=document.getElementById('themeNames');
+  var reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function readState(){
+    try{var s=JSON.parse(localStorage.getItem('cwiState'));return (s&&typeof s==='object')?s:{}}catch(e){return {}}
+  }
+  function saveTheme(t){
+    var s=readState(); s.theme=t;
+    try{localStorage.setItem('cwiState',JSON.stringify(s))}catch(e){}
+  }
+  function apply(i,persist){
+    var t=THEMES[i]; if(!t)return;
+    root.setAttribute('data-theme',t[0]); range.value=i; nameEl.textContent=t[1];
+    [].forEach.call(namesEl.children,function(b,j){b.setAttribute('aria-pressed',String(j===i))});
+    var m=document.querySelector('meta[name=theme-color]');
+    if(m)m.setAttribute('content',getComputedStyle(document.body).backgroundColor);
+    if(persist)saveTheme(t[0]);
+  }
+  THEMES.forEach(function(t,i){
+    var b=document.createElement('button'); b.type='button'; b.textContent=t[1];
+    b.addEventListener('click',function(){apply(i,true)}); namesEl.appendChild(b);
+  });
+  range.addEventListener('input',function(){apply(parseInt(range.value,10),true)});
+
+  var saved=readState().theme, idx=-1;
+  THEMES.forEach(function(t,i){if(t[0]===saved)idx=i});
+  if(idx<0)idx=window.matchMedia('(prefers-color-scheme: light)').matches?1:2;
+  apply(idx,false);
+
+  var demos=[
+    ["Summarize this article in 3 bullets","• Core claim first\n• Key evidence second\n• What to do next"],
+    ["Write a gothic poem about rain","Pale rain on iron gates,\na hush the old bells keep…"],
+    ["Review this JS function","Two issues: an unhandled rejection, and a variable that shadows its outer scope."]
+  ];
+  var u=document.getElementById('mockU'), a=document.getElementById('mockA'), n=0, timer=null;
+  function run(){
+    var d=demos[n%demos.length]; n++;
+    u.textContent=d[0]; a.textContent='';
+    if(reduce){a.textContent=d[1];a.classList.remove('caret');return}
+    a.classList.add('caret');
+    var i=0;
+    (function tick(){
+      if(i<=d[1].length){a.textContent=d[1].slice(0,i++);timer=setTimeout(tick,24)}
+      else{a.classList.remove('caret');timer=setTimeout(run,2800)}
+    })();
+  }
+  run();
+
+  var els=document.querySelectorAll('.rv');
+  if('IntersectionObserver' in window && !reduce){
+    var io=new IntersectionObserver(function(es){
+      es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}});
+    },{threshold:.12});
+    els.forEach(function(e){io.observe(e)});
+  } else {
+    els.forEach(function(e){e.classList.add('in')});
+  }
+})();
+</script>
+
+<script>
+/* ===== WOW layer: GLSL shader background + pointer effects ===== */
+(function(){
+  var cv=document.getElementById('gl'); if(!cv)return;
+  var gl=cv.getContext('webgl',{antialias:false,alpha:false,powerPreference:'low-power'}); if(!gl)return;
+  var reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var VS='attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}';
+  var FS=[
+  'precision mediump float;',
+  'uniform vec2 r,m;uniform float t;uniform vec3 c1,c2,bg;',
+  'float h(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}',
+  'float n(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);',
+  ' return mix(mix(h(i),h(i+vec2(1,0)),f.x),mix(h(i+vec2(0,1)),h(i+vec2(1,1)),f.x),f.y);}',
+  'float fbm(vec2 p){float s=0.,a=.5;for(int i=0;i<4;i++){s+=a*n(p);p=p*2.03+7.1;a*=.5;}return s;}',
+  'void main(){',
+  ' vec2 uv=gl_FragCoord.xy/r;vec2 q=uv*vec2(r.x/r.y,1.)*1.7;',
+  ' float w=fbm(q*1.4-t*.04);',
+  ' float a=fbm(q+vec2(t*.05,-t*.02)+w*1.5);',
+  ' float b=fbm(q*2.1+w*2.-t*.06);',
+  ' vec3 c=bg;',
+  ' c=mix(c,c1,smoothstep(.38,.85,a)*.5);',
+  ' c=mix(c,c2,smoothstep(.55,.95,b)*.3);',
+  ' float d=distance(uv,m);c+=c1*exp(-d*d*9.)*.22;',
+  ' c*=1.-.45*smoothstep(.4,1.1,distance(uv,vec2(.5)));',
+  ' c+=(h(gl_FragCoord.xy+t)-.5)*.02;',
+  ' gl_FragColor=vec4(c,1.);}'
+  ].join('\n');
+  function sh(type,s){var o=gl.createShader(type);gl.shaderSource(o,s);gl.compileShader(o);return gl.getShaderParameter(o,gl.COMPILE_STATUS)?o:null;}
+  var v=sh(gl.VERTEX_SHADER,VS),f=sh(gl.FRAGMENT_SHADER,FS); if(!v||!f)return;
+  var pg=gl.createProgram();gl.attachShader(pg,v);gl.attachShader(pg,f);gl.linkProgram(pg);
+  if(!gl.getProgramParameter(pg,gl.LINK_STATUS))return;
+  gl.useProgram(pg);
+  var buf=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buf);
+  gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
+  var loc=gl.getAttribLocation(pg,'p');gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,2,gl.FLOAT,false,0,0);
+  var U={};['r','m','t','c1','c2','bg'].forEach(function(k){U[k]=gl.getUniformLocation(pg,k)});
+
+  function hex(s){s=s.trim().replace('#','');if(s.length===3)s=s.replace(/./g,'$&$&');
+    var n=parseInt(s,16);return isNaN(n)?[.1,.1,.15]:[(n>>16&255)/255,(n>>8&255)/255,(n&255)/255];}
+  function target(){var cs=getComputedStyle(document.documentElement);
+    return {c1:hex(cs.getPropertyValue('--accent')),c2:hex(cs.getPropertyValue('--accent-2')),bg:hex(cs.getPropertyValue('--bg'))};}
+  var cur=target(),tgt=cur;
+  new MutationObserver(function(){tgt=target();if(reduce)snap();}).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+
+  var mx=.5,my=.6,tx=.5,ty=.6;
+  addEventListener('pointermove',function(e){tx=e.clientX/innerWidth;ty=1-e.clientY/innerHeight;},{passive:true});
+
+  function size(){var s=Math.min(devicePixelRatio||1,1.5)*.5;
+    cv.width=Math.max(2,innerWidth*s|0);cv.height=Math.max(2,innerHeight*s|0);gl.viewport(0,0,cv.width,cv.height);}
+  addEventListener('resize',function(){size();if(reduce)draw(0)});size();
+
+  function lerp3(a,b,k){return [a[0]+(b[0]-a[0])*k,a[1]+(b[1]-a[1])*k,a[2]+(b[2]-a[2])*k];}
+  function draw(t){
+    gl.uniform2f(U.r,cv.width,cv.height);gl.uniform2f(U.m,mx,my);gl.uniform1f(U.t,t);
+    gl.uniform3fv(U.c1,cur.c1);gl.uniform3fv(U.c2,cur.c2);gl.uniform3fv(U.bg,cur.bg);
+    gl.drawArrays(gl.TRIANGLES,0,3);
+  }
+  function snap(){cur=tgt;draw(0);}
+  function frame(ms){
+    mx+=(tx-mx)*.06;my+=(ty-my)*.06;
+    cur={c1:lerp3(cur.c1,tgt.c1,.06),c2:lerp3(cur.c2,tgt.c2,.06),bg:lerp3(cur.bg,tgt.bg,.06)};
+    draw(ms*.001);requestAnimationFrame(frame);
+  }
+  if(reduce){snap();}else{requestAnimationFrame(frame);}
+
+  /* card spotlight */
+  document.addEventListener('pointermove',function(e){
+    var c=e.target.closest&&e.target.closest('.card'); if(!c)return;
+    var b=c.getBoundingClientRect();c.style.setProperty('--mx',(e.clientX-b.left)+'px');c.style.setProperty('--my',(e.clientY-b.top)+'px');
+  },{passive:true});
+
+  /* 3D tilt on the hero mockup */
+  var mock=document.querySelector('.hero .mock');
+  if(mock&&!reduce&&matchMedia('(hover:hover)').matches){
+    var hero=document.querySelector('.hero');
+    hero.addEventListener('pointermove',function(e){
+      var b=mock.getBoundingClientRect(),x=(e.clientX-b.left)/b.width-.5,y=(e.clientY-b.top)/b.height-.5;
+      mock.style.transform='perspective(900px) rotateY('+(x*9).toFixed(2)+'deg) rotateX('+(-y*9).toFixed(2)+'deg)';
+    });
+    hero.addEventListener('pointerleave',function(){mock.style.transform=''});
+  }
+})();
+</script>
+</body>
+</html>
