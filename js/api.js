@@ -92,8 +92,6 @@ export const CURATED_FREE = {
     { id:'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free', name:'Nemotron 3 Nano Omni 30B A3B', ctx:256000, paramTier:'?' },
     { id:'google/gemma-4-26b-a4b-it:free',      name:'Gemma 4 26B A4B IT',                  ctx:262144, paramTier:'?' },
     { id:'google/gemma-4-31b-it:free',          name:'Gemma 4 31B IT',                     ctx:262144, paramTier:'?' },
-    { id:'google/lyria-3-pro-preview',          name:'Lyria 3 Pro Preview',                ctx:1048576, paramTier:'?' },
-    { id:'google/lyria-3-clip-preview',         name:'Lyria 3 Clip Preview',               ctx:1048576, paramTier:'?' },
     { id:'openrouter/free',                     name:'Free Models Router',                 ctx:200000, paramTier:'?' },
   ],
 
