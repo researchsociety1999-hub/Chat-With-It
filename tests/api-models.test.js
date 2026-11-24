@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { API, CURATED_FREE } from '../js/api.js';
+import { DEPRECATED_IDS } from '../js/providers/availability.mjs';
 import { AppState } from '../js/state.js';
 
 describe('free provider model discovery', () => {
@@ -16,7 +17,8 @@ describe('free provider model discovery', () => {
     const models = await API.fetchModels('openrouter');
 
     expect(models.length).toBeGreaterThan(0);
-    expect(models.every(model => model.id.endsWith(':free'))).toBe(true);
+    // 'openrouter/free' is OpenRouter's free router: free by routing, not by a ':free' suffix.
+    expect(models.every(model => model.id.endsWith(':free') || model.id === 'openrouter/free')).toBe(true);
     expect(globalThis.fetch).not.toHaveBeenCalled();
   });
 
@@ -116,5 +118,14 @@ describe('free-only model list', () => {
     ] };
     const ids = API.processModels(data, 'openrouter').map(m => m.id).sort();
     expect(ids).toEqual(['a/free-one:free', 'b/zero']);
+  });
+});
+
+describe('curated list hygiene', () => {
+  it('contains no deprecated OpenRouter ids', () => {
+    const deprecated = CURATED_FREE.openrouter
+      .map(model => model.id)
+      .filter(id => Object.prototype.hasOwnProperty.call(DEPRECATED_IDS, id));
+    expect(deprecated).toEqual([]);
   });
 });
