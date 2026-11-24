@@ -5,9 +5,14 @@
  * wraps that call. It adds no new dependencies and leaves api.js untouched.
  *
  * Only OpenRouter is gated. Hugging Face has no free/paid split, so it passes through.
+ * The 'local' provider never touches the network: it is routed to the on-device adapter.
  */
 
 import { API, CURATED_FREE } from './api.js';
+import { AppState } from './state.js';
+import { wllamaAdapter } from './providers/wllama.js';
+import './local-bridge.js';
+import './local-ui.js';
 import {
   createAvailabilityGate,
   dispatchWithGate,
@@ -42,6 +47,22 @@ export function syncGateFromModels(models) {
  * @param {(info: {from: string, to: string, reason: string}) => void} [p.onFallback]
  */
 export async function gatedStream({ provider, modelId, messages, onToken, options, onFallback, autoFallback = false }) {
+  if (provider === 'local') {
+    const out = await wllamaAdapter.streamChat({
+      modelId,
+      messages,
+      onToken,
+      options: options || {},
+      signal: AppState.abortController ? AppState.abortController.signal : undefined,
+    });
+    return {
+      choices: [{ message: { content: out.content } }],
+      usage: out.usage,
+      usageEstimated: true,
+      modelUsed: modelId,
+    };
+  }
+
   if (provider !== 'openrouter') {
     return API.sendMessageStream(messages, modelId, onToken, options);
   }

@@ -1,0 +1,25 @@
+/* Local (on-device) provider. Loaded after components.css so these rules win. */
+
+/* Three provider tabs instead of two. */
+.ptabs { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+.local-panel { display: flex; flex-direction: column; gap: .45rem; }
+.local-drop {
+  display: flex; flex-direction: column; align-items: flex-start; gap: .4rem;
+  padding: .65rem; border-radius: var(--radius-sm);
+  border: 1.5px dashed color-mix(in srgb, var(--accent) 60%, transparent);
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+}
+.local-drop .btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+#localStatus { font-size: .74rem; overflow-wrap: anywhere; }
+
+.model-badge.local {
+  background: color-mix(in srgb, var(--success) 14%, transparent);
+  border-color: color-mix(in srgb, var(--success) 60%, transparent);
+}
+
+html.high-contrast .local-drop { border-color: var(--fg); }
+
+@media (max-width: 640px) {
+  .ptab { padding-inline: .25rem; }
+}

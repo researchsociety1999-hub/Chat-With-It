@@ -101,7 +101,7 @@ export const AppState = {
     this._startIdleTimer();
   },
 
-  // ── Theme State ──────────────────────────────────────────────────────────
+  // ── Theme State ───────────────────────────────────────────────────────────────────
 
   loadThemeState() {
     try {
@@ -138,7 +138,7 @@ export const AppState = {
     }
   },
 
-  // ── Idle-timeout ──────────────────────────────────────────────────────────
+  // ── Idle-timeout ─────────────────────────────────────────────────────────────────────
 
   _startIdleTimer() {
     this._clearIdleTimer();
@@ -160,7 +160,7 @@ export const AppState = {
     if (typeof document !== 'undefined') document.dispatchEvent(new CustomEvent('cwi:idle-timeout'));
   },
 
-  // ── Model cooldowns ───────────────────────────────────────────────────────
+  // ── Model cooldowns ─────────────────────────────────────────────────────────────────
 
   setModelCooldown(modelId, durationMs = 60000) {
     this._modelCooldowns[modelId] = Date.now() + durationMs;
@@ -185,7 +185,7 @@ export const AppState = {
     return Object.values(this._modelCooldowns).some(until => until > now);
   },
 
-  // ── Persistence ───────────────────────────────────────────────────────────
+  // ── Persistence ────────────────────────────────────────────────────────────────────
 
   loadPersistedState() {
     try {
@@ -226,7 +226,7 @@ export const AppState = {
     }
   },
 
-  // ── Chat history persistence (7-day TTL) ─────────────────────────────────
+  // ── Chat history persistence (7-day TTL) ───────────────────────────────────────────────────────
 
   loadPersistedHistory() {
     try {
@@ -261,7 +261,7 @@ export const AppState = {
     try { localStorage.removeItem(this.HISTORY_STORAGE_KEY); } catch (e) {}
   },
 
-  // ── Messages ──────────────────────────────────────────────────────────────
+  // ── Messages ───────────────────────────────────────────────────────────────────────
 
   addMessage(role, content) {
     if (!content || typeof content !== 'string') {
@@ -298,7 +298,7 @@ export const AppState = {
     return true;
   },
 
-  // ── Context trimming ──────────────────────────────────────────────────────
+  // ── Context trimming ─────────────────────────────────────────────────────────────────
 
   trimHistoryToFitContext(messages) {
     const ctxLimit  = this.getContextLimit();
@@ -324,7 +324,7 @@ export const AppState = {
     return trimmed;
   },
 
-  // ── Rate limiter (token-bucket, 20 req/min) ───────────────────────────────
+  // ── Rate limiter (token-bucket, 20 req/min) ────────────────────────────────────────────────
 
   canMakeRequest() {
     const now = Date.now();
@@ -350,7 +350,7 @@ export const AppState = {
     return Math.max(0, this.requestLimitPerMinute - this._requestBucket.length);
   },
 
-  // ── Chat lifecycle ────────────────────────────────────────────────────────
+  // ── Chat lifecycle ──────────────────────────────────────────────────────────────────
 
   /**
    * FIX P: clearChat() does NOT reset sessionStats.startTime.
@@ -378,7 +378,7 @@ export const AppState = {
     this.attachedFiles = [];
   },
 
-  // ── Context helpers ───────────────────────────────────────────────────────
+  // ── Context helpers ─────────────────────────────────────────────────────────────────
 
   getContextUsage() {
     const ctxSize = this.modelContextMap[this.selectedModel] || 8192;
@@ -390,19 +390,22 @@ export const AppState = {
     return this.modelContextMap[this.selectedModel] || 8192;
   },
 
-  // ── Auth helpers ──────────────────────────────────────────────────────────
+  // ── Auth helpers ───────────────────────────────────────────────────────────────────
 
+  // 'local' runs on-device and needs no key, so it is always "authenticated".
   isValidProvider(provider) {
-    return provider === 'openrouter' || provider === 'huggingface';
+    return provider === 'openrouter' || provider === 'huggingface' || provider === 'local';
   },
 
   getAuthToken() {
+    if (this.currentProvider === 'local') return '';
     return this.currentProvider === 'openrouter' ? this._apiKey : this._hfToken;
   },
 
   isAuthenticatedFor(provider) {
     if (provider === 'openrouter') return !!this._apiKey;
     if (provider === 'huggingface') return !!this._hfToken;
+    if (provider === 'local') return true;
     return false;
   },
 };
