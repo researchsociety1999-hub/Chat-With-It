@@ -13,6 +13,7 @@ import { AppState } from './state.js';
 import { wllamaAdapter } from './providers/wllama.js';
 import './local-bridge.js';
 import './local-ui.js';
+import './local-monitor-ui.js';
 import {
   createAvailabilityGate,
   dispatchWithGate,

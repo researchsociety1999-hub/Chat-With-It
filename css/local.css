@@ -20,6 +20,14 @@
 
 html.high-contrast .local-drop { border-color: var(--fg); }
 
+/* Local runtime card (Stats panel) */
+.rt-note { font-size: .68rem; line-height: 1.4; color: var(--fg-subtle); }
+#localRuntimeCard .stat-row [data-tone="ok"] { color: var(--success); }
+#localRuntimeCard .stat-row [data-tone="warn"] { color: var(--warn); }
+#localRuntimeCard .stat-row [data-tone="bad"] { color: var(--danger); }
+#localRuntimeCard .stat-row [data-tone="muted"] { color: var(--fg-muted); font-weight: 600; }
+#localRuntimeCard .chart { min-height: 48px; }
+
 /* Hugging Face GGUF popup */
 dialog.hf-modal {
   width: min(720px, calc(100vw - 1.5rem)); max-height: min(85dvh, 100%);

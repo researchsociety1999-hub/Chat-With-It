@@ -47,7 +47,7 @@ export function isLoadingLocalModel() { return state.loading; }
 export function getLoadedLocalModel() { return state.model; }
 export function getLastRun() { return state.lastRun; }
 
-/** Subscribe to loading / loaded / unloaded / run / error events. Returns an unsubscribe function. */
+/** Subscribe to loading / loaded / unloaded / generating / run / error events. Returns an unsubscribe function. */
 export function onLocalChange(fn) {
   state.listeners.add(fn);
   return () => state.listeners.delete(fn);
@@ -182,16 +182,23 @@ async function streamChat({ modelId, messages, options = {}, signal, onToken }) 
   let content = '';
   let chunks = 0;
   let firstTokenAt = 0;
+  let lastEmitAt = 0;
   const started = performance.now();
   try {
     const stream = await w.createChatCompletion(request);
     for await (const chunk of stream) {
       const delta = chunk?.choices?.[0]?.delta?.content || '';
       if (!delta) continue;
-      if (!firstTokenAt) firstTokenAt = performance.now();
+      const now = performance.now();
+      if (!firstTokenAt) firstTokenAt = now;
       content += delta;
       chunks += 1;
       if (onToken) onToken(delta);
+      if (chunks > 1 && now - lastEmitAt >= 500) {
+        lastEmitAt = now;
+        const ms = now - firstTokenAt;
+        emit('generating', { live: { tokens: chunks, tokensPerSecond: ms > 0 ? Number(((chunks - 1) / (ms / 1000)).toFixed(1)) : null } });
+      }
     }
   } catch (err) {
     if ((signal && signal.aborted) || err?.name === 'AbortError') throw coded('ABORTED', 'Request cancelled by user');
