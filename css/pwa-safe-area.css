@@ -139,3 +139,31 @@ body {
     }
   }
 }
+
+/*
+ * Mobile action tray (More menu: Stats, Clear, Export, Theme, Contrast, Reset).
+ *
+ * #actionTray is position:fixed but lives inside .chat-header. The header had backdrop-filter, which
+ * makes it the containing block for fixed descendants, so the tray was anchored to the header and
+ * grew upward off-screen (Stats is its first button). The header's z-index:10 also made it a
+ * stacking context, which kept the tray below .mobile-overlay (z-index 105). At phone/tablet widths
+ * the header is therefore opaque and not a stacking context; the tray sits above the overlay (105),
+ * the drawer (110) and the Stats sheet (130), and scrolls if it is taller than the screen.
+ * Desktop (>= 1101px) is untouched: there the tray is display:contents inside .header-actions.
+ */
+@media (max-width: 1100px) {
+  .chat-header {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background: var(--panel-solid);
+    z-index: auto;
+  }
+
+  .action-tray {
+    z-index: 150;
+    max-height: calc(100dvh - 1.5rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+}
