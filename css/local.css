@@ -20,6 +20,39 @@
 
 html.high-contrast .local-drop { border-color: var(--fg); }
 
+/* Hugging Face GGUF popup */
+dialog.hf-modal {
+  width: min(720px, calc(100vw - 1.5rem)); max-height: min(85dvh, 100%);
+  padding: 0; overflow: hidden; color: var(--fg);
+  background: var(--panel-solid); border: 1px solid var(--border-2);
+  border-radius: var(--radius); box-shadow: var(--shadow);
+}
+dialog.hf-modal::backdrop { background: rgba(0, 0, 0, .6); }
+.hf-box { display: flex; flex-direction: column; gap: .7rem; padding: .9rem 1.1rem; max-height: min(85dvh, 100%); overflow: hidden; }
+.hf-head { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
+.hf-list { display: flex; flex-direction: column; gap: .45rem; overflow-y: auto; min-height: 0; flex: 1; scrollbar-width: thin; }
+.hf-row {
+  display: flex; align-items: center; justify-content: space-between; gap: .6rem; width: 100%;
+  padding: .6rem .75rem; text-align: left; color: var(--fg); font: inherit; cursor: pointer;
+  background: var(--panel-2); border: 1px solid var(--border); border-radius: var(--radius-sm);
+}
+.hf-row:hover { border-color: var(--accent); }
+.hf-row:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.hf-row strong { font-size: .84rem; overflow-wrap: anywhere; }
+.hf-file { cursor: default; }
+.hf-file:hover { border-color: var(--border); }
+.hf-tags { display: flex; flex-wrap: wrap; gap: .3rem; margin-top: .25rem; }
+.hf-tag { font-size: .66rem; padding: .1rem .45rem; border-radius: 99px; border: 1px solid var(--border-2); color: var(--fg-muted); }
+.hf-tag.warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 55%, transparent); }
+.hf-progress { display: flex; flex-direction: column; gap: .4rem; padding: .65rem .75rem; border-radius: var(--radius-sm); border: 1px solid var(--accent); background: var(--accent-glow); }
+.hf-progress-row { display: flex; justify-content: space-between; gap: .5rem; font-size: .78rem; flex-wrap: wrap; }
+.hf-bar { height: 6px; border-radius: 99px; background: var(--border); overflow: hidden; }
+.hf-bar > div { height: 100%; width: 0; background: var(--accent); border-radius: 99px; transition: width .3s ease; }
+.hf-progress .btn { align-self: flex-start; }
+
+html.high-contrast .hf-row, html.high-contrast dialog.hf-modal { border-color: var(--fg); }
+
 @media (max-width: 640px) {
   .ptab { padding-inline: .25rem; }
+  .hf-row { flex-direction: column; align-items: stretch; }
 }

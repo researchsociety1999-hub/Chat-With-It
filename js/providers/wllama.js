@@ -1,9 +1,9 @@
 /**
  * Local (on-device) provider backed by wllama (llama.cpp compiled to WebAssembly).
  *
- * Pure module: no DOM, no AppState, no storage. The model file is read in this browser and is
- * never uploaded. The wllama library itself is supplied through setEngineLoader(), so this file
- * builds and tests without the dependency; the app wires the real loader in a later commit.
+ * Pure module: no DOM, no AppState, no storage. A model file is read in this browser and is never
+ * uploaded. The wllama library itself is supplied through setEngineLoader(), so this file builds
+ * and tests without the dependency (see wllama-engine.js for the real loader).
  *
  * Loader contract: async () => ({ Wllama, config }) where config is the Wllama asset-path config.
  */
@@ -12,6 +12,8 @@ import { inferParamTier } from './model-list.mjs';
 
 export const LOCAL_PROVIDER_ID = 'local';
 export const DEFAULT_N_CTX = 4096;
+
+const HF_REPO_RE = /^[A-Za-z0-9][\w.-]*\/[A-Za-z0-9][\w.-]*$/;
 
 const state = {
   loader: null,
@@ -55,21 +57,27 @@ export function isGgufFile(file) {
   return Boolean(file) && /\.gguf$/i.test(String(file.name || '')) && file.size > 0;
 }
 
-export function describeLocalModel(file, nCtx = DEFAULT_N_CTX) {
+function describeModel({ id, fileName, sizeBytes, source }, nCtx) {
+  const base = String(fileName).split('/').pop();
   return {
-    id: `local/${file.name}`,
+    id,
     provider: LOCAL_PROVIDER_ID,
-    name: String(file.name).replace(/\.gguf$/i, ''),
+    name: base.replace(/\.gguf$/i, ''),
     ctx: nCtx,
-    paramTier: inferParamTier(file.name),
+    paramTier: inferParamTier(base),
     uncensored: false,
     type: 'chat',
     live: true,
     curated: false,
     local: true,
-    fileName: file.name,
-    sizeBytes: file.size,
+    fileName: base,
+    sizeBytes: sizeBytes || 0,
+    ...(source ? { source } : {}),
   };
+}
+
+export function describeLocalModel(file, nCtx = DEFAULT_N_CTX) {
+  return describeModel({ id: `local/${file.name}`, fileName: file.name, sizeBytes: file.size }, nCtx);
 }
 
 export async function unloadLocalModel({ silent = false } = {}) {
@@ -83,26 +91,29 @@ export async function unloadLocalModel({ silent = false } = {}) {
   if (!silent) emit('unloaded');
 }
 
-/**
- * Load a .gguf File chosen by the user.
- * Throws errors carrying .code: INVALID_REQUEST, ENGINE_MISSING, BUSY, or the engine's own error.
- */
-export async function loadLocalModel(file, { nCtx = DEFAULT_N_CTX } = {}) {
-  if (!isGgufFile(file)) throw coded('INVALID_REQUEST', 'Choose a non-empty .gguf model file.');
+/** Shared load path for a picked file and for a Hugging Face download. */
+async function loadWith(meta, nCtx, doLoad, signal) {
   if (!state.loader) throw coded('ENGINE_MISSING', 'The local engine is not part of this build yet.');
   if (state.loading) throw coded('BUSY', 'A model is already loading.');
 
   state.loading = true;
-  emit('loading', { file: { name: file.name, size: file.size } });
+  emit('loading', { file: { name: String(meta.fileName).split('/').pop(), size: meta.sizeBytes || 0 } });
   const started = performance.now();
   let w = null;
+  const onAbort = () => {
+    if (!w) return;
+    try { Promise.resolve(w.exit()).catch(() => {}); } catch (_) { /* ignore */ }
+  };
+  if (signal) signal.addEventListener('abort', onAbort, { once: true });
   try {
     await unloadLocalModel({ silent: true });
     if (!state.lib) state.lib = await state.loader();
+    if (signal && signal.aborted) throw coded('ABORTED', 'Cancelled.');
     w = new state.lib.Wllama(state.lib.config);
-    await w.loadModel([file], { n_ctx: nCtx });
+    await doLoad(w);
+    if (signal && signal.aborted) throw coded('ABORTED', 'Cancelled.');
 
-    const model = { ...describeLocalModel(file, nCtx), loadMs: Math.round(performance.now() - started) };
+    const model = { ...describeModel(meta, nCtx), loadMs: Math.round(performance.now() - started) };
     try {
       model.runtime = { threads: w.getNumThreads(), multithread: w.isMultithread(), webgpu: w.isSupportWebGPU() };
     } catch (_) { /* runtime details are optional */ }
@@ -115,11 +126,47 @@ export async function loadLocalModel(file, { nCtx = DEFAULT_N_CTX } = {}) {
     if (w) { try { await w.exit(); } catch (_) { /* ignore */ } }
     state.wllama = null;
     state.model = null;
-    emit('error', { error: err });
-    throw err;
+    const out = signal && signal.aborted && !(err && err.code === 'ABORTED') ? coded('ABORTED', 'Cancelled.') : err;
+    emit('error', { error: out });
+    throw out;
   } finally {
+    if (signal) signal.removeEventListener('abort', onAbort);
     state.loading = false;
   }
+}
+
+/**
+ * Load a .gguf File chosen by the user.
+ * Throws errors carrying .code: INVALID_REQUEST, ENGINE_MISSING, BUSY, or the engine's own error.
+ */
+export async function loadLocalModel(file, { nCtx = DEFAULT_N_CTX } = {}) {
+  if (!isGgufFile(file)) throw coded('INVALID_REQUEST', 'Choose a non-empty .gguf model file.');
+  return loadWith(
+    { id: `local/${file.name}`, fileName: file.name, sizeBytes: file.size },
+    nCtx,
+    (w) => w.loadModel([file], { n_ctx: nCtx })
+  );
+}
+
+/**
+ * Download a .gguf from a public Hugging Face repository and load it. The engine does the download
+ * (and its own caching); onProgress receives { loaded, total } in bytes.
+ * Throws: INVALID_REQUEST, ENGINE_MISSING, BUSY, ABORTED (cancelled), or the engine's own error.
+ */
+export async function loadLocalModelFromHF({ repo, file, sizeBytes = 0 }, { nCtx = DEFAULT_N_CTX, onProgress, signal } = {}) {
+  const okFile = typeof file === 'string' && /\.gguf$/i.test(file) && !file.includes('..') && !file.startsWith('/');
+  if (!HF_REPO_RE.test(String(repo || '')) || !okFile) {
+    throw coded('INVALID_REQUEST', 'That Hugging Face model reference is not valid.');
+  }
+  return loadWith(
+    { id: `local/hf/${repo}/${file}`, fileName: file, sizeBytes, source: { repo, file } },
+    nCtx,
+    (w) => w.loadModelFromHF({ repo, file }, {
+      n_ctx: nCtx,
+      progressCallback: (p) => { if (onProgress) onProgress({ loaded: p.loaded, total: p.total }); },
+    }),
+    signal
+  );
 }
 
 async function streamChat({ modelId, messages, options = {}, signal, onToken }) {
