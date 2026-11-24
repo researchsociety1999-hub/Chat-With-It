@@ -17,6 +17,7 @@
 
 import { AppState } from './state.js';
 import { isFreeModel, classifyDispatchError, ErrorKind } from './providers/availability.mjs';
+import { resolveParamTier, tierMatches, buildLiveHuggingFaceExtras } from './providers/model-list.mjs';
 
 export const PROVIDERS = {
   openrouter: {
@@ -44,15 +45,16 @@ export const PROVIDERS = {
 };
 
 /**
- * Parameter-size tier buckets.
+ * Parameter-size tier buckets (numeric ranges live in providers/model-list.mjs).
+ * Models whose size is unknown ('?') only appear under "All sizes".
  */
 export const PARAM_TIERS = [
   { value: 'all',   label: 'All sizes' },
-  { value: 'tiny',  label: '≤ 3B params',    test: t => ['1B','2B','3B'].includes(t) },
-  { value: 'small', label: '7–8B params',    test: t => ['7B','8B'].includes(t) },
-  { value: 'mid',   label: '13–30B params',  test: t => ['13B','14B','20B','22B','24B','30B','32B'].includes(t) },
-  { value: 'large', label: '70B params',     test: t => ['70B','72B'].includes(t) },
-  { value: 'giant', label: '≥ 105B params',  test: t => ['105B','123B','180B','236B','671B'].includes(t) },
+  { value: 'tiny',  label: '< 4B params',     test: t => tierMatches('tiny', t) },
+  { value: 'small', label: '4–9B params',     test: t => tierMatches('small', t) },
+  { value: 'mid',   label: '10–34B params',   test: t => tierMatches('mid', t) },
+  { value: 'large', label: '35–104B params',  test: t => tierMatches('large', t) },
+  { value: 'giant', label: '≥ 105B params',   test: t => tierMatches('giant', t) },
 ];
 
 /**
@@ -97,9 +99,8 @@ export const CURATED_FREE = {
     // Live models in Hugging Face Router catalog (synced via scripts/validate-models.mjs).
     // HF has no free/paid split; the adapter enriches with any extra live chat models
     // not listed here from https://router.huggingface.co/v1/models.
-    { id:'meta-llama/Llama-3.1-8B-Instruct',         name:'Llama 3.1 8B Instruct',        ctx:131072, paramTier:'8B' },
-    { id:'meta-llama/Llama-3.1-70B-Instruct',         name:'Llama 3.1 70B Instruct',       ctx:131072, paramTier:'70B' },
     { id:'meta-llama/Llama-3.1-8B-Instruct',          name:'Llama 3.1 8B Instruct',        ctx:131072, paramTier:'8B' },
+    { id:'meta-llama/Llama-3.1-70B-Instruct',         name:'Llama 3.1 70B Instruct',       ctx:131072, paramTier:'70B' },
     { id:'meta-llama/Llama-3.2-3B-Instruct',          name:'Llama 3.2 3B Instruct',        ctx:131072, paramTier:'3B' },
     { id:'meta-llama/Llama-3.2-1B-Instruct',          name:'Llama 3.2 1B Instruct',        ctx:131072, paramTier:'1B', uncensored:true },
     { id:'meta-llama/Llama-3.2-11B-Vision-Instruct',  name:'Llama 3.2 11B Vision',         ctx:131072, paramTier:'13B' },
@@ -299,7 +300,7 @@ export const API = {
             id:         m.id,
             name:       curated?.name || `${m.name || m.id} (${Math.round((m.context_length || 8192) / 1000)}k)`,
             ctx:        m.context_length || curated?.ctx || 8192,
-            paramTier:  curated?.paramTier || '?',
+            paramTier:  resolveParamTier(curated?.paramTier, m.id),
             uncensored: curated?.uncensored || false,
             type:       curated?.type || 'chat',
           };
@@ -307,11 +308,17 @@ export const API = {
         // FIX Q: exclude embedding models from live-fetched list too
         .filter(m => m.type !== 'embedding');
     } else {
-      const liveIds = new Set((data.data || []).map(m => m.id));
-      models = CURATED_FREE.huggingface
+      const live = Array.isArray(data.data) ? data.data : [];
+      const liveIds = new Set(live.map(m => m.id));
+      // Curated entries confirmed live by the provider keep their curated names and sizes.
+      const curatedLive = CURATED_FREE.huggingface
         .filter(m => m.type !== 'embedding')
         .filter(m => liveIds.has(m.id))
         .map(m => ({ ...m, live: true }));
+      // Hugging Face has no free/paid split, so live models outside the curated list are
+      // included but labelled "(unverified)" rather than presented as known-free.
+      const extras = buildLiveHuggingFaceExtras(live, new Set(CURATED_FREE.huggingface.map(m => m.id)));
+      models = [...curatedLive, ...extras];
     }
 
     const seen = new Set();

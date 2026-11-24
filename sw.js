@@ -11,7 +11,7 @@
  * cache-first. Offline, everything falls back to the cache.
  */
 
-const CACHE_NAME = 'chatwithit-v26';
+const CACHE_NAME = 'chatwithit-v27';
 
 const PRECACHE_URLS = [
   './',
@@ -22,6 +22,7 @@ const PRECACHE_URLS = [
   './css/layout.css',
   './css/components.css',
   './css/modals.css',
+  './css/local.css',
   './css/profiles.css',
   './css/pwa-safe-area.css',
   './css/app.css',
@@ -69,9 +70,12 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(req.url);
 
+  // Providers, the engine CDN and Hugging Face file downloads (huge, streamed) bypass the worker.
   if (
     url.hostname.includes('openrouter.ai') ||
     url.hostname.includes('huggingface.co') ||
+    url.hostname === 'hf.co' ||
+    url.hostname.endsWith('.hf.co') ||
     url.hostname.includes('cdn.jsdelivr.net')
   ) {
     return;

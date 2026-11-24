@@ -38,21 +38,60 @@ describe('free provider model discovery', () => {
     expect(models.map(model => model.id)).toEqual(['provider/free-model:free']);
   });
 
-  it('keeps only curated Hugging Face models confirmed live by the provider', async () => {
+  it('keeps curated Hugging Face models confirmed live and adds other live models as unverified', async () => {
     AppState.hfToken = 'hf_' + 'x'.repeat(10);
     const knownFree = CURATED_FREE.huggingface.find(model => model.type !== 'embedding');
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ data: [
         { id: knownFree.id },
-        { id: 'someone/unknown-paid-model' },
+        { id: 'someone/unknown-model' },
       ] }),
     });
 
     const models = await API.fetchModels('huggingface');
 
-    expect(models).toHaveLength(1);
-    expect(models[0]).toMatchObject({ id: knownFree.id, live: true });
+    expect(models).toHaveLength(2);
+    const curated = models.find(model => model.id === knownFree.id);
+    expect(curated).toMatchObject({ id: knownFree.id, live: true });
+    expect(curated.name).not.toMatch(/unverified/);
+    const extra = models.find(model => model.id === 'someone/unknown-model');
+    expect(extra).toMatchObject({ live: true, curated: false, paramTier: '?' });
+    expect(extra.name).toMatch(/\(unverified\)$/);
+  });
+
+  it('does not list Hugging Face models the provider does not return', async () => {
+    AppState.hfToken = 'hf_' + 'x'.repeat(10);
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ data: [{ id: 'someone/only-model' }] }),
+    });
+
+    const models = await API.fetchModels('huggingface');
+
+    expect(models.map(model => model.id)).toEqual(['someone/only-model']);
+  });
+
+  it('lists more live Hugging Face models than the curated list and filters them by inferred size', async () => {
+    AppState.hfToken = 'hf_' + 'x'.repeat(10);
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ data: [
+        { id: 'org/Alpha-8B-Instruct' },
+        { id: 'org/Beta-70B-Chat' },
+        { id: 'org/Gamma-chat' },
+        { id: 'org/text-embed-large' },
+      ] }),
+    });
+
+    const all = await API.fetchModels('huggingface');
+    expect(all.map(model => model.id).sort()).toEqual(['org/Alpha-8B-Instruct', 'org/Beta-70B-Chat', 'org/Gamma-chat']);
+
+    const small = await API.fetchModels('huggingface', 'small');
+    expect(small.map(model => model.id)).toEqual(['org/Alpha-8B-Instruct']);
+
+    const giant = await API.fetchModels('huggingface', 'giant');
+    expect(giant).toEqual([]);
   });
 
   it('rejects provider authentication failures instead of returning fallback models', async () => {
@@ -90,6 +129,23 @@ describe('free provider model discovery', () => {
     const models = await API.fetchModels('openrouter', 'giant');
 
     expect(models).toEqual([]);
+  });
+
+  it('infers the size of live OpenRouter free models so size filters can find them', async () => {
+    AppState.apiKey = 'sk-' + 'x'.repeat(20);
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ data: [
+        { id: 'provider/chat-70b:free', name: 'Chat 70B', pricing: { prompt: '0', completion: '0' } },
+        { id: 'provider/chat-3b:free', name: 'Chat 3B', pricing: { prompt: '0', completion: '0' } },
+      ] }),
+    });
+
+    const large = await API.fetchModels('openrouter', 'large');
+    expect(large.map(model => model.id)).toEqual(['provider/chat-70b:free']);
+
+    const tiny = await API.fetchModels('openrouter', 'tiny');
+    expect(tiny.map(model => model.id)).toEqual(['provider/chat-3b:free']);
   });
 });
 

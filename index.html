@@ -22,6 +22,7 @@
   <link rel="stylesheet" href="css/layout.css">
   <link rel="stylesheet" href="css/components.css">
   <link rel="stylesheet" href="css/modals.css">
+  <link rel="stylesheet" href="css/local.css">
   <link rel="stylesheet" href="css/pwa-safe-area.css">
 </head>
 <body>
@@ -41,6 +42,7 @@
         <div class="ptabs" role="group" aria-label="Provider">
           <button type="button" class="ptab active" data-provider="openrouter" aria-pressed="true">OpenRouter</button>
           <button type="button" class="ptab" data-provider="huggingface" aria-pressed="false" aria-label="Hugging Face">HF</button>
+          <button type="button" class="ptab" data-provider="local" aria-pressed="false" aria-label="Local model on this device">Local</button>
         </div>
         <label for="apiKeyInput" class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)">API Key</label>
         <div class="auth-row">
@@ -50,6 +52,15 @@
         <input id="apiKeyInput" type="password" placeholder="sk-or-…" autocomplete="off" spellcheck="false" aria-label="API Key">
         <button id="authBtn" class="btn btn-primary" type="button" style="width:100%">Authenticate</button>
         <div id="authHint" class="muted" style="font-size:.73rem">OpenRouter key (sk-or-…) — <a id="authHintLink" href="https://openrouter.ai/keys" target="_blank" rel="noreferrer" style="color:var(--accent-2)">Get key →</a></div>
+        <div id="localPanel" class="local-panel hidden" role="region" aria-label="Local model">
+          <input id="localFileInput" type="file" class="hidden" accept=".gguf" aria-label="GGUF model file" aria-hidden="true" tabindex="-1">
+          <div class="local-drop">
+            <button id="localPickBtn" class="btn btn-sm" type="button">📂 Load GGUF file</button>
+            <span class="muted" style="font-size:.72rem">Runs in this browser. The file is not uploaded.</span>
+          </div>
+          <div id="localStatus" class="muted" role="status" aria-live="polite">No model loaded.</div>
+          <button id="localUnloadBtn" class="btn btn-sm btn-ghost hidden" type="button">✕ Unload model</button>
+        </div>
         <div class="profiles-wrapper" style="margin-top:.25rem">
           <button id="profilesToggleBtn" class="btn btn-sm btn-ghost" aria-expanded="false" aria-controls="profilesPanel">🔑 Profiles</button>
           <div id="profilesPanel" role="region" aria-label="API key profiles"></div>
