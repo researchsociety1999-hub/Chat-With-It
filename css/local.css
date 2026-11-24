@@ -2,6 +2,8 @@
 
 /* Three provider tabs instead of two. */
 .ptabs { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+/* Let a tab shrink below its label width instead of spilling into its neighbour. */
+.ptab { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 
 .local-panel { display: flex; flex-direction: column; gap: .45rem; }
 .local-drop {
@@ -63,4 +65,10 @@ html.high-contrast .hf-row, html.high-contrast dialog.hf-modal { border-color: v
 @media (max-width: 640px) {
   .ptab { padding-inline: .25rem; }
   .hf-row { flex-direction: column; align-items: stretch; }
+}
+
+/* Narrow phones (about 320-400px): the drawer is ~260-280px wide, so each of the three tabs is
+   ~70px. A slightly smaller label keeps "OpenRouter" inside its own tab. */
+@media (max-width: 400px) {
+  .ptab { font-size: .72rem; padding-inline: .15rem; letter-spacing: -.01em; }
 }
