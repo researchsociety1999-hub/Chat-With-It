@@ -30,17 +30,26 @@ html.high-contrast .local-drop { border-color: var(--fg); }
 #localRuntimeCard .stat-row [data-tone="muted"] { color: var(--fg-muted); font-weight: 600; }
 #localRuntimeCard .chart { min-height: 48px; }
 
-/* Hugging Face GGUF popup */
+/* Hugging Face GGUF popup.
+   The dialog needs a definite height. A percentage max-height on .hf-box resolves against an
+   auto-height parent, so it was ignored: the box grew to its content, the list never got a bounded
+   height to scroll in, and the dialog's overflow:hidden clipped the rest. With a definite dialog
+   height, .hf-box fills it and .hf-list takes whatever is left and scrolls. */
 dialog.hf-modal {
-  width: min(720px, calc(100vw - 1.5rem)); max-height: min(85dvh, 100%);
+  width: min(720px, calc(100vw - 1.5rem));
+  height: min(85dvh, 44rem); max-height: calc(100dvh - 1.5rem);
   padding: 0; overflow: hidden; color: var(--fg);
   background: var(--panel-solid); border: 1px solid var(--border-2);
   border-radius: var(--radius); box-shadow: var(--shadow);
 }
 dialog.hf-modal::backdrop { background: rgba(0, 0, 0, .6); }
-.hf-box { display: flex; flex-direction: column; gap: .7rem; padding: .9rem 1.1rem; max-height: min(85dvh, 100%); overflow: hidden; }
+.hf-box { display: flex; flex-direction: column; gap: .7rem; padding: .9rem 1.1rem; height: 100%; box-sizing: border-box; overflow: hidden; }
+.hf-box > :not(.hf-list) { flex-shrink: 0; }
 .hf-head { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
-.hf-list { display: flex; flex-direction: column; gap: .45rem; overflow-y: auto; min-height: 0; flex: 1; scrollbar-width: thin; }
+.hf-list {
+  display: flex; flex-direction: column; gap: .45rem; flex: 1; min-height: 0;
+  overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; scrollbar-width: thin;
+}
 .hf-row {
   display: flex; align-items: center; justify-content: space-between; gap: .6rem; width: 100%;
   padding: .6rem .75rem; text-align: left; color: var(--fg); font: inherit; cursor: pointer;
@@ -54,6 +63,10 @@ dialog.hf-modal::backdrop { background: rgba(0, 0, 0, .6); }
 .hf-tags { display: flex; flex-wrap: wrap; gap: .3rem; margin-top: .25rem; }
 .hf-tag { font-size: .66rem; padding: .1rem .45rem; border-radius: 99px; border: 1px solid var(--border-2); color: var(--fg-muted); }
 .hf-tag.warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 55%, transparent); }
+.hf-notice { padding: .5rem .75rem; border-radius: var(--radius-sm); border: 1px solid var(--border-2); font-size: .78rem; line-height: 1.4; overflow-wrap: anywhere; }
+.hf-notice.error { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 55%, transparent); background: color-mix(in srgb, var(--danger) 10%, transparent); }
+.hf-notice.warning { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 55%, transparent); background: color-mix(in srgb, var(--warn) 10%, transparent); }
+.hf-notice.success { color: var(--success); border-color: color-mix(in srgb, var(--success) 55%, transparent); background: color-mix(in srgb, var(--success) 10%, transparent); }
 .hf-progress { display: flex; flex-direction: column; gap: .4rem; padding: .65rem .75rem; border-radius: var(--radius-sm); border: 1px solid var(--accent); background: var(--accent-glow); }
 .hf-progress-row { display: flex; justify-content: space-between; gap: .5rem; font-size: .78rem; flex-wrap: wrap; }
 .hf-bar { height: 6px; border-radius: 99px; background: var(--border); overflow: hidden; }
@@ -65,6 +78,10 @@ html.high-contrast .hf-row, html.high-contrast dialog.hf-modal { border-color: v
 @media (max-width: 640px) {
   .ptab { padding-inline: .25rem; }
   .hf-row { flex-direction: column; align-items: stretch; }
+  /* File rows keep name/tags beside the button so more than one fits on screen. */
+  .hf-file { flex-direction: row; align-items: center; }
+  .hf-file > div { min-width: 0; flex: 1; }
+  .hf-file .btn { flex-shrink: 0; }
 }
 
 /* Narrow phones (about 320-400px): the drawer is ~260-280px wide, so each of the three tabs is

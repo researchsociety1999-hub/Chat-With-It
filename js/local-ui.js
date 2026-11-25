@@ -10,6 +10,7 @@
 import { AppState } from './state.js';
 import { UI } from './ui.js';
 import './hf-gguf-ui.js';
+import { formatBytes } from './providers/hf-gguf.mjs';
 import { createCdnLoader } from './providers/wllama-engine.js';
 import {
   loadLocalModel,
@@ -29,10 +30,6 @@ let originalHint = null;
 
 const $ = (id) => document.getElementById(id);
 
-function formatBytes(bytes) {
-  return bytes >= 1024 ** 3 ? `${(bytes / 1024 ** 3).toFixed(1)} GB` : `${Math.max(1, Math.round(bytes / 1024 ** 2))} MB`;
-}
-
 function setStatus(text) {
   const el = $('localStatus');
   if (el) el.textContent = text;
@@ -47,6 +44,14 @@ function userMessage(err) {
 
 function refreshModelList() {
   document.dispatchEvent(new CustomEvent('cwi:profile-activated'));
+}
+
+/** On phones the Local controls live in the slide-in drawer; once a model is loaded, show the chat. */
+function closeDrawerIfOpen() {
+  try {
+    const sidebar = $('sidebar');
+    if (sidebar && sidebar.classList.contains('open') && window.matchMedia('(max-width: 1100px)').matches) UI.toggleSidebar();
+  } catch (_) { /* never let a layout nicety break model loading */ }
 }
 
 function syncButtons() {
@@ -68,6 +73,7 @@ function onEngineEvent(evt) {
     const size = m.sizeBytes ? ` \u00b7 ${formatBytes(m.sizeBytes)}` : '';
     setStatus(`Loaded ${m.name}${size} \u00b7 ${m.ctx.toLocaleString()} ctx \u00b7 ${(m.loadMs / 1000).toFixed(1)} s`);
     refreshModelList();
+    closeDrawerIfOpen();
   } else if (evt.kind === 'unloaded') {
     setStatus('No model loaded.');
     refreshModelList();
@@ -109,7 +115,7 @@ async function handleFile(file) {
   };
   if (file.size > BIG_FILE_BYTES) {
     UI.confirmModal(
-      `${file.name} is ${formatBytes(file.size)}. Files over 4 GB may fail to load in this browser build and can use most of your memory. Try anyway?`,
+      `${file.name} is ${formatBytes(file.size)}. Files over 4 GiB may fail to load in this browser build and can use most of your memory. Try anyway?`,
       run,
       { confirmLabel: 'Try anyway', cancelLabel: 'Cancel' }
     );
