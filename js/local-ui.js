@@ -10,6 +10,7 @@
 import { AppState } from './state.js';
 import { UI } from './ui.js';
 import './hf-gguf-ui.js';
+import { initLocalModels } from './local-models-ui.js';
 import { formatBytes } from './providers/hf-gguf.mjs';
 import { createCdnLoader } from './providers/wllama-engine.js';
 import {
@@ -145,6 +146,7 @@ function init() {
     btn.addEventListener('click', () => setTimeout(() => applyProvider(btn.dataset.provider), 0));
   });
   onLocalChange(onEngineEvent);
+  initLocalModels();
   // AppState.init() restores the saved provider after modules load, so apply once the page is ready.
   window.addEventListener('load', () => applyProvider(AppState.currentProvider));
   syncButtons();

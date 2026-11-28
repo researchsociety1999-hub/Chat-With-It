@@ -19,6 +19,7 @@ import {
   BIG_MODEL_BYTES,
 } from './providers/hf-gguf.mjs';
 import { loadLocalModelFromHF, isLoadingLocalModel } from './providers/wllama.js';
+import { getModelStore } from './providers/local-storage-db.js';
 
 const s = { dialog: null, ui: {}, query: '', cursor: null, repo: null, searchCtrl: null, dlCtrl: null, searchTimer: null };
 
@@ -170,9 +171,21 @@ async function download(repoId, f) {
         s.ui.progressText.textContent = `${formatBytes(loaded)} / ${total ? formatBytes(total) : '?'} \u00b7 ${pct}%${speed > 0 ? ` \u00b7 ${formatBytes(speed)}/s` : ''}`;
       },
     });
-    // The dialog closes right away, so the page toast is visible again.
-    UI.toast('\u2705 Model downloaded and loaded', 'success');
-    s.dialog.close();
+    // The engine now has the model loaded. Release the busy state so closing the dialog no longer asks.
+    if (s.dlCtrl === ctrl) s.dlCtrl = null;
+    hideProgress();
+    let saved = true;
+    try {
+      await getModelStore().register({ repoId, path: f.path, sizeBytes: f.sizeBytes });
+    } catch (_) {
+      saved = false;
+    }
+    notify(saved
+      ? `${f.name} is downloaded, loaded and saved under "Downloaded models".`
+      : `${f.name} is downloaded and loaded, but this browser cannot keep a list of downloaded models.`, 'success');
+    await new Promise((resolve) => setTimeout(resolve, 1400));
+    UI.toast(`\u2705 ${f.name} is ready to chat`, 'success', 10000);
+    if (s.dialog.open) s.dialog.close();
   } catch (err) {
     if (err.code === 'ABORTED') {
       setStatus('Download cancelled.');
@@ -180,7 +193,7 @@ async function download(repoId, f) {
       notify(`Download failed: ${err.message}. If the repository is gated, accept its license on huggingface.co first.`, 'error');
     }
   } finally {
-    s.dlCtrl = null;
+    if (s.dlCtrl === ctrl) s.dlCtrl = null;
     hideProgress();
   }
 }
