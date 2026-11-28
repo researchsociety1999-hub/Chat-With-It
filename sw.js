@@ -11,7 +11,7 @@
  * cache-first. Offline, everything falls back to the cache.
  */
 
-const CACHE_NAME = 'chatwithit-v29';
+const CACHE_NAME = 'chatwithit-v30';
 
 const PRECACHE_URLS = [
   './',
@@ -25,6 +25,7 @@ const PRECACHE_URLS = [
   './css/local.css',
   './css/profiles.css',
   './css/pwa-safe-area.css',
+  './css/trust.css',
   './css/app.css',
   './manifest.json',
 ];
