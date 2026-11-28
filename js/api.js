@@ -107,13 +107,13 @@ export const CURATED_FREE = {
     { id:'meta-llama/Llama-3.2-90B-Vision-Instruct',  name:'Llama 3.2 90B Vision',         ctx:131072, paramTier:'?' },
     { id:'meta-llama/Meta-Llama-3-8B-Instruct',       name:'Llama 3 8B Instruct',          ctx:8192,   paramTier:'8B' },
     { id:'meta-llama/Meta-Llama-3-70B-Instruct',      name:'Llama 3 70B Instruct',         ctx:8192,   paramTier:'70B' },
-    // ── Mistral ──────────────────────────────────────────────────────────────────
+    // ── Mistral ────────────────────────────────────────────────────────────────────────
     { id:'mistralai/Mistral-7B-Instruct-v0.3',        name:'Mistral 7B Instruct v0.3',     ctx:32768,  paramTier:'7B' },
     { id:'mistralai/Mistral-Nemo-Instruct-2407',      name:'Mistral NeMo 12B Instruct',    ctx:131072, paramTier:'13B' },
     { id:'mistralai/Mixtral-8x7B-Instruct-v0.1',      name:'Mixtral 8x7B Instruct',        ctx:32768,  paramTier:'?' },
     { id:'mistralai/Mixtral-8x22B-Instruct-v0.1',     name:'Mixtral 8x22B Instruct',       ctx:65536,  paramTier:'?' },
     { id:'mistralai/Mistral-Small-3.1-24B-Instruct-2503', name:'Mistral Small 3.1 24B',    ctx:131072, paramTier:'24B' },
-    // ── Qwen ─────────────────────────────────────────────────────────────────────
+    // ── Qwen ────────────────────────────────────────────────────────────────────────
     { id:'Qwen/Qwen2.5-72B-Instruct',                 name:'Qwen 2.5 72B Instruct',        ctx:131072, paramTier:'70B' },
     { id:'Qwen/Qwen2.5-7B-Instruct',                  name:'Qwen 2.5 7B Instruct',         ctx:131072, paramTier:'7B' },
     { id:'Qwen/Qwen2.5-3B-Instruct',                  name:'Qwen 2.5 3B Instruct',         ctx:131072, paramTier:'3B' },
@@ -123,44 +123,44 @@ export const CURATED_FREE = {
     { id:'Qwen/Qwen2.5-VL-72B-Instruct',              name:'Qwen 2.5 VL 72B (Vision)',     ctx:32768,  paramTier:'70B' },
     { id:'Qwen/QwQ-32B',                              name:'QwQ 32B (Reasoning)',           ctx:131072, paramTier:'32B' },
     { id:'Qwen/Qwen3-30B-A3B',                        name:'Qwen3 30B A3B (MoE)',           ctx:131072, paramTier:'30B' },
-    // ── DeepSeek ─────────────────────────────────────────────────────────────────
+    // ── DeepSeek ────────────────────────────────────────────────────────────────────────
     { id:'deepseek-ai/DeepSeek-V3',                   name:'DeepSeek V3 (671B)',            ctx:131072, paramTier:'671B' },
     { id:'deepseek-ai/DeepSeek-R1',                   name:'DeepSeek R1 (671B · Reasoning)',ctx:131072, paramTier:'671B' },
     { id:'deepseek-ai/DeepSeek-R1-Distill-Llama-70B', name:'DeepSeek R1 Distill Llama 70B',ctx:65536,  paramTier:'70B' },
     { id:'deepseek-ai/DeepSeek-R1-Distill-Qwen-32B',  name:'DeepSeek R1 Distill Qwen 32B', ctx:65536,  paramTier:'32B' },
-    // ── Microsoft Phi ─────────────────────────────────────────────────────────────
+    // ── Microsoft Phi ─────────────────────────────────────────────────────────────────────
     { id:'microsoft/Phi-3.5-mini-instruct',           name:'Phi-3.5 Mini 3.8B Instruct',   ctx:131072, paramTier:'3B' },
     { id:'microsoft/Phi-3-mini-4k-instruct',          name:'Phi-3 Mini 3.8B (4k)',          ctx:4096,   paramTier:'3B' },
     { id:'microsoft/Phi-3-medium-4k-instruct',        name:'Phi-3 Medium 14B (4k)',         ctx:4096,   paramTier:'14B' },
-    // ── Google Gemma ──────────────────────────────────────────────────────────────
+    // ── Google Gemma ──────────────────────────────────────────────────────────────────────
     { id:'google/gemma-2-2b-it',                      name:'Gemma 2 2B IT',                 ctx:8192,   paramTier:'1B' },
     { id:'google/gemma-2-9b-it',                      name:'Gemma 2 9B IT',                 ctx:8192,   paramTier:'8B' },
     { id:'google/gemma-2-27b-it',                     name:'Gemma 2 27B IT',                ctx:8192,   paramTier:'30B' },
     { id:'google/gemma-7b-it',                        name:'Gemma 7B IT',                   ctx:8192,   paramTier:'7B' },
-    // ── Nous Research ────────────────────────────────────────────────────────────
+    // ── Nous Research ────────────────────────────────────────────────────────────────────
     { id:'NousResearch/Hermes-3-Llama-3.1-8B',        name:'Hermes 3 Llama 3.1 8B',        ctx:131072, paramTier:'8B',  uncensored:true },
     { id:'NousResearch/Nous-Hermes-2-Mixtral-8x7B-DPO',name:'Hermes 2 Mixtral 8x7B DPO',   ctx:32768,  paramTier:'?',   uncensored:true },
-    // ── Dolphin ───────────────────────────────────────────────────────────────────
+    // ── Dolphin ─────────────────────────────────────────────────────────────────────────
     { id:'cognitivecomputations/dolphin-2.9.2-qwen2-72b', name:'Dolphin 2.9.2 Qwen2 72B',  ctx:32768,  paramTier:'70B', uncensored:true },
-    // ── HuggingFaceH4 ─────────────────────────────────────────────────────────────
+    // ── HuggingFaceH4 ─────────────────────────────────────────────────────────────────────
     { id:'HuggingFaceH4/zephyr-7b-beta',              name:'Zephyr 7B Beta',               ctx:32768,  paramTier:'7B' },
     { id:'HuggingFaceH4/zephyr-7b-alpha',             name:'Zephyr 7B Alpha',              ctx:32768,  paramTier:'7B' },
-    // ── OpenChat ──────────────────────────────────────────────────────────────────
+    // ── OpenChat ────────────────────────────────────────────────────────────────────────
     { id:'openchat/openchat-3.6-8b-20240522',         name:'OpenChat 3.6 8B',              ctx:8192,   paramTier:'8B',  uncensored:true },
-    // ── Falcon ────────────────────────────────────────────────────────────────────
+    // ── Falcon ──────────────────────────────────────────────────────────────────────────
     { id:'tiiuae/Falcon3-10B-Instruct',               name:'Falcon 3 10B Instruct',        ctx:32768,  paramTier:'13B' },
     { id:'tiiuae/Falcon3-7B-Instruct',                name:'Falcon 3 7B Instruct',         ctx:32768,  paramTier:'7B' },
     { id:'tiiuae/Falcon3-3B-Instruct',                name:'Falcon 3 3B Instruct',         ctx:32768,  paramTier:'3B' },
     { id:'tiiuae/Falcon3-1B-Instruct',                name:'Falcon 3 1B Instruct',         ctx:32768,  paramTier:'1B', uncensored:true },
-    // ── EXAONE ────────────────────────────────────────────────────────────────────
+    // ── EXAONE ───────────────────────────────────────────────────────────────────────
     { id:'LGAI-MEDIA/EXAONE-3.5-7.8B-Instruct',       name:'EXAONE 3.5 7.8B Instruct',    ctx:32768,  paramTier:'7B' },
-    // ── Cohere ────────────────────────────────────────────────────────────────────
+    // ── Cohere ──────────────────────────────────────────────────────────────────────────
     { id:'CohereForAI/c4ai-command-r-plus-08-2024',   name:'Command R+ 08-2024 (104B)',    ctx:131072, paramTier:'105B' },
     { id:'CohereForAI/c4ai-command-r7b-12-2024',      name:'Command R7B 12-2024',          ctx:131072, paramTier:'7B' },
-    // ── AllenAI ───────────────────────────────────────────────────────────────────
+    // ── AllenAI ───────────────────────────────────────────────────────────────────────
     { id:'allenai/OLMo-2-1124-13B-Instruct',          name:'OLMo 2 13B Instruct',          ctx:4096,   paramTier:'13B' },
     { id:'allenai/OLMo-2-1124-7B-Instruct',           name:'OLMo 2 7B Instruct',           ctx:4096,   paramTier:'7B' },
-    // ── SmolLM ───────────────────────────────────────────────────────────────────
+    // ── SmolLM ────────────────────────────────────────────────────────────────────────
     { id:'HuggingFaceTB/SmolLM2-1.7B-Instruct',       name:'SmolLM2 1.7B Instruct',        ctx:8192,   paramTier:'1B', uncensored:true },
     { id:'HuggingFaceTB/SmolLM2-360M-Instruct',       name:'SmolLM2 360M Instruct',        ctx:8192,   paramTier:'1B', uncensored:true },
   ]
@@ -437,13 +437,22 @@ export const API = {
         err.code = 'ABORTED';
         throw err;
       }
+      // A dropped connection (fetch or the stream reader) surfaces as a TypeError. Tag it without a
+      // code so Utils.retryWithBackoff still retries it; the UI explains it once retries are spent.
+      if (error && error.name === 'TypeError' && !error.code && !error.kind) error.kind = 'NETWORK';
       throw error;
     }
   },
 
+  /**
+   * fetch with a timeout. When the timer fires first the error has code TIMEOUT (it used to look
+   * like a user cancellation). A caller-supplied signal that aborts stays an AbortError, and a
+   * network failure (fetch rejects with a TypeError) is tagged kind NETWORK.
+   */
   async fetchWithTimeout(url, options = {}, timeoutMs = 10000) {
     const timeoutCtrl = new AbortController();
-    const timeoutId   = setTimeout(() => timeoutCtrl.abort(), timeoutMs);
+    let timedOut = false;
+    const timeoutId   = setTimeout(() => { timedOut = true; timeoutCtrl.abort(); }, timeoutMs);
     const signals = [timeoutCtrl.signal];
     if (options.signal) signals.push(options.signal);
     const composedSignal = typeof AbortSignal.any === 'function'
@@ -451,6 +460,16 @@ export const API = {
       : options.signal || timeoutCtrl.signal;
     try {
       return await fetch(url, { ...options, signal: composedSignal });
+    } catch (error) {
+      const userAborted = Boolean(options.signal && options.signal.aborted);
+      if (timedOut && !userAborted) {
+        const err = new Error(`The provider did not respond within ${Math.round(timeoutMs / 1000)} s.`);
+        err.code = 'TIMEOUT';
+        err.cause = error;
+        throw err;
+      }
+      if (error && error.name === 'TypeError' && !error.code && !error.kind) error.kind = 'NETWORK';
+      throw error;
     } finally {
       clearTimeout(timeoutId);
     }
