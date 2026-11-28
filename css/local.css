@@ -2,8 +2,17 @@
 
 /* Three provider tabs instead of two. */
 .ptabs { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-/* Let a tab shrink below its label width instead of spilling into its neighbour. */
-.ptab { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+/* Let a tab shrink below its label width and cut a long label with an ellipsis instead of spilling
+   into its neighbour. (flex-shrink only matters if .ptabs ever becomes a flex row; in the grid,
+   min-width: 0 on the item is what allows shrinking.) */
+.ptab { flex-shrink: 1; min-width: 0; max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+
+/* text-overflow only applies to block containers. components.css makes .ptab inline-flex on small
+   screens and coarse pointers (for the 44px touch target), which silently disables the ellipsis, so
+   use a block with a 44px line box there instead. .ptab has no border, so this stays 44px tall. */
+@media (max-width: 768px), (pointer: coarse) {
+  .ptab { display: block; padding-block: 0; line-height: 44px; }
+}
 
 .local-panel { display: flex; flex-direction: column; gap: .45rem; }
 .local-drop {
@@ -101,7 +110,8 @@ html.high-contrast .hf-row, html.high-contrast dialog.hf-modal { border-color: v
 }
 
 /* Narrow phones (about 320-400px): the drawer is ~260-280px wide, so each of the three tabs is
-   ~70px. A slightly smaller label keeps "OpenRouter" inside its own tab. */
+   ~70px. A slightly smaller label keeps "OpenRouter" inside its own tab; if it still does not fit,
+   the ellipsis above cuts it cleanly instead of overlapping the next tab. */
 @media (max-width: 400px) {
   .ptab { font-size: .72rem; padding-inline: .15rem; letter-spacing: -.01em; }
 }
