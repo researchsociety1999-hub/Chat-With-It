@@ -38,7 +38,8 @@ describe('API error classification', () => {
     ctrl.abort();
     const err = await pending;
     expect(err.name).toBe('AbortError');
-    expect(err.code).toBeUndefined();
+    // DOMException AbortError carries the legacy numeric code 20 (ABORT_ERR); what matters is it is not our string TIMEOUT.
+    expect(err.code).not.toBe('TIMEOUT');
   });
 
   it('sendMessageStream: 60 s without an answer is TIMEOUT', async () => {
