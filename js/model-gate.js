@@ -14,6 +14,7 @@ import { wllamaAdapter } from './providers/wllama.js';
 import './local-bridge.js';
 import './local-ui.js';
 import './local-monitor-ui.js';
+import { noteSendError, clearSendError } from './trust-ui.js';
 import {
   createAvailabilityGate,
   dispatchWithGate,
@@ -38,6 +39,8 @@ export function syncGateFromModels(models) {
 /**
  * Drop-in replacement for API.sendMessageStream with the availability gate in front.
  * Resolves to the same response object, plus `modelUsed` (the model that answered).
+ * Every failed attempt is reported to js/trust-ui.js (so a narrative error card can be shown) and
+ * a success clears that record; the error itself is rethrown unchanged.
  *
  * @param {object} p
  * @param {string} p.provider current provider id
@@ -47,7 +50,18 @@ export function syncGateFromModels(models) {
  * @param {object} [p.options]
  * @param {(info: {from: string, to: string, reason: string}) => void} [p.onFallback]
  */
-export async function gatedStream({ provider, modelId, messages, onToken, options, onFallback, autoFallback = false }) {
+export async function gatedStream(params) {
+  try {
+    const out = await gatedStreamInner(params);
+    clearSendError();
+    return out;
+  } catch (err) {
+    noteSendError(err, params && params.provider);
+    throw err;
+  }
+}
+
+async function gatedStreamInner({ provider, modelId, messages, onToken, options, onFallback, autoFallback = false }) {
   if (provider === 'local') {
     const out = await wllamaAdapter.streamChat({
       modelId,

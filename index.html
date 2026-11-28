@@ -24,6 +24,7 @@
   <link rel="stylesheet" href="css/modals.css">
   <link rel="stylesheet" href="css/local.css">
   <link rel="stylesheet" href="css/pwa-safe-area.css">
+  <link rel="stylesheet" href="css/trust.css">
 </head>
 <body>
   <div id="chatAnnouncer" role="status" aria-live="polite" aria-atomic="true" class="sr-only" style="position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0"></div>
@@ -178,7 +179,7 @@
         <div class="composer-box">
           <textarea id="userInput" class="composer-textarea" placeholder="Send a message…" aria-label="Message input" rows="1"></textarea>
           <div class="composer-footer">
-            <div class="composer-meta"><span id="charCount" class="char-count">0</span><span id="modelLabelInline" class="model-inline"></span></div>
+            <div class="composer-meta"><span id="charCount" class="char-count">0</span><span id="modelLabelInline" class="model-inline"></span><span id="dataSourceTag" class="data-source-tag" data-kind="remote" title="Your messages are sent to OpenRouter over HTTPS.">OpenRouter · Remote API</span></div>
             <div class="composer-btns">
               <input id="fileInput" type="file" class="hidden" accept=".txt,.md,.json,.csv,.py,.js,.ts,.tsx,.jsx,.html,.css,.xml,.yml,.yaml,.toml,.sh,.sql,.log" multiple aria-hidden="true">
               <button id="attachBtn" class="btn btn-ghost btn-icon" type="button" title="Attach text files" aria-label="Attach text files">📎</button>
