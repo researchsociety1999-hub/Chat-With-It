@@ -10,6 +10,8 @@
  *    words and recovery buttons is drawn in #chatBody instead, if the failure is one we can explain
  *    (see providers/error-narrative.mjs). Everything else, and user Stop, keeps its existing UI.
  *    Cards are removed when the next send starts, so streaming reset and retry are unchanged.
+ *  - Composer guidance (persona badge, context pill, window warnings, quick actions) lives in
+ *    composer-guidance.js and is installed by the import below.
  *
  * Every step is defensive: a missing element or method means that piece does nothing.
  */
@@ -18,6 +20,7 @@ import * as uiModule from './ui.js';
 import { AppState } from './state.js';
 import { dataSourceInfo } from './providers/data-source.mjs';
 import { describeSendError } from './providers/error-narrative.mjs';
+import './composer-guidance.js';
 
 // A reported failure only turns the next error toast / error panel into a card for this long.
 const FRESH_MS = 5000;

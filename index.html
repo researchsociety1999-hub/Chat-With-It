@@ -176,8 +176,10 @@
         <button id="scrollToBottom" type="button" title="Scroll to bottom" aria-label="Scroll to bottom">↓</button>
       </div>
       <div id="composerWrap">
+        <div id="quickActions" class="quick-actions" role="group" aria-label="Quick actions" hidden></div>
         <div class="composer-box">
           <textarea id="userInput" class="composer-textarea" placeholder="Send a message…" aria-label="Message input" rows="1"></textarea>
+          <div class="composer-context"><span id="composerPersonaBadge" class="persona-badge" title="Active persona: Assistant"><span class="persona-badge-icon" aria-hidden="true">🤖</span> <span class="persona-badge-label">Assistant</span></span><span id="contextPill" class="context-pill" data-level="ok" title="About 0% of this model's context window (estimated at 4 characters per token).">~0 / 8.2k tokens</span></div>
           <div class="composer-footer">
             <div class="composer-meta"><span id="charCount" class="char-count">0</span><span id="modelLabelInline" class="model-inline"></span><span id="dataSourceTag" class="data-source-tag" data-kind="remote" title="Your messages are sent to OpenRouter over HTTPS.">OpenRouter · Remote API</span></div>
             <div class="composer-btns">
