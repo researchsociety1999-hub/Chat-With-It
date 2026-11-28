@@ -1,4 +1,5 @@
-/* Data source tag (composer) and narrative error cards (message log). Loaded last. */
+/* Data source tag and narrative error cards (Phase A); persona badge, context pill, window warnings
+   and quick actions (Phase B). Loaded last. */
 
 .composer-meta { min-width: 0; }
 
@@ -40,3 +41,75 @@ html.high-contrast .data-source-tag { border-color: var(--fg); color: var(--fg);
 .error-card-actions { display: flex; flex-wrap: wrap; gap: .4rem; }
 .error-card-actions .btn { flex: 1 1 auto; justify-content: center; white-space: normal; text-align: center; line-height: 1.25; }
 html.high-contrast .error-card { border-color: var(--fg); }
+
+/* ── Persona badge and context pill ─────────────────────────────────────── */
+.composer-context { display: flex; align-items: center; flex-wrap: wrap; gap: .4rem; min-width: 0; }
+
+.persona-badge, .context-pill {
+  display: inline-flex; align-items: center; min-width: 0; max-width: 100%;
+  padding: .12rem .55rem; border-radius: 99px;
+  border: 1px solid var(--border-2); color: var(--fg-muted);
+  font-size: .68rem; font-weight: 700; line-height: 1.4; letter-spacing: .01em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.persona-badge {
+  color: var(--fg); gap: .1rem;
+  background: var(--accent-glow);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.persona-badge-label { overflow: hidden; text-overflow: ellipsis; }
+.context-pill[data-level="warning"] {
+  color: var(--fg);
+  border-color: color-mix(in srgb, var(--warn) 65%, transparent);
+  background: color-mix(in srgb, var(--warn) 14%, transparent);
+}
+.context-pill[data-level="critical"] {
+  color: var(--fg);
+  border-color: color-mix(in srgb, var(--danger) 65%, transparent);
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+}
+html.high-contrast .persona-badge, html.high-contrast .context-pill { border-color: var(--fg); color: var(--fg); }
+
+@media (max-width: 400px) {
+  .persona-badge, .context-pill { font-size: .62rem; padding-inline: .45rem; }
+}
+
+/* ── Context window warnings ────────────────────────────────────────────────
+   The textarea has no border of its own; .composer-box draws the visible border and its focus
+   ring (components.css). The state class lives on #userInput, so the glow is drawn on its box. */
+.composer-box:has(#userInput.context-warning),
+.composer-box:has(#userInput.context-warning):focus-within {
+  border-color: var(--warn);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--warn) 30%, transparent);
+}
+.composer-box:has(#userInput.context-critical),
+.composer-box:has(#userInput.context-critical):focus-within {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 32%, transparent);
+}
+#userInput.context-warning, #userInput.context-critical { box-shadow: none; }
+html.high-contrast .composer-box:has(#userInput.context-warning),
+html.high-contrast .composer-box:has(#userInput.context-critical) { border-width: 2px; }
+
+/* ── Quick actions ─────────────────────────────────────────────────────── */
+.quick-actions { display: flex; flex-wrap: wrap; gap: .4rem; margin: 0 0 .5rem; }
+.quick-actions[hidden] { display: none; }
+.quick-action {
+  padding: .3rem .75rem; border: 1px solid var(--border-2); border-radius: 99px;
+  background: var(--panel-2); color: var(--fg-muted);
+  font-size: .76rem; font-weight: 600; line-height: 1.2; cursor: pointer;
+  transition: border-color var(--transition), background var(--transition), color var(--transition);
+}
+.quick-action:hover { border-color: var(--accent); color: var(--fg); background: var(--accent-glow); }
+.quick-action:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+html.high-contrast .quick-action { border-color: var(--fg); color: var(--fg); }
+
+@media (max-width: 768px), (pointer: coarse) {
+  .quick-action { min-height: 44px; padding-inline: .9rem; display: inline-flex; align-items: center; justify-content: center; }
+}
+@media (max-width: 400px) {
+  .quick-action { flex: 1 1 auto; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .quick-action { transition: none; }
+}
