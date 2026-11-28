@@ -22,6 +22,22 @@
 
 html.high-contrast .local-drop { border-color: var(--fg); }
 
+/* Downloaded models panel (Local tab) */
+.lm-panel { display: flex; flex-direction: column; gap: .4rem; min-width: 0; }
+.lm-title { font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; color: var(--fg-subtle); }
+.lm-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .4rem; }
+.lm-item { display: flex; flex-direction: column; gap: .35rem; min-width: 0; padding: .55rem .65rem; background: var(--panel-2); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.lm-item.active { border-color: color-mix(in srgb, var(--success) 60%, transparent); }
+.lm-top { display: flex; align-items: flex-start; justify-content: space-between; gap: .4rem; min-width: 0; }
+.lm-name { font-size: .8rem; font-weight: 700; overflow-wrap: anywhere; min-width: 0; }
+.lm-badge { flex-shrink: 0; font-size: .62rem; font-weight: 700; padding: .1rem .45rem; border-radius: 99px; color: var(--success); border: 1px solid color-mix(in srgb, var(--success) 60%, transparent); }
+.lm-meta { font-size: .7rem; color: var(--fg-muted); overflow-wrap: anywhere; }
+.lm-actions { display: flex; flex-wrap: wrap; gap: .35rem; }
+.lm-actions .btn { flex: 1 1 auto; justify-content: center; }
+.lm-actions .btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+.lm-empty, .lm-storage { font-size: .72rem; color: var(--fg-muted); }
+html.high-contrast .lm-item { border-color: var(--fg); }
+
 /* Local runtime card (Stats panel) */
 .rt-note { font-size: .68rem; line-height: 1.4; color: var(--fg-subtle); }
 #localRuntimeCard .stat-row [data-tone="ok"] { color: var(--success); }
