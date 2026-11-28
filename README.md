@@ -39,6 +39,7 @@ The app is **framework-free modular JavaScript** (no React, no TypeScript, no co
 | No backend | Eliminates server-side key and conversation exposure |
 | Vanilla JS + esbuild | Keeps the surface area small, fast, and auditable |
 | Free-model discovery | Lowers the barrier to trying frontier models |
+| On-device Local mode (wllama) | Lets you chat with a GGUF model without any provider; the engine and model files still come from public hosts (see Privacy) |
 | Personas | Gives users a clear starting job-to-be-done |
 | Local history (7-day TTL, always saved today) | Balances convenience with privacy |
 | Health checks via GitHub Actions | Catches production regressions after every push |
@@ -61,9 +62,9 @@ Or use the live site: https://chat-with-it.vercel.app (`npm run build` runs on V
 ### Setup
 
 1. Open the app
-2. Choose OpenRouter or Hugging Face
-3. Paste your API key (kept in session memory unless you save a Profile)
-4. Pick a free model and chat
+2. Choose OpenRouter, Hugging Face, or Local
+3. For OpenRouter or Hugging Face, paste your API key (kept in session memory unless you save a Profile). For Local, load a `.gguf` file or tap "Get from Hugging Face"; no key is needed
+4. Pick a model and chat
 
 ---
 
@@ -85,13 +86,20 @@ Workflow: [Deploy status](https://github.com/researchsociety1999-hub/Chat-With-I
 ## Features (current — implemented)
 
 ### Chat
-- OpenRouter + Hugging Face providers
+- OpenRouter + Hugging Face providers, plus on-device Local mode
 - Free-model discovery only on OpenRouter (`:free` suffix and zero pricing) — paid models are not listed
 - Availability gate + ask-first free-model suggestions on failure
 - Streaming responses with stop control (Stop discards partial output)
 - Personas: Assistant, Tutor, Creative Writer, Code Reviewer, Debate Coach
 - Text file attachments (.txt, .md, .json, .csv, code files)
 - Keyboard shortcuts (Enter send, Shift+Enter newline, Ctrl/Cmd+K model search)
+
+### Local (on-device) mode
+- A third provider tab that runs a `.gguf` model inside your browser tab with [wllama](https://github.com/ngxson/wllama) (llama.cpp compiled to WebAssembly). No API key or provider account is needed, and speed depends on your CPU
+- Load a `.gguf` file from your disk, or search public Hugging Face GGUF repositories and download one inside the app
+- A Downloaded models panel lists the models you saved, with Load, Unload and Delete. The list lives in IndexedDB (`cwi-local-models`); the model files stay in the engine's own browser cache, so nothing is stored twice
+- Prompts and replies are processed in browser memory and are not sent to any provider or ChatWithIt server. Local chats are saved in `localStorage` like other chats (7-day TTL)
+- Network requests still happen: the engine files come from `cdn.jsdelivr.net`, and model search and downloads come from `huggingface.co`. Those hosts can see your IP address. See [PRIVACY.md](./PRIVACY.md)
 
 ### Generation controls
 - On/off toggle for temperature and max-tokens
@@ -131,6 +139,7 @@ ChatWithIt/
 │   ├── themes.css          # Theme definitions
 │   ├── layout.css          # Responsive layout
 │   ├── components.css
+│   ├── local.css           # Local tab, Downloaded models panel, Hugging Face dialog
 │   ├── app.css             # Legacy orphan — not linked by index.html
 │   ├── modals.css
 │   ├── profiles.css
@@ -139,11 +148,15 @@ ChatWithIt/
 │   ├── app.js              # Orchestration, event wiring
 │   ├── api.js              # Provider requests (OpenRouter + HF)
 │   ├── model-gate.js       # Free-model availability bridge
+│   ├── local-bridge.js     # Registers the Local provider with the app
+│   ├── local-ui.js         # Local tab behaviour
+│   ├── local-models-ui.js  # Downloaded models panel
+│   ├── hf-gguf-ui.js       # Hugging Face GGUF search and download dialog
 │   ├── state.js            # AppState (keys memory-only)
 │   ├── ui.js
 │   ├── profiles.js
 │   ├── utils.js
-│   └── providers/          # Adapters, availability gate, free routing
+│   └── providers/          # Adapters, availability gate, free routing, wllama engine, IndexedDB model list
 ├── dist/app.js             # Bundled output
 ├── sw.js                   # Service worker (bump CACHE_NAME on asset changes)
 ├── manifest.json
@@ -182,7 +195,7 @@ Still planned (not shipped):
 - Custom saved personas
 - Side-by-side model compare
 - Message search across history
-- Additional providers beyond OpenRouter / Hugging Face
+- Additional providers beyond OpenRouter / Hugging Face / Local
 - Learned model routing (rule-based free routing helpers exist today)
 - Optional SaaS / multi-tenant mode (future)
 

@@ -167,3 +167,42 @@ body {
     -webkit-overflow-scrolling: touch;
   }
 }
+
+/*
+ * Mobile action tray motion.
+ *
+ * The tray slides up and fades in when it opens and slides down and fades out when it closes.
+ * layout.css toggles display:none / display:flex with the .open class, which cannot animate on its
+ * own: the first transition line is the fallback for browsers without discrete transitions (the
+ * tray then fades and slides in but closes at once), and the second adds `display ... allow-discrete`
+ * plus @starting-style so supporting browsers also animate the close. Only the mobile layout is
+ * touched (desktop keeps display:contents). Users who ask for reduced motion get no animation.
+ */
+@media (max-width: 1100px) {
+  .action-tray {
+    opacity: 0;
+    transform: translateY(1.25rem);
+    transition: opacity 0.2s ease, transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
+    transition: opacity 0.2s ease, transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1), display 0.24s allow-discrete;
+  }
+
+  .action-tray.open {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  @starting-style {
+    .action-tray.open {
+      opacity: 0;
+      transform: translateY(1.25rem);
+    }
+  }
+}
+
+@media (max-width: 1100px) and (prefers-reduced-motion: reduce) {
+  .action-tray,
+  .action-tray.open {
+    transition: none;
+    transform: none;
+  }
+}
